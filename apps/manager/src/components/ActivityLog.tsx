@@ -196,7 +196,11 @@ export function DestructionReportView({ report }: { report: DestructionReport })
   const failedSteps = report.steps.filter((st) => !st.ok);
 
   return (
-    <div className="relative rounded-2xl bg-surface flex flex-col overflow-hidden" data-testid="destruction-report">
+    <div
+      className="relative rounded-2xl bg-surface flex flex-col overflow-hidden max-w-[860px] border border-line"
+      style={{ boxShadow: "inset 0 2px 0 0 var(--app-brand)" }}
+      data-testid="destruction-report"
+    >
       {/* subtle mortal seal */}
       <svg
         aria-hidden
@@ -204,7 +208,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
         width="76"
         height="76"
         viewBox="0 0 76 76"
-        style={{ opacity: 0.35 }}
+        style={{ opacity: 0.55 }}
       >
         <circle cx="38" cy="38" r="35" fill="none" stroke="var(--app-brand)" strokeWidth="1" />
         <circle cx="38" cy="38" r="28" fill="none" stroke="var(--app-brand)" strokeWidth="0.6" strokeDasharray="2 3" />
@@ -243,61 +247,81 @@ export function DestructionReportView({ report }: { report: DestructionReport })
             <CircleAlert size={24} strokeWidth={1.75} />
           )}
         </span>
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
-          <span className="text-[19px] font-medium leading-tight">
+        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+          <span
+            className="text-[12.5px] font-medium tracking-[0.14em] uppercase"
+            style={{ color: "var(--app-brand)" }}
+          >
+            destruction receipt
+          </span>
+          <span className="text-[21px] font-semibold leading-tight">
             {allOk ? "destruction complete" : "destruction incomplete"}
           </span>
-          <span className="text-[13.5px] text-sec leading-relaxed">
+          <span className="text-[15px] leading-relaxed">
             all managed local data for this identity was removed by the destruction contract
             {report.resumed && (
               <span style={{ color: "var(--app-warning)" }}> · resumed after interruption</span>
             )}
           </span>
           <span className="pt-0.5 flex items-baseline gap-3 flex-wrap">
-            <span className="font-mono text-[12.5px]" style={{ color: "var(--app-brand)" }}>{receiptId}</span>
+            <span className="font-mono text-[13px] font-medium" style={{ color: "var(--app-brand)" }}>
+              {receiptId}
+            </span>
             {report.completedAt !== null && (
-              <span className="font-mono text-[12px] text-mute">
+              <span className="font-mono text-[12.5px] text-sec">
                 completed {new Date(report.completedAt).toLocaleString()}
                 {duration !== null ? ` · ${(duration / 1000).toFixed(1)}s total` : ""}
               </span>
             )}
           </span>
-          <span className="text-[13.5px] text-sec pt-1 leading-relaxed max-w-xl">
+          <span className="text-[14px] text-sec pt-1 leading-relaxed max-w-xl">
             the browser was closed, the profile and managed files were deleted, and local memory
             was erased. what remains is this receipt and a tombstone entry.
           </span>
         </div>
       </div>
 
-      {/* outcome summary card */}
-      <div className="mx-7 mb-6 rounded-xl bg-elevated px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-        {summary.map(([label, ok]) => (
-          <span key={label} className="flex items-center gap-2.5 text-[13.5px]">
-            {ok ? (
-              <CircleCheck size={15} strokeWidth={1.75} aria-hidden style={{ color: "var(--app-active)" }} />
-            ) : (
-              <X size={15} strokeWidth={1.75} aria-hidden style={{ color: "var(--app-danger)" }} />
-            )}
-            <span className={ok ? "text-ink" : "text-danger"}>{label}</span>
-          </span>
-        ))}
+      {/* verified outcomes: elevated inset surface */}
+      <div className="mx-7 mb-5 rounded-xl bg-elevated border border-line-strong px-6 py-5 flex flex-col gap-3">
+        <span className="text-[17px] font-semibold">verified outcomes</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-2.5">
+          {summary.map(([label, ok]) => (
+            <span key={label} className="flex items-center gap-2.5 text-[15px]">
+              {ok ? (
+                <CircleCheck size={17} strokeWidth={1.9} aria-hidden style={{ color: "var(--app-active)" }} />
+              ) : (
+                <X size={17} strokeWidth={1.9} aria-hidden style={{ color: "var(--app-danger)" }} />
+              )}
+              <span className={ok ? "text-ink font-medium" : "text-danger font-medium"}>{label}</span>
+            </span>
+          ))}
+        </div>
       </div>
 
-      {(rows !== null || paths !== null || report.resumed || failedSteps.length > 0) && (
-        <div className="px-7 pb-5 flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[13px] text-sec">
-          {paths !== null && <span><span className="font-mono text-ink">{paths[1]}</span> paths removed</span>}
-          {rows !== null && (
-            <>
-              <span><span className="font-mono text-ink">{rows[1]}</span> notes</span>
-              <span><span className="font-mono text-ink">{rows[2]}</span> ai messages</span>
-              <span><span className="font-mono text-ink">{rows[3]}</span> bookmarks</span>
-            </>
-          )}
-          {report.resumed && (
-            <span style={{ color: "var(--app-warning)" }}>resumed after interruption</span>
-          )}
+      {(rows !== null || paths !== null || failedSteps.length > 0) && (
+        <div className="px-7 pb-6 flex flex-wrap gap-3">
+          {(
+            [
+              ...(paths !== null ? [[paths[1], "paths removed"]] : []),
+              ...(rows !== null
+                ? [
+                    [rows[1], "notes deleted"],
+                    [rows[2], "ai messages deleted"],
+                    [rows[3], "bookmarks deleted"],
+                  ]
+                : []),
+            ] as Array<[string, string]>
+          ).map(([n, label]) => (
+            <div key={label} className="rounded-lg bg-elevated px-4 py-2.5 flex flex-col min-w-[7.5rem]">
+              <span className="text-[18px] font-semibold leading-tight">{n}</span>
+              <span className="text-[12.5px] text-sec">{label}</span>
+            </div>
+          ))}
           {failedSteps.length > 0 && (
-            <span className="text-danger">{failedSteps.length} step(s) failed</span>
+            <div className="rounded-lg bg-elevated px-4 py-2.5 flex flex-col min-w-[7.5rem]">
+              <span className="text-[18px] font-semibold leading-tight text-danger">{failedSteps.length}</span>
+              <span className="text-[12.5px] text-danger">steps failed</span>
+            </div>
           )}
         </div>
       )}
@@ -333,7 +357,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
                   <span className="text-[14.5px] font-medium">{meta.name}</span>
                   {!step.ok && <span className="text-[12.5px] text-danger">failed</span>}
                 </div>
-                <span className="text-[13px] text-sec pl-[34px] leading-relaxed">{meta.means}</span>
+                <span className="text-[14px] text-sec pl-[34px] leading-relaxed">{meta.means}</span>
                 {step.detail !== undefined && step.detail !== null && (
                   <details className="pl-[34px]">
                     <summary className="cursor-pointer text-[12px] text-mute hover:text-sec select-none">
@@ -351,15 +375,25 @@ export function DestructionReportView({ report }: { report: DestructionReport })
       </ol>
       </details>
 
-      {/* caveats: plainly visible, cleanly presented */}
-      <div className="px-7 py-6 bg-elevated/60 flex flex-col gap-2.5">
-        <span className="text-[13.5px] font-medium">what destroyed cannot remove</span>
-        {report.caveats.map((caveat) => (
-          <span key={caveat} className="text-[13px] text-sec flex gap-2.5 leading-relaxed" data-testid="caveat">
-            <span aria-hidden className="text-mute shrink-0">·</span>
-            {caveat}
-          </span>
-        ))}
+      {/* one honest caveat stays visible; the full list lives in the disclosure */}
+      <div className="px-7 py-5 bg-elevated/50 flex flex-col gap-2">
+        <span className="text-[14px] text-sec leading-relaxed">
+          destroyed means removed from this machine — not from servers this identity was logged
+          into.
+        </span>
+        <details>
+          <summary className="cursor-pointer select-none text-[14px] font-medium hover:text-ink text-sec">
+            limits of this receipt
+          </summary>
+          <div className="flex flex-col gap-2 pt-2.5">
+            {report.caveats.map((caveat) => (
+              <span key={caveat} className="text-[14px] text-sec flex gap-2.5 leading-relaxed" data-testid="caveat">
+                <span aria-hidden className="text-mute shrink-0">·</span>
+                {caveat}
+              </span>
+            ))}
+          </div>
+        </details>
       </div>
 
       {/* receipt actions */}

@@ -475,7 +475,7 @@ export function IdentityWorkspace({
         {/* header */}
         <header className="flex flex-col gap-2.5">
           <div className="flex items-center gap-4">
-            <h1 className="text-[28px] font-semibold leading-tight truncate tracking-[-0.01em]">{summary.name}</h1>
+            <h1 className="text-[25px] font-semibold leading-tight truncate tracking-[-0.01em]">{summary.name}</h1>
             <div className="ml-auto flex items-center gap-2.5 shrink-0">
               {!destroyed && (
                 <>
