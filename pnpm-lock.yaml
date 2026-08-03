@@ -123,6 +123,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@mortal/blueprints':
+        specifier: workspace:*
+        version: link:../../packages/blueprints-first-party
       '@mortal/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -135,6 +138,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.8(react@19.2.8)
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.0
@@ -154,6 +160,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(tsx@4.23.5)
 
   packages/blueprints-first-party:
     dependencies:
