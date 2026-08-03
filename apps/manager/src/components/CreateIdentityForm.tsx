@@ -52,11 +52,11 @@ export function CreateIdentityForm({ onCreate }: CreateIdentityFormProps) {
   }
 
   return (
-    <div className="border border-line bg-panel p-4 flex flex-col gap-3">
-      <span className="text-mute text-[11px] tracking-widest uppercase">new identity</span>
+    <div className="border border-line bg-panel p-5 flex flex-col gap-3.5">
+      <span className="text-mute text-[11px] tracking-[0.18em] uppercase">new identity</span>
       <input
         aria-label="identity name"
-        className="bg-panel-2 border border-line px-3 py-2 outline-none focus:border-mute"
+        className="bg-panel-2 border border-line px-3.5 py-2.5 text-[13.5px] outline-none focus:border-line-strong"
         placeholder="name"
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -74,14 +74,14 @@ export function CreateIdentityForm({ onCreate }: CreateIdentityFormProps) {
       </div>
       <input
         aria-label="lifetime"
-        className="bg-panel-2 border border-line px-3 py-2 outline-none focus:border-mute"
+        className="bg-panel-2 border border-line px-3.5 py-2.5 font-mono text-[13px] outline-none focus:border-line-strong"
         value={lifetime}
         onChange={(e) => setLifetime(e.target.value)}
         placeholder='persistent or "30m" "12h" "7d"'
       />
-      {error !== null && <div className="text-[11px] text-[#FF6B6B]">{error}</div>}
+      {error !== null && <div className="text-[12.5px] text-danger">{error}</div>}
       <button
-        className="border border-line px-3 py-2 hover:bg-panel-2 disabled:opacity-50"
+        className="bg-accent/10 border border-accent/40 text-accent px-3.5 py-2.5 text-[13px] font-medium hover:bg-accent/15 disabled:opacity-50 transition-colors"
         disabled={busy}
         onClick={() => void submit()}
       >

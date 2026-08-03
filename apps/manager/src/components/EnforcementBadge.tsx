@@ -12,7 +12,7 @@ export function EnforcementBadge({ enforcement }: { enforcement: Enforcement }) 
     <span
       data-testid="enforcement-badge"
       data-enforcement={enforcement}
-      className={`text-[10px] px-2 py-0.5 whitespace-nowrap ${VARIANT[enforcement]}`}
+      className={`font-mono text-[11px] px-2 py-0.5 whitespace-nowrap rounded-sm ${VARIANT[enforcement]}`}
     >
       {enforcement}
     </span>

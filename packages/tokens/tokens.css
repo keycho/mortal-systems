@@ -6,7 +6,7 @@
  * consuming stylesheet, not here.
  */
 :root {
-  /* canvas */
+  /* canvas (marketing site: near-black, high drama) */
   --bg: #0a0a0b;
   --card: #101013;
   --card-2: #16161a;
@@ -14,6 +14,19 @@
   --line-strong: #2a2f36;
   --ink: #e6e7e9;
   --mute: #8a8f98;
+
+  /* application surfaces (manager: layered charcoal, daily-driver contrast).
+     four elevations so navigation, content, raised panels and hover states
+     separate without borders doing all the work. */
+  --surface-0: #121316;
+  --surface-1: #17191d;
+  --surface-2: #1d2025;
+  --surface-3: #23272d;
+  --line-1: #262b31;
+  --line-2: #323841;
+  --ink-app: #eceef1;
+  --mute-app: #9aa1ab;
+  --faint-app: #6b727c;
 
   /* restrained accent — the persistent amber doubles as the brand accent */
   --accent: #f59e0b;

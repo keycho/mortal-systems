@@ -3,18 +3,21 @@
 
 /**
  * manager theme: every value comes from @mortal/tokens (shared with the site).
- * app-specific aliases only — no raw colors below this line.
+ * the manager maps the application-surface tokens (layered charcoal), not the
+ * marketing canvas. app-specific aliases only — no raw colors below this line.
  * type rule: sans for ui text, mono strictly for machine values
- * (ids, countdowns, durations, hashes, json, paths).
+ * (ids, countdowns, durations, hashes, json, paths, timestamps).
  */
 @theme {
-  --color-void: var(--bg);
-  --color-panel: var(--card);
-  --color-panel-2: var(--card-2);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
-  --color-ink: var(--ink);
-  --color-mute: var(--mute);
+  --color-void: var(--surface-0);
+  --color-panel: var(--surface-1);
+  --color-panel-2: var(--surface-2);
+  --color-panel-3: var(--surface-3);
+  --color-line: var(--line-1);
+  --color-line-strong: var(--line-2);
+  --color-ink: var(--ink-app);
+  --color-mute: var(--mute-app);
+  --color-faint: var(--faint-app);
   --color-accent: var(--accent);
   --color-danger: var(--danger);
   --color-warn: var(--warn);
@@ -34,13 +37,20 @@ body,
 }
 
 body {
-  background: var(--bg);
-  color: var(--ink);
+  background: var(--surface-0);
+  color: var(--ink-app);
   font-family: var(--type-sans);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--line-strong);
+  background: var(--line-2);
+}
+
+/* quiet scrollbars that still read on charcoal */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
 }

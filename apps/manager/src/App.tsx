@@ -18,14 +18,18 @@ import {
   SettingsView,
 } from "./views/PlaceholderViews.js";
 
+type RecentEvent = ActivityEvent & { identityName: string };
+
 export default function App() {
   const [view, setView] = useState<View>("overview");
   const [identities, setIdentities] = useState<IdentitySummary[]>([]);
   const [blueprints, setBlueprints] = useState<BlueprintSummary[]>([]);
   const [status, setStatus] = useState<RuntimeStatus | null>(null);
+  const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkspaceData | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -38,6 +42,22 @@ export default function App() {
       setStatus(st);
       setBlueprints(bps);
       setError(null);
+
+      // merged recent feed for the dashboard: real activity.read data,
+      // bounded to the 8 most recently touched identities
+      const feedOf = list.slice(0, 8);
+      const feeds = await Promise.all(
+        feedOf.map(async (summary) => {
+          const events = await rpc("activity.read", { identityId: summary.id, limit: 6 });
+          return events.map((e) => ({ ...e, identityName: summary.name }));
+        })
+      );
+      setRecentEvents(
+        feeds
+          .flat()
+          .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+          .slice(0, 20)
+      );
     } catch (err) {
       setStatus(null);
       setError(err instanceof Error ? err.message : String(err));
@@ -50,11 +70,7 @@ export default function App() {
         rpc("identity.get", { id }),
         rpc("activity.read", { identityId: id, limit: 200 }),
       ]);
-      setDetail({
-        summary: identity.summary,
-        manifest: identity.manifest,
-        events: events as ActivityEvent[],
-      });
+      setDetail({ summary: identity.summary, manifest: identity.manifest, events });
     } catch {
       setDetail(null);
     }
@@ -93,6 +109,12 @@ export default function App() {
     setSelectedId(id);
   }
 
+  function newIdentity() {
+    setView("identities");
+    setSelectedId(null);
+    setCreating(true);
+  }
+
   const identityHandlers = {
     onLaunch: (id: string) => void act(() => rpc("identity.launch", { id })),
     onSuspend: (id: string) => void act(() => rpc("identity.suspend", { id })),
@@ -104,20 +126,30 @@ export default function App() {
       <Sidebar
         view={view}
         status={status}
+        identities={identities}
+        onNewIdentity={newIdentity}
         onNavigate={(v) => {
           setView(v);
           setSelectedId(null);
+          setCreating(false);
         }}
       />
-      <main className="flex-1 overflow-auto p-6">
+      <main className="flex-1 overflow-auto px-8 py-7">
         {error !== null && (
-          <div className="mb-4 border border-danger/40 bg-panel-2 text-danger px-3 py-2 text-[11px]">
+          <div className="mb-5 border border-danger/40 bg-panel text-danger px-4 py-2.5 text-[12.5px]">
             {error}
           </div>
         )}
 
         {view === "overview" && (
-          <OverviewView identities={identities} status={status} onOpenIdentity={openIdentity} />
+          <OverviewView
+            identities={identities}
+            status={status}
+            recentEvents={recentEvents}
+            onOpenIdentity={openIdentity}
+            onNewIdentity={newIdentity}
+            onGoBlueprints={() => setView("blueprints")}
+          />
         )}
 
         {view === "identities" &&
@@ -135,6 +167,8 @@ export default function App() {
           ) : (
             <IdentitiesView
               identities={identities}
+              creating={creating}
+              onCreatingChange={setCreating}
               onOpen={(id) => setSelectedId(id)}
               onCreate={(manifest: IdentityManifest) =>
                 act(() => rpc("identity.create", { manifest }))

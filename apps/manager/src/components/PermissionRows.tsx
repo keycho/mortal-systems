@@ -15,16 +15,24 @@ export function PermissionRow({
   enforcement: "enforced" | "advisory" | "roadmap";
   extra?: string;
 }) {
+  const description = descriptions.get(field);
   return (
-    <div className="flex flex-col gap-0.5" title={descriptions.get(field) ?? ""}>
-      <div className="flex items-baseline gap-2" data-testid={`perm-${field}`}>
-        <span className="text-mute">
+    <div className="flex flex-col gap-1 border border-line bg-panel px-4 py-3">
+      <div className="flex items-baseline gap-3" data-testid={`perm-${field}`}>
+        <span className="text-[13.5px] font-medium">
           {field.replace(/^permissions\./, "").replace(/^privacy\./, "")}
         </span>
-        <span className="ml-auto font-mono">{value}</span>
+        <span className="ml-auto font-mono text-[13px]">{value}</span>
         <EnforcementBadge enforcement={enforcement} />
       </div>
-      {extra !== undefined && <div className="text-[10px] text-mute">{extra}</div>}
+      {description !== undefined && (
+        <span className="text-[12.5px] text-mute leading-relaxed">{description}</span>
+      )}
+      {extra !== undefined && (
+        <span className="text-[12px]" style={{ color: "var(--warn)" }}>
+          {extra}
+        </span>
+      )}
     </div>
   );
 }
@@ -32,9 +40,9 @@ export function PermissionRow({
 /** the manifest's permission + privacy sections, badges straight from manifest values */
 export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
   return (
-    <div className="flex flex-col gap-4 text-[12px]">
-      <section className="flex flex-col gap-1.5">
-        <h3 className="text-[10px] tracking-widest uppercase text-mute">permissions</h3>
+    <div className="flex flex-col gap-6 max-w-3xl">
+      <section className="flex flex-col gap-2.5">
+        <h3 className="text-[11px] tracking-[0.18em] uppercase text-mute">permissions</h3>
         <PermissionRow
           field="permissions.filesystem"
           value={manifest.permissions.filesystem.value}
@@ -67,8 +75,8 @@ export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
         />
       </section>
 
-      <section className="flex flex-col gap-1.5">
-        <h3 className="text-[10px] tracking-widest uppercase text-mute">privacy</h3>
+      <section className="flex flex-col gap-2.5">
+        <h3 className="text-[11px] tracking-[0.18em] uppercase text-mute">privacy</h3>
         <PermissionRow
           field="privacy.retainHistory"
           value={String(manifest.privacy.retainHistory.value)}
@@ -80,6 +88,11 @@ export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
           enforcement={manifest.privacy.redaction.enforcement}
         />
       </section>
+
+      <p className="text-[12px] text-faint">
+        solid badge = enforced by a passing test · outlined = advisory · dashed = roadmap. we do
+        not sell controls that do not exist.
+      </p>
     </div>
   );
 }
@@ -89,7 +102,7 @@ export const TOMBSTONE_MESSAGE =
 
 export function Tombstone() {
   return (
-    <div className="text-mute text-[11px]" data-testid="tombstone">
+    <div className="text-mute text-[13px] border border-dashed border-line px-4 py-3 max-w-lg" data-testid="tombstone">
       {TOMBSTONE_MESSAGE}
     </div>
   );
