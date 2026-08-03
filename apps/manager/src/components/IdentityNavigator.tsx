@@ -73,7 +73,7 @@ function NavIdentity({
       onClick={() => onSelect(summary.id)}
     >
       <span className="flex flex-col min-w-0 flex-1">
-        <span className="text-[14px] truncate leading-snug">{summary.name}</span>
+        <span className="text-[14px] font-medium truncate leading-snug">{summary.name}</span>
         <span className="flex items-center gap-1.5 leading-snug text-[12.5px] text-mute">
           <span>{STATE_LABEL[summary.state]}</span>
           {summary.state === "running" && (

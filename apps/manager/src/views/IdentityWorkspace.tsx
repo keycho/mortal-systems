@@ -471,12 +471,52 @@ export function IdentityWorkspace({
 
   return (
     <div className="flex-1 min-w-0 overflow-auto">
-      <div className="max-w-[960px] mx-auto px-10 py-10 flex flex-col gap-7">
-        {/* header */}
-        <header className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-4">
-            <h1 className="text-[25px] font-semibold leading-tight truncate tracking-[-0.01em]">{summary.name}</h1>
-            <div className="ml-auto flex items-center gap-2.5 shrink-0">
+      <div className="max-w-[924px] mx-auto px-8 py-10 flex flex-col gap-6">
+        {/* header: [glyph] title + metadata as one unit */}
+        <header className="flex flex-col gap-2.5 max-w-[860px] mb-1">
+          <div className="flex items-start gap-4">
+            <span
+              aria-hidden
+              className="w-[30px] h-[30px] rounded-[9px] bg-elevated flex items-center justify-center shrink-0 mt-[5px]"
+            >
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: summary.color }} />
+            </span>
+            <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+              <h1
+                className="truncate"
+                style={{
+                  fontFamily: '"Geist Sans", sans-serif',
+                  fontSize: "28px",
+                  fontWeight: 600,
+                  lineHeight: 1.12,
+                  letterSpacing: "-0.025em",
+                  color: "#f7f7f7",
+                }}
+              >
+                {summary.name}
+              </h1>
+              <div className="flex items-center gap-4 text-[13px] flex-wrap">
+                <span className="font-medium text-ink">{STATE_LABEL[summary.state]}</span>
+                <span style={{ color: "#aaa" }}>browser {browserStatusLine(summary.state)}</span>
+                {remaining !== null && (
+                  <span
+                    className="font-medium tabular-nums"
+                    style={{ color: "var(--app-brand)" }}
+                  >
+                    {remaining} until {summary.onExpiry}
+                  </span>
+                )}
+                <span className="font-mono text-[12.5px] text-mute" title={summary.id}>
+                  {shortId(summary.id)}
+                </span>
+              </div>
+              {blueprint !== null && (
+                <p className="text-[14px] leading-relaxed max-w-2xl" style={{ color: "#aaa" }}>
+                  {blueprint.description}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0 pt-1">
               {!destroyed && (
                 <>
                   <Button
@@ -514,38 +554,18 @@ export function IdentityWorkspace({
               )}
             </div>
           </div>
-          {blueprint !== null && (
-            <p className="text-[15px] text-sec leading-relaxed max-w-2xl">{blueprint.description}</p>
-          )}
-          <div className="flex items-center gap-2.5 text-[14px] text-sec flex-wrap">
-            <span className="text-ink">{STATE_LABEL[summary.state]}</span>
-            <span aria-hidden className="text-mute">·</span>
-            <span>browser {browserStatusLine(summary.state)}</span>
-            {remaining !== null && (
-              <>
-                <span aria-hidden className="text-mute">·</span>
-                <span className="font-mono tabular-nums font-medium" style={{ color: "var(--app-brand)" }}>
-                  {remaining} until {summary.onExpiry}
-                </span>
-              </>
-            )}
-            <span aria-hidden className="text-mute">·</span>
-            <span className="font-mono text-[12.5px] text-mute" title={summary.id}>
-              {shortId(summary.id)}
-            </span>
-          </div>
         </header>
 
         {/* quiet tabs */}
-        <div role="tablist" aria-label="identity workspace" className="flex gap-1.5 flex-wrap -mx-1 border-b border-line pb-px">
+        <div role="tablist" aria-label="identity workspace" className="flex gap-3 flex-wrap -mx-1 border-b border-line pb-px max-w-[860px]">
           {TABS.map((t) => (
             <button
               key={t}
               role="tab"
               aria-selected={tab === t}
-              className={`relative px-4 h-10 rounded-t-lg text-[14.5px] outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+              className={`relative px-4 h-10 rounded-t-lg text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
                 tab === t
-                  ? "text-ink font-medium"
+                  ? "text-[#f7f7f7]"
                   : "text-sec hover:text-ink hover:bg-surface"
               }`}
               onClick={() => setTab(t)}
