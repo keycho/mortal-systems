@@ -46,3 +46,33 @@ format: date · decision · reason · alternatives rejected.
 - **decision:** the manager app uses react 18 as the spec pins; `apps/web` (day 7 scope, not yet built) will use next.js 15 with its default react 19.
 - **reason:** the spec pins react 18 for the manager only. pnpm workspaces isolate the two react majors cleanly.
 - **alternatives rejected:** forcing one react version across both apps (no benefit, fights framework defaults).
+
+## 2026-08-03 · migration 0001 follows the poc prompt's schema block, plus indexes
+
+- **decision:** migration 0001 implements the poc prompt's sql verbatim, adding only `idx_identities_state` (present in the foundation document's richer variant) and per-child-table identity indexes. the foundation's foreign-key references and encrypted-blob columns were not adopted.
+- **reason:** the poc prompt declares itself self-contained and authoritative; where the two documents differ, it governs. the extra indexes change no semantics. at-rest encryption is separately deferred (earlier entry).
+- **alternatives rejected:** foundation-variant schema with fks (deviates from the governing spec; d5 deletes children explicitly so cascade semantics add nothing in the poc).
+
+## 2026-08-03 · companion origin policy: pin when an Origin header exists, allow token-only otherwise
+
+- **decision:** /v1/self requests carrying an `Origin` header must present exactly the identity's stamped companion origin, computed as chromium's unpacked-extension id (sha256 of the instance realpath, a-p alphabet) — verified against a real chromium in the day-3 smoke test. requests without an `Origin` header are allowed with a valid token.
+- **reason:** the attack this defends is a malicious web page probing 127.0.0.1 — browsers always attach an Origin to those requests, so they are refused even with a stolen token. processes on the machine that can omit Origin are already inside the local trust boundary (they can read the stamped config from disk). pinning per identity also refuses one companion instance replaying against another identity's token.
+- **alternatives rejected:** requiring Origin on every request (breaks curl/tests/local tools for no security gain), tofu-binding the first seen origin (weaker than computing it).
+
+## 2026-08-03 · companion bundle carries no workspace dependencies
+
+- **decision:** the companion duplicates the 12-line countdown formatter instead of importing @liminal/schema; a unit test pins both implementations to identical vectors.
+- **reason:** the stamped template ships into every identity's browser; keeping it dependency-free keeps the surface auditable and the build trivial. zod and the schema package have no business inside an extension bundle.
+- **alternatives rejected:** bundling @liminal/schema into the extension (drags zod into a mv3 worker for one function).
+
+## 2026-08-03 · side panel consumes sse via fetch streaming, not EventSource
+
+- **decision:** the side panel reads /v1/self/events with fetch + manual sse parsing.
+- **reason:** EventSource cannot send an Authorization header; the alternative (token in the query string) would put bearer tokens into urls and logs.
+- **alternatives rejected:** query-string tokens (leak surface), websockets (heavier than needed for one-way events).
+
+## 2026-08-03 · user directive: hard day gates, stop after day 4
+
+- **decision:** work proceeds strictly day by day with a full-suite test gate between days; days 5 (blueprint pipeline, scheduler) and 6 (isolation suite g1-g17 in-browser) are deliberately not started; the build stops at the end of day 4 for founder review.
+- **reason:** explicit user instruction during the build. the journaled deletion contract itself was implemented inside day 1 (earlier entry, before this directive narrowed scope) as the day-1 "destroy" step and is unit-tested; its scheduler-driven paths and the browser-level g-suite remain untouched day-5/6 scope.
+- **alternatives rejected:** none; scope directives are not negotiable.

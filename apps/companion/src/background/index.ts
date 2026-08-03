@@ -1,4 +1,4 @@
-import { apiFetch, loadConfig, type StampedConfig } from "../lib/config.js";
+import { apiFetch, loadConfig } from "../lib/config.js";
 import { badgeText } from "../lib/badge.js";
 
 /**

@@ -66,3 +66,50 @@ day-3 specifics inside the runtime suite:
 ```
 
 caveat, stated honestly: G18 here is the runtime-level token-scoping test; the full in-browser companion-to-companion variant belongs to the day-6 isolation suite (waiting on user go-ahead). visual badge/side-panel rendering not asserted headlessly. proceeding to day 4.
+- 2026-08-03 day4/step1: companion panels — notes editor (crud against /v1/self), ai panel (scoped instructions, local chat log, byok key held in runtime memory, direct provider call from panel with graceful no-key degradation), permissions panel with solid/outlined/dashed badges + wallet declaration disclaimer; pure renderers unit-tested (BADGE-1 companion half)
+- 2026-08-03 day4/step2: manager — manifest view (permissions/privacy with enforcement badges, lifecycle, ai instructions, blueprint ref with unsigned marker, raw json toggle), activity log with full destruction-report rendering (steps table, caveats, resumed flag), detail drawer wired to cards; EnforcementBadge solid/outlined/dashed tested (BADGE-1 manager half)
+- 2026-08-03 day4/step3: guarantees gate script added — fails by design until tests/guarantees.map.ts exists (day 6); lint clean; typecheck green across 7 packages
+
+## day-4 gate — PASS (2026-08-03)
+
+```
+@liminal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
+@liminal/runtime:test:  Test Files  6 passed (6)   Tests  47 passed (47)
+companion:test:         Test Files  2 passed (2)   Tests   6 passed (6)
+manager:test:           Test Files  2 passed (2)   Tests   9 passed (9)
+Tasks: 6 successful, 6 total          (103 tests)
+
+pnpm lint:        clean
+pnpm typecheck:   Tasks: 7 successful, 7 total
+check:guarantees: FAIL BY DESIGN — tests/guarantees.map.ts is day-6 scope; 6 enforced fields currently unmapped
+```
+
+---
+
+# final status report — stopped at end of day 4 as instructed (2026-08-03)
+
+## what works, each behind a passing automated test
+- @liminal/schema: canonical zod manifest with per-field enforcement ceilings (an over-claiming manifest is unrepresentable), lifetime grammar (30s..365d + persistent), blueprint schema where banned content (cookies/sessions/passwords/keys/seeds/accounts) is schema-impossible, url hygiene (http(s) only, no creds, punycode surfaced), typed rpc contract. 41 tests.
+- runtime store: better-sqlite3 wal + fk, migration 0001 per spec (forward-only, transactional, chain-gap detection), tombstone-stable space numbers. 
+- identity lifecycle: create/list/get over loopback rpc with bearer admin auth; state machine enforcing legal transitions; activity log append-only, surviving destruction.
+- deletion contract D0-D7: journaled, ordered, aborts at first failure, idempotent, crash-resumable (simulated crash between D2 and D3 resumes to completion); tombstone + finalized destruction report with fixed caveats. implemented early (day-1 window) per DECISIONS.md; unit-tested, including failure-retention and resume.
+- chromium launcher (day 2): discovery (env override, chrome/chromium/brave, per-os paths, branded-chrome r3 warning), provisioning (partition dirs, preferences seed for downloads dir + profile name + bookmark bar, bookmarks file), launch with per-identity --user-data-dir, DevToolsActivePort -> cdpEndpoint, process-tree supervision, suspend/resume, retainHistory scrub, real D2 halt. verified against real chromium 141 headless: two identities simultaneously, distinct live cdp endpoints, destroy-while-running with non-contagion.
+- companion + tokens (day 3): mv3 template (badge, corner content badge + title suffix, side panel with live sse countdown + expire confirm), per-identity stamping with hmac-derived tokens (config rewritten each launch for the rotating port), /v1/self surface (self/notes/ai/permissions/expire/events), per-token rate limit, origin pinned to the runtime-computed unpacked extension id — the sha256-path algorithm was verified against what chromium actually assigned. runtime-level G18 shape green: token A against B's resources fails everywhere; destroyed identities' tokens stop resolving.
+- day 4: companion notes/ai/permissions panels (byok key in runtime memory only, verified never persisted), manager manifest view + activity log with destruction-report rendering, enforcement badges solid/outlined/dashed tested in both uis (BADGE-1 both halves).
+
+103 automated tests green at the day-4 gate; every day gate output is pasted above; every step committed and pushed to claude/new-session-lz1cvn.
+
+## what is partial or unverified, honestly
+- src-tauri shell: scaffolded (Cargo.toml, tauri.conf.json, runtime_call broker, sidecar spawn) but NEVER COMPILED — this container lacks webkit2gtk and the poc targets macos. treat all rust code as unreviewed-by-a-compiler.
+- macos and windows: all launcher paths written per spec but only linux was executed. windowed (non-headless) behavior — window title suffix, theme color, visible badges/panels — is implemented but visually unverified here.
+- countdown/expiry: countdowns and warnings are live (sse), and expiry RUNS ONLY when triggered manually (identity.expire rpc or the side panel's close-early). the scheduler that fires expiry automatically at the deadline — plus startup catch-up (expired_late) and the 60s grace path — is day-5 scope and NOT BUILT. nothing currently auto-destroys at zero; the ui does not pretend otherwise (it shows remaining time, not a promise).
+- ai chat: provider call implemented (byok, direct from panel) but not exercised against the live api (no key in this environment).
+
+## not built (waiting on your go-ahead, per your instruction)
+- day 5: blueprint pipeline (validate/install/preview/export), the 3 first-party blueprints, lifecycle scheduler (tick, catch-up, grace).
+- day 6: browser-level isolation suite G1-G17 + lifecycle suite G10-G14, self-hosted login fixture server, tests/guarantees.map.ts (the check:guarantees gate fails by design until then).
+- day 7: apps/web (landing + guarantees page + vercel config), guarantees.md / deletion-contract.md / threat-model.md / manual-checks.md, acceptance-criteria run.
+- manual checks R1 (google sign-in) and R2 (metamask): impossible in this headless container; recorded as NOT RUN.
+
+## the honest one-liner
+days 1-4 of the poc are built, gated, and green (103 tests, real chromium for launch/isolation-surface/companion smoke); automatic scheduled expiry, blueprints, the full G-suite, and the public site are deliberately untouched and wait for founder go-ahead on days 5-7.

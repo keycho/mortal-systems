@@ -21,12 +21,13 @@ export interface SpaceCardProps {
   summary: IdentitySummary;
   /** injectable clock for deterministic tests */
   now?: number;
+  onOpen?: (id: string) => void;
   onLaunch?: (id: string) => void;
   onSuspend?: (id: string) => void;
   onDestroy?: (id: string) => void;
 }
 
-export function SpaceCard({ summary, now, onLaunch, onSuspend, onDestroy }: SpaceCardProps) {
+export function SpaceCard({ summary, now, onOpen, onLaunch, onSuspend, onDestroy }: SpaceCardProps) {
   const t = now ?? Date.now();
   const destroyed = summary.state === "destroyed";
   const remaining =
@@ -58,7 +59,13 @@ export function SpaceCard({ summary, now, onLaunch, onSuspend, onDestroy }: Spac
         </span>
       </div>
 
-      <div className="text-[15px] leading-tight">{summary.name}</div>
+      <button
+        className="text-[15px] leading-tight text-left hover:underline decoration-line underline-offset-4"
+        onClick={() => onOpen?.(summary.id)}
+        title="open manifest and activity"
+      >
+        {summary.name}
+      </button>
 
       <div className="flex items-baseline justify-between text-[11px] text-mute">
         <span>{summary.lifetime === "persistent" ? "persistent" : summary.lifetime}</span>

@@ -50,6 +50,9 @@ importers:
       esbuild:
         specifier: ^0.25.0
         version: 0.25.12
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
