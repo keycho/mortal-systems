@@ -1,0 +1,24 @@
+# liminal manager — tauri 2 shell.
+#
+# STATUS (poc): scaffolded but NOT compiled in the linux build container
+# (webkit2gtk system dependencies are absent there). target platform for the
+# poc is macos. see docs/PROGRESS.md and docs/DECISIONS.md.
+
+[package]
+name = "liminal-manager"
+version = "0.1.0"
+description = "liminal manager — desktop interface for the liminal runtime"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[lib]
+name = "liminal_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
