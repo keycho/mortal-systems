@@ -7,27 +7,25 @@ import type {
   RuntimeStatus,
 } from "@mortal/schema";
 import { rpc, RpcClientError } from "./lib/client.js";
-import { SpaceCard } from "./components/SpaceCard.js";
-import { CreateIdentityForm } from "./components/CreateIdentityForm.js";
-import { StatusBar } from "./components/StatusBar.js";
-import { ManifestView } from "./components/ManifestView.js";
-import { ActivityLog } from "./components/ActivityLog.js";
-import { BlueprintsPanel } from "./components/BlueprintsPanel.js";
-
-interface Detail {
-  summary: IdentitySummary;
-  manifest: IdentityManifest | null;
-  events: ActivityEvent[];
-}
+import { Sidebar, type View } from "./components/Sidebar.js";
+import { OverviewView } from "./views/OverviewView.js";
+import { IdentitiesView } from "./views/IdentitiesView.js";
+import { IdentityWorkspace, type WorkspaceData } from "./views/IdentityWorkspace.js";
+import {
+  ActivityView,
+  BlueprintsView,
+  GuaranteesView,
+  SettingsView,
+} from "./views/PlaceholderViews.js";
 
 export default function App() {
+  const [view, setView] = useState<View>("overview");
   const [identities, setIdentities] = useState<IdentitySummary[]>([]);
   const [blueprints, setBlueprints] = useState<BlueprintSummary[]>([]);
   const [status, setStatus] = useState<RuntimeStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDestroy, setConfirmDestroy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<Detail | null>(null);
+  const [detail, setDetail] = useState<WorkspaceData | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -52,7 +50,11 @@ export default function App() {
         rpc("identity.get", { id }),
         rpc("activity.read", { identityId: id, limit: 200 }),
       ]);
-      setDetail({ summary: identity.summary, manifest: identity.manifest, events });
+      setDetail({
+        summary: identity.summary,
+        manifest: identity.manifest,
+        events: events as ActivityEvent[],
+      });
     } catch {
       setDetail(null);
     }
@@ -72,106 +74,97 @@ export default function App() {
     else setDetail(null);
   }, [selectedId, refreshDetail]);
 
-  async function act(fn: () => Promise<unknown>) {
-    try {
-      await fn();
-      await refresh();
-      if (selectedId !== null) await refreshDetail(selectedId);
-    } catch (err) {
-      if (err instanceof RpcClientError) setError(`${err.code}: ${err.message}`);
-      else setError(err instanceof Error ? err.message : String(err));
-    }
+  const act = useCallback(
+    async (fn: () => Promise<unknown>) => {
+      try {
+        await fn();
+        await refresh();
+        if (selectedId !== null) await refreshDetail(selectedId);
+      } catch (err) {
+        if (err instanceof RpcClientError) setError(`${err.code}: ${err.message}`);
+        else setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [refresh, refreshDetail, selectedId]
+  );
+
+  function openIdentity(id: string) {
+    setView("identities");
+    setSelectedId(id);
   }
 
+  const identityHandlers = {
+    onLaunch: (id: string) => void act(() => rpc("identity.launch", { id })),
+    onSuspend: (id: string) => void act(() => rpc("identity.suspend", { id })),
+    onDestroy: (id: string) => void act(() => rpc("identity.destroy", { id })),
+  };
+
   return (
-    <div className="h-full flex flex-col">
-      <header className="px-4 py-3 border-b border-line flex items-baseline gap-3">
-        <span className="text-[15px] tracking-widest">mortal systems</span>
-        <span className="text-mute text-[11px]">manager</span>
-        <span className="text-mute text-[11px] ml-auto">
-          identities that disappear when their work is done
-        </span>
-      </header>
-
-      <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-            {identities.map((summary) => (
-              <div key={summary.id}>
-                <SpaceCard
-                  summary={summary}
-                  onOpen={(id) => setSelectedId(selectedId === id ? null : id)}
-                  onLaunch={(id) => void act(() => rpc("identity.launch", { id }))}
-                  onSuspend={(id) => void act(() => rpc("identity.suspend", { id }))}
-                  onDestroy={(id) => setConfirmDestroy(id)}
-                />
-                {confirmDestroy === summary.id && (
-                  <div className="border border-line border-t-0 bg-panel-2 p-3 text-[11px] flex items-center gap-3">
-                    <span className="text-mute">destroy this identity and its data on this machine?</span>
-                    <button
-                      className="border border-[#FF6B6B] text-[#FF6B6B] px-2 py-1"
-                      onClick={() => {
-                        setConfirmDestroy(null);
-                        void act(() => rpc("identity.destroy", { id: summary.id }));
-                      }}
-                    >
-                      destroy
-                    </button>
-                    <button
-                      className="border border-line px-2 py-1"
-                      onClick={() => setConfirmDestroy(null)}
-                    >
-                      keep
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-            <CreateIdentityForm onCreate={(manifest) => act(() => rpc("identity.create", { manifest }))} />
-            <BlueprintsPanel
-              blueprints={blueprints}
-              onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
-              onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
-                act(() =>
-                  rpc("identity.createFromBlueprint", {
-                    blueprintId,
-                    overrides: {
-                      ...(lifetime ? { lifetime } : {}),
-                      ...(consentedExtensionIds.length > 0 ? { consentedExtensionIds } : {}),
-                    },
-                  })
-                )
-              }
-            />
+    <div className="h-full flex">
+      <Sidebar
+        view={view}
+        status={status}
+        onNavigate={(v) => {
+          setView(v);
+          setSelectedId(null);
+        }}
+      />
+      <main className="flex-1 overflow-auto p-6">
+        {error !== null && (
+          <div className="mb-4 border border-danger/40 bg-panel-2 text-danger px-3 py-2 text-[11px]">
+            {error}
           </div>
-          {error !== null && (
-            <div className="mt-4 border border-[#3a2326] bg-[#1a1214] text-[#FF9B9B] px-3 py-2 text-[11px]">
-              {error}
-            </div>
-          )}
-        </main>
-
-        {detail !== null && (
-          <aside className="w-[420px] border-l border-line overflow-auto p-4 flex flex-col gap-5 bg-panel">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[10px] tracking-widest uppercase text-mute">manifest</span>
-              <button
-                className="border border-line px-2 py-0.5 text-[10px] hover:bg-panel-2"
-                onClick={() => setSelectedId(null)}
-              >
-                close
-              </button>
-            </div>
-            <ManifestView summary={detail.summary} manifest={detail.manifest} />
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] tracking-widest uppercase text-mute">activity</span>
-              <ActivityLog events={detail.events} />
-            </div>
-          </aside>
         )}
-      </div>
 
-      <StatusBar status={status} error={error} />
+        {view === "overview" && (
+          <OverviewView identities={identities} status={status} onOpenIdentity={openIdentity} />
+        )}
+
+        {view === "identities" &&
+          (selectedId !== null && detail !== null ? (
+            <IdentityWorkspace
+              data={detail}
+              status={status}
+              onBack={() => setSelectedId(null)}
+              onLaunch={identityHandlers.onLaunch}
+              onSuspend={identityHandlers.onSuspend}
+              onResume={(id) => void act(() => rpc("identity.resume", { id }))}
+              onExpireNow={(id) => void act(() => rpc("identity.expire", { id }))}
+              onDestroy={identityHandlers.onDestroy}
+            />
+          ) : (
+            <IdentitiesView
+              identities={identities}
+              onOpen={(id) => setSelectedId(id)}
+              onCreate={(manifest: IdentityManifest) =>
+                act(() => rpc("identity.create", { manifest }))
+              }
+              {...identityHandlers}
+            />
+          ))}
+
+        {view === "blueprints" && (
+          <BlueprintsView
+            blueprints={blueprints}
+            onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
+            onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
+              act(() =>
+                rpc("identity.createFromBlueprint", {
+                  blueprintId,
+                  overrides: {
+                    ...(lifetime ? { lifetime } : {}),
+                    ...(consentedExtensionIds.length > 0 ? { consentedExtensionIds } : {}),
+                  },
+                })
+              )
+            }
+          />
+        )}
+
+        {view === "activity" && <ActivityView />}
+        {view === "guarantees" && <GuaranteesView />}
+        {view === "settings" && <SettingsView status={status} />}
+      </main>
     </div>
   );
 }

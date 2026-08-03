@@ -1,6 +1,6 @@
 import type { ActivityEvent, DestructionReport } from "@mortal/schema";
 
-function DestructionReportView({ report }: { report: DestructionReport }) {
+export function DestructionReportView({ report }: { report: DestructionReport }) {
   return (
     <div className="border border-line bg-panel-2 p-3 flex flex-col gap-2" data-testid="destruction-report">
       <div className="text-[11px]">

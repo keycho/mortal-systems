@@ -9,8 +9,9 @@ import {
   type IdentitySummary,
 } from "@mortal/schema";
 import { EnforcementBadge } from "../src/components/EnforcementBadge.js";
-import { ManifestView } from "../src/components/ManifestView.js";
+import { PermissionRows } from "../src/components/PermissionRows.js";
 import { ActivityLog } from "../src/components/ActivityLog.js";
+import { PermissionsTab } from "../src/views/IdentityWorkspace.js";
 
 afterEach(cleanup);
 
@@ -51,7 +52,7 @@ const summary: IdentitySummary = {
   spaceNumber: 7,
 };
 
-describe("manifest view", () => {
+describe("permission rows (workspace permissions tab)", () => {
   it("renders every permission with its enforcement badge", () => {
     const manifest = composeManifest({
       id: summary.id,
@@ -60,7 +61,7 @@ describe("manifest view", () => {
       color: "#FFB000",
       wallet: "declared",
     });
-    render(<ManifestView summary={summary} manifest={manifest} />);
+    render(<PermissionRows manifest={manifest} />);
     const badges = screen.getAllByTestId("enforcement-badge");
     const levels = badges.map((b) => b.getAttribute("data-enforcement"));
     expect(levels.filter((l) => l === "enforced")).toHaveLength(3); // filesystem, memoryScope, retainHistory
@@ -71,8 +72,12 @@ describe("manifest view", () => {
   });
 
   it("renders a tombstone message for destroyed identities", () => {
-    render(<ManifestView summary={{ ...summary, state: "destroyed" }} manifest={null} />);
-    expect(screen.getByTestId("manifest-view").textContent).toContain("only the tombstone");
+    render(
+      <PermissionsTab
+        data={{ summary: { ...summary, state: "destroyed" }, manifest: null, events: [] }}
+      />
+    );
+    expect(screen.getByTestId("tombstone").textContent).toContain("only the tombstone");
   });
 });
 
