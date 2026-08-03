@@ -1,4 +1,4 @@
-import type { IdentityState } from "@liminal/schema";
+import type { IdentityState } from "@mortal/schema";
 import { errors } from "../errors.js";
 
 /**

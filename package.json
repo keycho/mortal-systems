@@ -1,5 +1,5 @@
 {
-  "name": "liminal.id",
+  "name": "mortal-systems",
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@10.33.0",
@@ -7,18 +7,18 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "turbo run dev --filter=@liminal/runtime --filter=manager",
+    "dev": "turbo run dev --filter=@mortal/runtime --filter=manager",
     "dev:web": "pnpm --filter web dev",
     "dev:manager": "pnpm --filter manager dev",
-    "dev:runtime": "pnpm --filter @liminal/runtime dev",
+    "dev:runtime": "pnpm --filter @mortal/runtime dev",
     "build": "turbo run build",
     "build:web": "turbo run build --filter=web",
     "build:manager": "turbo run tauri:build --filter=manager",
     "lint": "eslint .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "test:isolation": "pnpm --filter liminal-tests test:isolation",
-    "test:lifecycle": "pnpm --filter liminal-tests test:lifecycle",
+    "test:isolation": "pnpm --filter mortal-tests test:isolation",
+    "test:lifecycle": "pnpm --filter mortal-tests test:lifecycle",
     "check": "pnpm lint && turbo run typecheck && pnpm check:guarantees",
     "check:guarantees": "tsx scripts/check-guarantees.ts"
   },

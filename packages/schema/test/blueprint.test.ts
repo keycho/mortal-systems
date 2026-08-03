@@ -32,7 +32,7 @@ function investigatorBlueprint(): BlueprintManifest {
       email: { value: "none", enforcement: "roadmap" },
     },
     privacy: { retainHistory: { value: false, enforcement: "enforced" } },
-    publisher: { id: "liminal.first-party", reviewTier: "standard" },
+    publisher: { id: "mortal.first-party", reviewTier: "standard" },
   };
 }
 

@@ -1,12 +1,12 @@
 import http from "node:http";
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { ErrorCode, RpcResponse } from "@liminal/schema";
+import type { ErrorCode, RpcResponse } from "@mortal/schema";
 import { errors, RuntimeError } from "../errors.js";
 import { log } from "../util/log.js";
 import { RUNTIME_VERSION } from "../version.js";
 import { dispatchRpc } from "./rpc.js";
 import { handleSelfRequest } from "./self.js";
-import type { LiminalRuntime } from "../runtime.js";
+import type { MortalRuntime } from "../runtime.js";
 
 /** admin rpc bodies may carry a 256kb blueprint plus envelope */
 const MAX_BODY_BYTES = 600 * 1024;
@@ -104,13 +104,13 @@ export interface ApiServer {
   close(): Promise<void>;
 }
 
-export function createApiServer(runtime: LiminalRuntime, adminToken: string): ApiServer {
+export function createApiServer(runtime: MortalRuntime, adminToken: string): ApiServer {
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://127.0.0.1");
 
       if (req.method === "GET" && url.pathname === "/v1/health") {
-        sendJson(res, 200, { ok: true, service: "liminal-runtime", version: RUNTIME_VERSION });
+        sendJson(res, 200, { ok: true, service: "mortal-runtime", version: RUNTIME_VERSION });
         return;
       }
 

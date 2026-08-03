@@ -80,7 +80,7 @@ export function startFixtureServer(): Promise<FixtureServer> {
       return;
     }
     if (url.pathname === "/download.bin") {
-      send(200, Buffer.from("liminal-fixture-download-bytes"), {
+      send(200, Buffer.from("mortal-fixture-download-bytes"), {
         "content-type": "application/octet-stream",
         "content-disposition": 'attachment; filename="evidence.bin"',
       });

@@ -1,7 +1,7 @@
 /**
  * enforcement labels and the user-facing enforcement table.
  *
- * every permission and privacy control liminal exposes carries exactly one of
+ * every permission and privacy control mortal exposes carries exactly one of
  * these labels. the schema constrains which labels each field may carry (see
  * manifest.ts), so a manifest that over-claims enforcement is unrepresentable.
  * this file is the single source the guarantees page, the manager ui, the
@@ -90,7 +90,7 @@ export const ENFORCEMENT_TABLE: readonly EnforcementRow[] = [
     value: "none | read-intent | declared",
     enforcement: "advisory",
     description:
-      "a declaration shown in the ui, not a technical control. liminal does not restrict which wallet extensions run inside an identity in v1.",
+      "a declaration shown in the ui, not a technical control. mortal does not restrict which wallet extensions run inside an identity in v1.",
     plannedTests: ["BADGE-1"],
   },
   {
@@ -138,22 +138,22 @@ export const ROADMAP_FIELDS: readonly string[] = ENFORCEMENT_TABLE.filter(
 export const DESTRUCTION_CAVEATS: readonly string[] = [
   "data websites stored server-side while this identity was logged in is not removed",
   "anything exported or moved outside the identity's folders is not removed",
-  "os-level artifacts outside liminal's control (search indexes, thumbnails, backups you configured) are not removed",
+  "os-level artifacts outside mortal's control (search indexes, thumbnails, backups you configured) are not removed",
   "on some storage hardware, deleted data may remain recoverable by forensic tools. destroyed means removed, not forensically shredded",
 ];
 
 /** printed verbatim in the ui wherever an identity is shown as destroyed */
 export const DESTROYED_MEANS =
-  "liminal removed the identity's browser profile, files, downloads, notes, memory, and ai history from this machine, and recorded the destruction. " +
-  "liminal cannot remove: data websites stored server-side while you were logged in, anything you exported or moved outside the identity's folders, " +
+  "mortal systems removed the identity's browser profile, files, downloads, notes, memory, and ai history from this machine, and recorded the destruction. " +
+  "mortal cannot remove: data websites stored server-side while you were logged in, anything you exported or moved outside the identity's folders, " +
   "os-level artifacts (search indexes, thumbnails, backups you configured), or data recoverable by forensic tools on some storage hardware. " +
   "destroyed means removed, not forensically shredded.";
 
-/** printed on the site and in the manager. liminal separates state; it does not anonymize in v1. */
+/** printed on the site and in the manager. mortal separates state; it does not anonymize in v1. */
 export const NON_GUARANTEES: readonly string[] = [
   "identities on the same machine share your ip address",
   "identities on the same machine share your device fingerprint",
   "websites can correlate identities via behavior, reused accounts, or reused wallets",
   "clipboard contents you carry between identities are not separated",
-  "data a website already holds server-side is outside liminal's reach",
+  "data a website already holds server-side is outside mortal's reach",
 ];

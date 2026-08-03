@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { ActivityEvent, ActivityEventType, DestroyStep, IdentityState } from "@liminal/schema";
+import type { ActivityEvent, ActivityEventType, DestroyStep, IdentityState } from "@mortal/schema";
 
 export interface IdentityRow {
   id: string;

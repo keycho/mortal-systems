@@ -5,23 +5,23 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId, type SelfEvent } from "@liminal/schema";
-import { LiminalRuntime } from "../src/runtime.js";
+import { composeManifest, generateIdentityId, type SelfEvent } from "@mortal/schema";
+import { MortalRuntime } from "../src/runtime.js";
 
 const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
 const TEST_TIMEOUT = 90_000;
 
-const runtimes: LiminalRuntime[] = [];
+const runtimes: MortalRuntime[] = [];
 const roots: string[] = [];
 
 function tmpRoot(): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-sched-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-sched-"));
   roots.push(root);
   return root;
 }
 
-async function startRuntime(root: string, tickMs = 200): Promise<LiminalRuntime> {
-  const runtime = await LiminalRuntime.start({
+async function startRuntime(root: string, tickMs = 200): Promise<MortalRuntime> {
+  const runtime = await MortalRuntime.start({
     root,
     noServer: true,
     scheduler: { tickMs, graceSeconds: 1 },
@@ -31,7 +31,7 @@ async function startRuntime(root: string, tickMs = 200): Promise<LiminalRuntime>
 }
 
 /** create a long-lived identity, then force its deadline into the near past/future */
-function createDue(runtime: LiminalRuntime, opts: { onExpiry: "destroy" | "suspend" | "archive"; inMs: number }): string {
+function createDue(runtime: MortalRuntime, opts: { onExpiry: "destroy" | "suspend" | "archive"; inMs: number }): string {
   const id = generateIdentityId();
   runtime.identities.create({
     manifest: composeManifest({
@@ -51,7 +51,7 @@ function createDue(runtime: LiminalRuntime, opts: { onExpiry: "destroy" | "suspe
 }
 
 async function waitForState(
-  runtime: LiminalRuntime,
+  runtime: MortalRuntime,
   id: string,
   state: string,
   timeoutMs: number
@@ -67,10 +67,10 @@ async function waitForState(
 }
 
 beforeAll(() => {
-  if (!process.env.LIMINAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
-    process.env.LIMINAL_BROWSER_PATH = BUNDLED_CHROMIUM;
+  if (!process.env.MORTAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
+    process.env.MORTAL_BROWSER_PATH = BUNDLED_CHROMIUM;
   }
-  process.env.LIMINAL_HEADLESS = "1";
+  process.env.MORTAL_HEADLESS = "1";
 });
 
 afterEach(async () => {

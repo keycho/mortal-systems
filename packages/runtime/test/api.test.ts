@@ -2,10 +2,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId, type RpcResponse } from "@liminal/schema";
-import { LiminalRuntime } from "../src/runtime.js";
+import { composeManifest, generateIdentityId, type RpcResponse } from "@mortal/schema";
+import { MortalRuntime } from "../src/runtime.js";
 
-let runtime: LiminalRuntime;
+let runtime: MortalRuntime;
 let root: string;
 
 function rpc<T = unknown>(
@@ -24,8 +24,8 @@ function rpc<T = unknown>(
 }
 
 beforeAll(async () => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-api-"));
-  runtime = await LiminalRuntime.start({ root, port: 0 });
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-api-"));
+  runtime = await MortalRuntime.start({ root, port: 0 });
 });
 
 afterAll(async () => {
@@ -39,7 +39,7 @@ describe("loopback api", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; service: string };
     expect(body.ok).toBe(true);
-    expect(body.service).toBe("liminal-runtime");
+    expect(body.service).toBe("mortal-runtime");
   });
 
   it("writes runtime.json and admin.token into the root", () => {

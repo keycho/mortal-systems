@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { blueprintManifestSchema } from "@liminal/schema";
+import { blueprintManifestSchema } from "@mortal/schema";
 import { FIRST_PARTY_BLUEPRINTS } from "../dist/index.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));

@@ -118,7 +118,7 @@ describe("identity manifest invariants", () => {
     expect(r.success).toBe(false);
   });
 
-  it("requires the liminal-companion extension ref", () => {
+  it("requires the mortal-companion extension ref", () => {
     const m = validManifest();
     const r = identityManifestSchema.safeParse({
       ...m,
@@ -137,7 +137,7 @@ describe("identity manifest invariants", () => {
         ...m,
         surfaces: {
           ...m.surfaces,
-          browser: { ...m.surfaces.browser, extensions: ["liminal-companion", bad] },
+          browser: { ...m.surfaces.browser, extensions: ["mortal-companion", bad] },
         },
       });
       expect(r.success, `extension ref "${bad}" must be rejected`).toBe(false);
@@ -171,7 +171,7 @@ describe("relative path safety", () => {
       "profiles/../..",
       "../outside",
       "profiles/..",
-      "~/liminal",
+      "~/mortal",
       "profiles//idn_x",
       "profiles/\0x",
     ]) {

@@ -13,7 +13,7 @@ describe("badge text", () => {
   });
 });
 
-describe("countdown format (pinned to @liminal/schema vectors)", () => {
+describe("countdown format (pinned to @mortal/schema vectors)", () => {
   it("matches the shared formatting vectors", () => {
     expect(formatRemaining(45_000)).toBe("00m 45s");
     expect(formatRemaining(5 * 60_000)).toBe("05m 00s");

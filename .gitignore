@@ -16,7 +16,7 @@ playwright-report/
 tests/.tmp/
 
 # runtime state never lives in the repo
-.liminal/
+.mortal/
 
 # misc
 .DS_Store

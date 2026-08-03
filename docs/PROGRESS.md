@@ -4,7 +4,7 @@ one line per completed step. failures recorded honestly.
 
 - 2026-08-03 day1/step0: inspected existing repo per spec — zero commits, zero files; nothing to preserve; recorded in DECISIONS.md
 - 2026-08-03 day1/step1: scaffolded pnpm+turborepo monorepo root (package.json, workspace, turbo, tsconfig base, eslint flat config, gitignore)
-- 2026-08-03 day1/step2: @liminal/schema complete — zod manifests with per-field enforcement ceilings (over-claiming unrepresentable), duration grammar, blueprint schema (banned content schema-impossible), typed rpc contract; 41/41 unit tests pass; sdk+mcp stubs compile
+- 2026-08-03 day1/step2: @mortal/schema complete — zod manifests with per-field enforcement ceilings (over-claiming unrepresentable), duration grammar, blueprint schema (banned content schema-impossible), typed rpc contract; 41/41 unit tests pass; sdk+mcp stubs compile
 - 2026-08-03 day1/step3: runtime store — better-sqlite3 wal + foreign keys, migration 0001 (spec schema + state index), typed repo, 7/7 unit tests (chain integrity, transactional migration, tombstone-stable space numbers, D5 idempotency)
 - 2026-08-03 day1/step4: runtime api + identity service + journaled destroy — loopback rpc (bearer auth, body caps, typed errors), create/list/get/destroy + activity + status/capabilities, deletion contract D0-D7 with crash-resume; 27/27 runtime tests (2 bugs found by tests and fixed: D7 self-journaling, 413 socket reset)
 - 2026-08-03 day1/step5: manager skeleton — react 18 + vite + tailwind identity cards ("space NNN", state pill, countdown), create form, status bar, typed rpc client (tauri broker or vite proxy); src-tauri scaffolded but NOT compiled here (no webkit2gtk, flagged); vite build green, 4/4 component tests
@@ -12,24 +12,24 @@ one line per completed step. failures recorded honestly.
 ## day-1 gate — PASS (2026-08-03)
 
 ```
-@liminal/schema:test:  Test Files  4 passed (4)
-@liminal/schema:test:       Tests  41 passed (41)
-@liminal/runtime:test:  Test Files  3 passed (3)
-@liminal/runtime:test:       Tests  27 passed (27)
+@mortal/schema:test:  Test Files  4 passed (4)
+@mortal/schema:test:       Tests  41 passed (41)
+@mortal/runtime:test:  Test Files  3 passed (3)
+@mortal/runtime:test:       Tests  27 passed (27)
 manager:test:          Test Files  1 passed (1)
 manager:test:               Tests  4 passed (4)
 Tasks: 4 successful, 4 total   (turbo run test — includes builds of schema/runtime deps)
 ```
 
-day-1 scope delivered: repo inspected (empty), monorepo scaffold, @liminal/schema (manifest invariants, enforcement ceilings, duration grammar, blueprint schema), sqlite store + migration 0001, identity create/list/get over loopback rpc, journaled destroy D0-D7 with crash-resume unit coverage, manager skeleton listing identity cards. src-tauri shell: scaffold only, unbuilt in this container (honest flag). proceeding to day 2.
+day-1 scope delivered: repo inspected (empty), monorepo scaffold, @mortal/schema (manifest invariants, enforcement ceilings, duration grammar, blueprint schema), sqlite store + migration 0001, identity create/list/get over loopback rpc, journaled destroy D0-D7 with crash-resume unit coverage, manager skeleton listing identity cards. src-tauri shell: scaffold only, unbuilt in this container (honest flag). proceeding to day 2.
 - 2026-08-03 day2/step1: chromium discovery (env override > chrome > chromium > brave, per-os paths, version parse, branded-chrome r3 warning) + provisioning (partition dirs, preferences seed: downloads dir/profile name/bookmark bar/theme color best-effort, bookmarks file from db)
 - 2026-08-03 day2/step2: launcher — spawn with per-identity --user-data-dir, DevToolsActivePort -> cdpEndpoint plumb-through, process-tree supervision (sigterm/sigkill-after-5s/verify), suspend/resume, real D2 halt wired into destroy, retainHistory scrub on session end, stale-state reconciliation at startup
 
 ## day-2 gate — PASS (2026-08-03)
 
 ```
-@liminal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
-@liminal/runtime:test:  Test Files  4 passed (4)   Tests  32 passed (32)
+@mortal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
+@mortal/runtime:test:  Test Files  4 passed (4)   Tests  32 passed (32)
 manager:test:           Test Files  1 passed (1)   Tests   4 passed (4)
 Tasks: 4 successful, 4 total
 
@@ -48,8 +48,8 @@ environment caveats, stated honestly: verified with headless chromium 141 on lin
 ## day-3 gate — PASS (2026-08-03)
 
 ```
-@liminal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
-@liminal/runtime:test:  Test Files  6 passed (6)   Tests  47 passed (47)
+@mortal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
+@mortal/runtime:test:  Test Files  6 passed (6)   Tests  47 passed (47)
 companion:test:         Test Files  1 passed (1)   Tests   2 passed (2)
 manager:test:           Test Files  1 passed (1)   Tests   4 passed (4)
 Tasks: 6 successful, 6 total
@@ -73,8 +73,8 @@ caveat, stated honestly: G18 here is the runtime-level token-scoping test; the f
 ## day-4 gate — PASS (2026-08-03)
 
 ```
-@liminal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
-@liminal/runtime:test:  Test Files  6 passed (6)   Tests  47 passed (47)
+@mortal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
+@mortal/runtime:test:  Test Files  6 passed (6)   Tests  47 passed (47)
 companion:test:         Test Files  2 passed (2)   Tests   6 passed (6)
 manager:test:           Test Files  2 passed (2)   Tests   9 passed (9)
 Tasks: 6 successful, 6 total          (103 tests)
@@ -89,7 +89,7 @@ check:guarantees: FAIL BY DESIGN — tests/guarantees.map.ts is day-6 scope; 6 e
 # final status report — stopped at end of day 4 as instructed (2026-08-03)
 
 ## what works, each behind a passing automated test
-- @liminal/schema: canonical zod manifest with per-field enforcement ceilings (an over-claiming manifest is unrepresentable), lifetime grammar (30s..365d + persistent), blueprint schema where banned content (cookies/sessions/passwords/keys/seeds/accounts) is schema-impossible, url hygiene (http(s) only, no creds, punycode surfaced), typed rpc contract. 41 tests.
+- @mortal/schema: canonical zod manifest with per-field enforcement ceilings (an over-claiming manifest is unrepresentable), lifetime grammar (30s..365d + persistent), blueprint schema where banned content (cookies/sessions/passwords/keys/seeds/accounts) is schema-impossible, url hygiene (http(s) only, no creds, punycode surfaced), typed rpc contract. 41 tests.
 - runtime store: better-sqlite3 wal + fk, migration 0001 per spec (forward-only, transactional, chain-gap detection), tombstone-stable space numbers. 
 - identity lifecycle: create/list/get over loopback rpc with bearer admin auth; state machine enforcing legal transitions; activity log append-only, surviving destruction.
 - deletion contract D0-D7: journaled, ordered, aborts at first failure, idempotent, crash-resumable (simulated crash between D2 and D3 resumes to completion); tombstone + finalized destruction report with fixed caveats. implemented early (day-1 window) per DECISIONS.md; unit-tested, including failure-retention and resume.
@@ -115,17 +115,17 @@ check:guarantees: FAIL BY DESIGN — tests/guarantees.map.ts is day-6 scope; 6 e
 days 1-4 of the poc are built, gated, and green (103 tests, real chromium for launch/isolation-surface/companion smoke); automatic scheduled expiry, blueprints, the full G-suite, and the public site are deliberately untouched and wait for founder go-ahead on days 5-7.
 - 2026-08-03 fix/macos-extension-id: canonicalized runtime root at startup (realpath) + launcher now observes the chromium-assigned extension id via cdp and the origin check pins to it (computed id as pre-observation fallback); linux repro with symlinked root added and green (105 tests total); macos re-run pending on reporter's machine — see DECISIONS.md
 - 2026-08-03 dev-flow: README added documenting the three-process dev flow (dev:runtime, dev:manager browser mode, optional 'pnpm --filter manager tauri:dev' where tauri owns vite); manager gains tauri:dev script; native window compile stays deferred until after the money test
-- 2026-08-03 fix/macos-constant-id: verified nkeimhog… is chrome's built-in hangouts component (constant key-derived id) and bare linux chromium has zero extension targets — mac failure = branded chrome 141 ignoring --load-extension (r3), observation mispinned the only visible extension; no manifest key exists (pasted); chooser now accepts only companion-shaped targets (/background.js), refuses to guess, and surfaces a companion-did-not-load runtime warning; 6 new chooser unit tests, both smoke tests re-asserted on the chosen model; 111 tests green on linux; mac re-run pending (chromium/brave or LIMINAL_BROWSER_PATH)
+- 2026-08-03 fix/macos-constant-id: verified nkeimhog… is chrome's built-in hangouts component (constant key-derived id) and bare linux chromium has zero extension targets — mac failure = branded chrome 141 ignoring --load-extension (r3), observation mispinned the only visible extension; no manifest key exists (pasted); chooser now accepts only companion-shaped targets (/background.js), refuses to guess, and surfaces a companion-did-not-load runtime warning; 6 new chooser unit tests, both smoke tests re-asserted on the chosen model; 111 tests green on linux; mac re-run pending (chromium/brave or MORTAL_BROWSER_PATH)
 - 2026-08-03 macos-verified: founder re-ran on macos under brave — 55/55 green incl. both companion smokes; root cause chain closed (branded chrome --load-extension removal + gatekeeper latency + overbroad pkill on the test machine); recorded as manual check M1; store-distribution pairing handshake designed into DECISIONS.md + threat-model.md (no store submission, no implementation)
 - 2026-08-03 day5/step1: lifecycle scheduler — tick over lifecycle_jobs (15s default, test-injectable), startup catch-up before the api serves (missed expiry honored late, expired_late logged, already-honored actions never refire), 60s grace via sse when a browser is open then halt then onExpiry; manual expire stays graceless (user-confirmed); 4/4 scheduler tests incl. real-browser grace; 59/59 runtime tests
-- 2026-08-03 day5/step2: blueprint pipeline + first-party blueprints — @liminal/blueprints (client-operations with meeting-notes template + empty client folders, onchain-investigator 12h/destroy/no-history, crypto-operations with declared-wallet disclaimer + metamask/phantom store ids); pipeline: 256kb size gate -> json -> strict zod -> url hygiene, idempotent install, blueprint.get for preview, createFromBlueprint (bookmark/note/folder seeding, expiry job, consent-gated extension declarations), export strips ids/paths/timestamps/notes and must re-pass the import pipeline; cli --seed-first-party; 11 pipeline tests + 4 blueprint content tests; 1 stale day-1 assertion updated (blueprint.list now real)
+- 2026-08-03 day5/step2: blueprint pipeline + first-party blueprints — @mortal/blueprints (client-operations with meeting-notes template + empty client folders, onchain-investigator 12h/destroy/no-history, crypto-operations with declared-wallet disclaimer + metamask/phantom store ids); pipeline: 256kb size gate -> json -> strict zod -> url hygiene, idempotent install, blueprint.get for preview, createFromBlueprint (bookmark/note/folder seeding, expiry job, consent-gated extension declarations), export strips ids/paths/timestamps/notes and must re-pass the import pipeline; cli --seed-first-party; 11 pipeline tests + 4 blueprint content tests; 1 stale day-1 assertion updated (blueprint.list now real)
 
 ## day-5 gate — PASS (2026-08-03)
 
 ```
-@liminal/schema:test:      Test Files  4 passed (4)    Tests  41 passed (41)
-@liminal/blueprints:test:  Test Files  1 passed (1)    Tests   4 passed (4)
-@liminal/runtime:test:     Test Files 10 passed (10)   Tests  70 passed (70)
+@mortal/schema:test:      Test Files  4 passed (4)    Tests  41 passed (41)
+@mortal/blueprints:test:  Test Files  1 passed (1)    Tests   4 passed (4)
+@mortal/runtime:test:     Test Files 10 passed (10)   Tests  70 passed (70)
 companion:test:            Test Files  2 passed (2)    Tests   6 passed (6)
 manager:test:              Test Files  2 passed (2)    Tests   9 passed (9)
 Tasks: 8 successful, 8 total          (130 tests)
@@ -149,9 +149,9 @@ honest gaps at day-5 close: manager ui has no blueprint install/preview screen y
 ## day-6 gate — PASS (2026-08-03)
 
 ```
-@liminal/schema:test:      Tests  41 passed   @liminal/blueprints:test:  Tests   4 passed
-@liminal/runtime:test:     Tests  70 passed   companion:test:            Tests   6 passed
-manager:test:              Tests   9 passed   liminal-tests:test:        Tests  14 passed
+@mortal/schema:test:      Tests  41 passed   @mortal/blueprints:test:  Tests   4 passed
+@mortal/runtime:test:     Tests  70 passed   companion:test:            Tests   6 passed
+manager:test:              Tests   9 passed   mortal-tests:test:        Tests  14 passed
 Tasks: 10 successful, 10 total          (144 tests)
 
 check:guarantees: OK — 6 enforced fields mapped, 4 advisory/roadmap fields badge-tested
@@ -159,3 +159,4 @@ pnpm lint: clean · pnpm typecheck: green
 ```
 
 full pnpm check now passes end to end: every "enforced" label maps to at least one existing, passing test.
+- 2026-08-03 rename: liminal -> mortal systems executed as one atomic commit — packages, imports, companion + stamped config, env vars (MORTAL_* with deprecated LIMINAL_* fallback), ~/.liminal -> ~/.mortal migration with db + config renames, legacy manifest upgrade at read time, ui strings, domain refs; 3 migration tests added; github-side repo rename is a founder action (no tool here)

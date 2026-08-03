@@ -1,4 +1,4 @@
-import { ERROR_CODES, type Enforcement, type ErrorCode, type ValidationIssue } from "@liminal/schema";
+import { ERROR_CODES, type Enforcement, type ErrorCode, type ValidationIssue } from "@mortal/schema";
 
 export class RuntimeError extends Error {
   readonly code: ErrorCode;

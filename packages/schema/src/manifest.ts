@@ -61,10 +61,10 @@ export const relativePathSchema = z
     if (segments.some((s) => s.length === 0)) return issue("empty path segments are not allowed");
   });
 
-export const COMPANION_EXTENSION_REF = "liminal-companion" as const;
+export const COMPANION_EXTENSION_REF = "mortal-companion" as const;
 export const WEBSTORE_ID_RE = /^[a-p]{32}$/;
 
-/** extension refs are the liminal companion sentinel or chrome web store ids only */
+/** extension refs are the mortal companion sentinel or chrome web store ids only */
 export const extensionRefSchema = z.union([
   z.literal(COMPANION_EXTENSION_REF),
   z.string().regex(WEBSTORE_ID_RE, "extension refs must be 32-char chrome web store ids"),
@@ -214,7 +214,7 @@ export const identityManifestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["surfaces", "browser", "extensions"],
-        message: "the liminal-companion extension must be present",
+        message: "the mortal-companion extension must be present",
       });
     }
   });
@@ -233,3 +233,27 @@ export const tombstoneSchema = z
   .strict();
 
 export type Tombstone = z.infer<typeof tombstoneSchema>;
+
+/** the companion ref used before the mortal systems rename */
+export const LEGACY_COMPANION_EXTENSION_REF = "liminal-companion" as const;
+
+/**
+ * accept identity manifests written before the rename: stored manifests may
+ * still reference the legacy companion ref. pure, applied at read time (the
+ * spec's manifest-upgrader mechanism); rows converge to the new ref the next
+ * time they are re-serialized by a state transition.
+ */
+export function upgradeStoredManifest(parsed: unknown): unknown {
+  if (parsed !== null && typeof parsed === "object") {
+    const manifest = parsed as {
+      surfaces?: { browser?: { extensions?: unknown[] } };
+    };
+    const extensions = manifest.surfaces?.browser?.extensions;
+    if (Array.isArray(extensions)) {
+      manifest.surfaces!.browser!.extensions = extensions.map((entry) =>
+        entry === LEGACY_COMPANION_EXTENSION_REF ? COMPANION_EXTENSION_REF : entry
+      );
+    }
+  }
+  return parsed;
+}

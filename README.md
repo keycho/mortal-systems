@@ -1,27 +1,29 @@
-# liminal
+# mortal systems
 
 launch private identities that disappear when their work is done.
 
 a programmable privacy and identity runtime for humans and autonomous agents. every identity is a manifest-defined runtime object with its own real chromium instance, notes, ai context, files, permissions, and a finite lifecycle. the user-facing environment is a **space**; the canonical term in all code, schemas, and apis is `identity`.
 
-**build status is tracked honestly** in [docs/PROGRESS.md](docs/PROGRESS.md) (per-day gates with pasted test output) and [docs/DECISIONS.md](docs/DECISIONS.md) (every deviation from the poc spec). days 1–4 of the poc are built and gated; the lifecycle scheduler, blueprint pipeline, browser-level isolation suite, and public site are not built yet.
+****github note:** the repository rename (keycho/liminal.id -> the mortal-systems name) happens in github settings, a founder action; github redirects the old name.
+
+build status is tracked honestly** in [docs/PROGRESS.md](docs/PROGRESS.md) (per-day gates with pasted test output) and [docs/DECISIONS.md](docs/DECISIONS.md) (every deviation from the poc spec). days 1–4 of the poc are built and gated; the lifecycle scheduler, blueprint pipeline, browser-level isolation suite, and public site are not built yet.
 
 ## structure
 
 ```
 apps/
-  manager/     liminal manager — react ui + tauri 2 shell (ui only, never a browser)
-  companion/   liminal companion — mv3 extension stamped per identity
-  web/         public liminal.id site (day-7 scope, not built yet)
+  manager/     mortal manager — react ui + tauri 2 shell (ui only, never a browser)
+  companion/   mortal companion — mv3 extension stamped per identity
+  web/         public mortal.systems site (day-7 scope, not built yet)
 packages/
-  schema/      @liminal/schema — zod manifests, api types, constants (imported by everything)
-  runtime/     @liminal/runtime — the local service: identities, lifecycle, deletion, api
-  sdk/         @liminal/sdk — stub, types only
-  mcp/         @liminal/mcp — stub, empty
+  schema/      @mortal/schema — zod manifests, api types, constants (imported by everything)
+  runtime/     @mortal/runtime — the local service: identities, lifecycle, deletion, api
+  sdk/         @mortal/sdk — stub, types only
+  mcp/         @mortal/mcp — stub, empty
 docs/          PROGRESS.md · DECISIONS.md
 ```
 
-all identity state lives under the runtime root (`~/.liminal` by default): `liminal.db`, `profiles/`, `files/`, `companion-instances/`. never inside the repository.
+all identity state lives under the runtime root (`~/.mortal` by default): `mortal.db`, `profiles/`, `files/`, `companion-instances/`. never inside the repository.
 
 ## commands
 
@@ -38,7 +40,7 @@ pnpm check            # lint + typecheck + guarantees gate (gate fails by design
 the manager talks to the runtime over loopback http; in dev you run them separately:
 
 1. **runtime** — `pnpm dev:runtime`
-   starts the liminal runtime on port 4923 with the dev admin token (`liminal-dev`), root at `~/.liminal` (override with `LIMINAL_ROOT`).
+   starts the mortal runtime on port 4923 with the dev admin token (`mortal-dev`), root at `~/.mortal` (override with `MORTAL_ROOT`).
 2. **manager ui (browser dev mode)** — `pnpm dev:manager`
    vite on http://localhost:5173, proxying `/runtime` to the runtime above. this is a browser tab, not the native window; it is the primary dev loop and works on any platform with no rust toolchain.
 3. **native window (optional)** — `pnpm --filter manager tauri:dev`
@@ -48,4 +50,4 @@ the runtime writes `runtime.json` and `admin.token` into its root at startup; th
 
 ## honesty rules
 
-every permission and privacy control carries an enforcement label — `enforced`, `advisory`, or `roadmap` — and the schema constrains which labels each field may carry, so an over-claiming manifest is unrepresentable. every `enforced` field must map to a passing automated test or the build fails (`pnpm check:guarantees`). liminal separates browser state, files, and context; it does not make identities anonymous in version one.
+every permission and privacy control carries an enforcement label — `enforced`, `advisory`, or `roadmap` — and the schema constrains which labels each field may carry, so an over-claiming manifest is unrepresentable. every `enforced` field must map to a passing automated test or the build fails (`pnpm check:guarantees`). mortal separates browser state, files, and context; it does not make identities anonymous in version one.

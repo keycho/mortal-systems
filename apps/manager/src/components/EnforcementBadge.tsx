@@ -1,4 +1,4 @@
-import type { Enforcement } from "@liminal/schema";
+import type { Enforcement } from "@mortal/schema";
 
 /** solid = enforced, outlined = advisory, dashed = roadmap. never restyled per call site. */
 const VARIANT: Record<Enforcement, string> = {

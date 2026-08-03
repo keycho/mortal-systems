@@ -2,10 +2,11 @@ import {
   identityManifestSchema,
   toValidationIssues,
   tombstoneSchema,
+  upgradeStoredManifest,
   type IdentityManifest,
   type IdentityState,
   type IdentitySummary,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { ZodError } from "zod";
 import { errors } from "../errors.js";
 import type { IdentityRow, Repo } from "../store/repo.js";
@@ -14,9 +15,15 @@ import { assertTransition } from "./state.js";
 /** neutral display values for tombstoned rows, where the manifest is gone */
 const DESTROYED_COLOR = "#52525B";
 
+/** parse a stored manifest_json, upgrading pre-rename content at read time */
+export function parseStoredManifest(json: string) {
+  return identityManifestSchema.parse(upgradeStoredManifest(JSON.parse(json)));
+}
+
+
 export function parseManifestRow(row: IdentityRow): IdentityManifest | null {
   if (row.state === "destroyed") return null;
-  return identityManifestSchema.parse(JSON.parse(row.manifest_json));
+  return parseStoredManifest(row.manifest_json);
 }
 
 export function summaryFromRow(row: IdentityRow): IdentitySummary {
@@ -36,7 +43,7 @@ export function summaryFromRow(row: IdentityRow): IdentitySummary {
       spaceNumber: row.space_number,
     };
   }
-  const manifest = identityManifestSchema.parse(JSON.parse(row.manifest_json));
+  const manifest = parseStoredManifest(row.manifest_json);
   return {
     id: row.id,
     name: manifest.name,
@@ -148,7 +155,7 @@ export class IdentityService {
       this.repo.updateIdentityState(id, to);
       // keep manifest_json's lifecycle.state in sync so exports stay truthful
       if (to !== "destroyed") {
-        const manifest = identityManifestSchema.parse(JSON.parse(row.manifest_json));
+        const manifest = parseStoredManifest(row.manifest_json);
         manifest.lifecycle.state = to;
         this.repo.db
           .prepare("UPDATE identities SET manifest_json = ? WHERE id = ?")

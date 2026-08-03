@@ -1,5 +1,5 @@
 /**
- * @liminal/sdk — proof-of-concept stub.
+ * @mortal/sdk — proof-of-concept stub.
  *
  * exports the runtime contract types so sdk consumers can compile against the
  * real api shape today. the typed client implementation (mirroring RpcContract,
@@ -29,4 +29,4 @@ export type {
   RuntimeStatus,
   Tombstone,
   ValidationIssue,
-} from "@liminal/schema";
+} from "@mortal/schema";

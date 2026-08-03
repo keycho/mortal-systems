@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId, tombstoneSchema } from "@liminal/schema";
+import { composeManifest, generateIdentityId, tombstoneSchema } from "@mortal/schema";
 import { openDb } from "../src/store/db.js";
 import { Repo } from "../src/store/repo.js";
 import { IdentityService } from "../src/identity/service.js";
@@ -24,8 +24,8 @@ interface World {
 const worlds: World[] = [];
 
 function makeWorld(): World {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-destroy-"));
-  const repo = new Repo(openDb(path.join(root, "liminal.db")));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-destroy-"));
+  const repo = new Repo(openDb(path.join(root, "mortal.db")));
   const world: World = { root, repo, identities: new IdentityService(repo) };
   worlds.push(world);
   return world;
@@ -57,7 +57,7 @@ function seedIdentity(world: World): string {
   for (const dir of [profile, files, companion]) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(profile, "Cookies"), "not-real-cookies");
   fs.writeFileSync(path.join(files, "evidence.csv"), "a,b,c");
-  fs.writeFileSync(path.join(companion, "liminal.identity.json"), "{}");
+  fs.writeFileSync(path.join(companion, "mortal.identity.json"), "{}");
   const now = new Date().toISOString();
   world.repo.insertNote({ id: "n1", identityId: id, title: "t", bodyMd: "b", updatedAt: now });
   world.repo.insertBookmark({ id: "b1", identityId: id, title: "solscan", url: "https://solscan.io", folder: null, position: 0 });

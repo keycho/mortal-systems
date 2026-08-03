@@ -1,4 +1,4 @@
-import type { BlueprintManifest } from "@liminal/schema";
+import type { BlueprintManifest } from "@mortal/schema";
 
 /** the canonical example blueprint. recommended 12h; demos override to 5m. */
 export const onchainInvestigator: BlueprintManifest = {
@@ -27,5 +27,5 @@ export const onchainInvestigator: BlueprintManifest = {
     email: { value: "none", enforcement: "roadmap" },
   },
   privacy: { retainHistory: { value: false, enforcement: "enforced" } },
-  publisher: { id: "liminal.first-party", reviewTier: "standard" },
+  publisher: { id: "mortal.first-party", reviewTier: "standard" },
 };

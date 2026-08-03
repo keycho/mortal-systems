@@ -9,9 +9,9 @@ import { Repo } from "../src/store/repo.js";
 const tmpDirs: string[] = [];
 
 function tmpDb(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-store-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-store-"));
   tmpDirs.push(dir);
-  return path.join(dir, "liminal.db");
+  return path.join(dir, "mortal.db");
 }
 
 afterEach(() => {

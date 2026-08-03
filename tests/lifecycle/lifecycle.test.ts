@@ -4,8 +4,8 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { DestructionReport, IdentitySummary } from "@liminal/schema";
-import { composeManifest, generateIdentityId } from "@liminal/schema";
+import type { DestructionReport, IdentitySummary } from "@mortal/schema";
+import { composeManifest, generateIdentityId } from "@mortal/schema";
 import {
   pollUntil,
   startRuntimeProcess,
@@ -19,7 +19,7 @@ const procs: RuntimeProc[] = [];
 const roots: string[] = [];
 
 async function world(env: Record<string, string> = {}): Promise<RuntimeProc> {
-  const root = tmpRoot("liminal-lc-");
+  const root = tmpRoot("mortal-lc-");
   roots.push(root);
   const proc = await startRuntimeProcess(root, env);
   procs.push(proc);
@@ -43,7 +43,7 @@ function newManifest(name: string, lifetime: string) {
 
 /** backdate an identity's deadline while the runtime is STOPPED */
 function backdate(root: string, id: string, toIso: string): void {
-  const db = new Database(path.join(root, "liminal.db"));
+  const db = new Database(path.join(root, "mortal.db"));
   db.prepare("UPDATE identities SET expires_at = ? WHERE id = ?").run(toIso, id);
   db.prepare("UPDATE lifecycle_jobs SET fire_at = ? WHERE identity_id = ?").run(toIso, id);
   db.close();
@@ -53,7 +53,7 @@ function assertDestroyedOnDisk(root: string, id: string): void {
   expect(fs.existsSync(path.join(root, "profiles", id))).toBe(false);
   expect(fs.existsSync(path.join(root, "files", id))).toBe(false);
   expect(fs.existsSync(path.join(root, "companion-instances", id))).toBe(false);
-  const db = new Database(path.join(root, "liminal.db"), { readonly: true });
+  const db = new Database(path.join(root, "mortal.db"), { readonly: true });
   const rows = (table: string) =>
     (db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE identity_id = ?`).get(id) as { n: number }).n;
   expect(rows("notes")).toBe(0);
@@ -150,7 +150,7 @@ describe("lifecycle over a real runtime process", () => {
   it(
     "G14: runtime killed between D2 and D3 resumes from the journal and completes",
     async () => {
-      const proc = await world({ LIMINAL_CRASH_AFTER_STEP: "D2" });
+      const proc = await world({ MORTAL_CRASH_AFTER_STEP: "D2" });
       const a = await proc.rpc<IdentitySummary>("identity.create", { manifest: newManifest("g14", "12h") });
       await proc.rpc("identity.launch", { id: a.id });
       // the destroy call dies with the process: the crash fires right after
@@ -160,7 +160,7 @@ describe("lifecycle over a real runtime process", () => {
       expect(code, "runtime crashed by the test hook").toBe(1);
 
       // journal shows the partial destruction; profile and files still on disk
-      const db = new Database(path.join(proc.root, "liminal.db"), { readonly: true });
+      const db = new Database(path.join(proc.root, "mortal.db"), { readonly: true });
       const journal = db.prepare("SELECT steps_completed FROM destroy_journal WHERE identity_id = ?").get(a.id) as
         | { steps_completed: string }
         | undefined;

@@ -1,9 +1,9 @@
 {
-  "name": "@liminal/blueprints",
+  "name": "@mortal/blueprints",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "first-party identity blueprints bundled with the poc (3 of the eventual 10). config only, no executable code, validated against @liminal/schema.",
+  "description": "first-party identity blueprints bundled with the poc (3 of the eventual 10). config only, no executable code, validated against @mortal/schema.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,7 +18,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@liminal/schema": "workspace:*"
+    "@mortal/schema": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

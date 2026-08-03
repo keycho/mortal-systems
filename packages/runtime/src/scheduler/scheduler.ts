@@ -1,7 +1,8 @@
-import { identityManifestSchema } from "@liminal/schema";
+import { readEnv } from "../util/env.js";
+import { parseStoredManifest } from "../identity/service.js";
 import { canTransition } from "../identity/state.js";
 import { log } from "../util/log.js";
-import type { LiminalRuntime } from "../runtime.js";
+import type { MortalRuntime } from "../runtime.js";
 
 /**
  * lifecycle enforcement, three points exactly as specified:
@@ -20,25 +21,25 @@ import type { LiminalRuntime } from "../runtime.js";
  */
 
 export interface SchedulerOptions {
-  /** default 15000; LIMINAL_TICK_MS overrides; tests pass small values */
+  /** default 15000; MORTAL_TICK_MS overrides; tests pass small values */
   tickMs?: number;
-  /** default 60; LIMINAL_GRACE_SECONDS overrides */
+  /** default 60; MORTAL_GRACE_SECONDS overrides */
   graceSeconds?: number;
 }
 
 type ExpiryAction = "destroy" | "suspend" | "archive";
 
 export class Scheduler {
-  private readonly runtime: LiminalRuntime;
+  private readonly runtime: MortalRuntime;
   private readonly tickMs: number;
   private readonly graceMs: number;
   private timer: NodeJS.Timeout | null = null;
   private readonly inFlight = new Set<string>();
 
-  constructor(runtime: LiminalRuntime, opts: SchedulerOptions = {}) {
+  constructor(runtime: MortalRuntime, opts: SchedulerOptions = {}) {
     this.runtime = runtime;
-    this.tickMs = opts.tickMs ?? Number(process.env.LIMINAL_TICK_MS ?? 15_000);
-    this.graceMs = (opts.graceSeconds ?? Number(process.env.LIMINAL_GRACE_SECONDS ?? 60)) * 1_000;
+    this.tickMs = opts.tickMs ?? Number(readEnv("MORTAL_TICK_MS") ?? 15_000);
+    this.graceMs = (opts.graceSeconds ?? Number(readEnv("MORTAL_GRACE_SECONDS") ?? 60)) * 1_000;
   }
 
   start(): void {
@@ -61,7 +62,7 @@ export class Scheduler {
 
       let action: ExpiryAction;
       try {
-        action = identityManifestSchema.parse(JSON.parse(row.manifest_json)).lifecycle.onExpiry;
+        action = parseStoredManifest(row.manifest_json).lifecycle.onExpiry;
       } catch {
         continue;
       }

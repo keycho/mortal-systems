@@ -1,13 +1,13 @@
 {
-  "name": "@liminal/runtime",
+  "name": "@mortal/runtime",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "the liminal runtime: the local service that owns identities, manifests, lifecycle, deletion, and activity logs. every client speaks its typed api.",
+  "description": "the mortal runtime: the local service that owns identities, manifests, lifecycle, deletion, and activity logs. every client speaks its typed api.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "liminal-runtime": "./dist/cli.js"
+    "mortal-runtime": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -17,13 +17,13 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/cli.ts serve --root \"${LIMINAL_ROOT:-$HOME/.liminal}\" --port 4923 --admin-token \"${LIMINAL_ADMIN_TOKEN:-liminal-dev}\"",
+    "dev": "tsx src/cli.ts serve --root \"${MORTAL_ROOT:-$HOME/.mortal}\" --port 4923 --admin-token \"${MORTAL_ADMIN_TOKEN:-mortal-dev}\"",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run"
   },
   "dependencies": {
-    "@liminal/blueprints": "workspace:*",
-    "@liminal/schema": "workspace:*",
+    "@mortal/blueprints": "workspace:*",
+    "@mortal/schema": "workspace:*",
     "better-sqlite3": "^12.2.0",
     "zod": "catalog:"
   },

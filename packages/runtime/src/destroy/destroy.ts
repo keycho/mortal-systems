@@ -1,12 +1,13 @@
+import { readEnv } from "../util/env.js";
 import {
   DESTRUCTION_CAVEATS,
-  identityManifestSchema,
   type DestroyStep,
   type DestructionReport,
   type DestructionStepResult,
   type Tombstone,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { errors } from "../errors.js";
+import { parseStoredManifest } from "../identity/service.js";
 import type { Repo } from "../store/repo.js";
 import { assertTransition } from "../identity/state.js";
 import { insideRoot } from "../util/paths.js";
@@ -32,7 +33,7 @@ import { log } from "../util/log.js";
  * it is the step that clears the journal; its completion is observable as the
  * finalized "destroyed" activity event plus the missing journal row.
  *
- * a simulated crash hook (LIMINAL_CRASH_AFTER_STEP, test-only) exits the
+ * a simulated crash hook (MORTAL_CRASH_AFTER_STEP, test-only) exits the
  * process immediately after the named step is journaled.
  */
 
@@ -78,8 +79,8 @@ export class Destroyer {
     this.crashAfterStep =
       opts.crashAfterStep ??
       ((step) => {
-        if (process.env.LIMINAL_CRASH_AFTER_STEP === step) {
-          log.error(`LIMINAL_CRASH_AFTER_STEP=${step} set — simulating crash now`);
+        if (readEnv("MORTAL_CRASH_AFTER_STEP") === step) {
+          log.error(`MORTAL_CRASH_AFTER_STEP=${step} set — simulating crash now`);
           process.exit(1);
         }
       });
@@ -136,7 +137,7 @@ export class Destroyer {
     if (journal) {
       paths = journal.paths_json as DestroyPaths;
     } else {
-      const manifest = identityManifestSchema.parse(JSON.parse(row.manifest_json));
+      const manifest = parseStoredManifest(row.manifest_json);
       paths = {
         profileDir: insideRoot(this.root, manifest.surfaces.browser.profilePath),
         filesDir: insideRoot(this.root, manifest.surfaces.files.root),

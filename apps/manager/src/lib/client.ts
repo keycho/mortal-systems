@@ -1,11 +1,11 @@
-import type { RpcContract, RpcError, RpcMethod, RpcResponse } from "@liminal/schema";
+import type { RpcContract, RpcError, RpcMethod, RpcResponse } from "@mortal/schema";
 
 /**
  * one typed client, two transports:
  * - inside tauri: the shell brokers calls to the runtime sidecar via the
  *   `runtime_call` command (loopback http under the hood, token never in js)
  * - browser dev mode: the vite proxy forwards /runtime to the local runtime;
- *   the dev token comes from VITE_LIMINAL_TOKEN (default matches `pnpm dev`)
+ *   the dev token comes from VITE_MORTAL_TOKEN (default matches `pnpm dev`)
  */
 
 export class RpcClientError extends Error {
@@ -24,8 +24,8 @@ function inTauri(): boolean {
 }
 
 const DEV_TOKEN: string =
-  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_LIMINAL_TOKEN ??
-  "liminal-dev";
+  (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_MORTAL_TOKEN ??
+  "mortal-dev";
 
 export async function rpc<M extends RpcMethod>(
   method: M,

@@ -1,4 +1,4 @@
-import type { ActivityEvent, DestructionReport } from "@liminal/schema";
+import type { ActivityEvent, DestructionReport } from "@mortal/schema";
 
 function DestructionReportView({ report }: { report: DestructionReport }) {
   return (

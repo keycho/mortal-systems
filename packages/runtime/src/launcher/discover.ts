@@ -1,9 +1,10 @@
+import { readEnv } from "../util/env.js";
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { DetectedBrowser } from "@liminal/schema";
+import type { DetectedBrowser } from "@mortal/schema";
 import { errors } from "../errors.js";
 
 const execFileP = promisify(execFile);
@@ -123,14 +124,14 @@ export function majorVersion(version: string | null): number | null {
 }
 
 /**
- * discover launchable browsers. order: LIMINAL_BROWSER_PATH override, then
+ * discover launchable browsers. order: MORTAL_BROWSER_PATH override, then
  * chrome stable, chromium, brave from standard locations. hard error with
  * instructions when nothing is found.
  */
 export async function discoverBrowsers(): Promise<DetectedBrowser[]> {
   const found: DetectedBrowser[] = [];
 
-  const override = process.env.LIMINAL_BROWSER_PATH;
+  const override = readEnv("MORTAL_BROWSER_PATH");
   if (override && override.length > 0) {
     try {
       fs.accessSync(override, fs.constants.X_OK);
@@ -144,7 +145,7 @@ export async function discoverBrowsers(): Promise<DetectedBrowser[]> {
       found.push({ kind, path: override, version, source: "env-override" });
     } catch {
       throw errors.browserNotFound(
-        `LIMINAL_BROWSER_PATH is set to "${override}" but it is not an executable file`
+        `MORTAL_BROWSER_PATH is set to "${override}" but it is not an executable file`
       );
     }
   }
@@ -169,7 +170,7 @@ export async function discoverBrowsers(): Promise<DetectedBrowser[]> {
   if (found.length === 0) {
     throw errors.browserNotFound(
       "no chromium-based browser found. install google chrome (https://google.com/chrome), " +
-        "or chromium/brave, or point LIMINAL_BROWSER_PATH at a chromium executable."
+        "or chromium/brave, or point MORTAL_BROWSER_PATH at a chromium executable."
     );
   }
   return found;

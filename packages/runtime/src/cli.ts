@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // side-effect import: wires the chromium launcher into runtime startup
 import "./launcher/register.js";
-import { LiminalRuntime } from "./runtime.js";
+import { readEnv } from "./util/env.js";
+import { MortalRuntime } from "./runtime.js";
 import { log } from "./util/log.js";
 import { RUNTIME_VERSION } from "./version.js";
 
@@ -29,14 +30,14 @@ function parseFlags(argv: string[]): Map<string, string> {
 
 async function serve(argv: string[]): Promise<void> {
   const flags = parseFlags(argv);
-  const runtime = await LiminalRuntime.start({
-    root: flags.get("root") ?? process.env.LIMINAL_ROOT,
+  const runtime = await MortalRuntime.start({
+    root: flags.get("root") ?? readEnv("MORTAL_ROOT"),
     port: flags.has("port") ? Number(flags.get("port")) : 0,
-    adminToken: flags.get("admin-token") ?? process.env.LIMINAL_ADMIN_TOKEN,
+    adminToken: flags.get("admin-token") ?? readEnv("MORTAL_ADMIN_TOKEN"),
   });
 
   if (flags.has("seed-first-party")) {
-    const { FIRST_PARTY_BLUEPRINTS, FIRST_PARTY_SOURCE } = await import("@liminal/blueprints");
+    const { FIRST_PARTY_BLUEPRINTS, FIRST_PARTY_SOURCE } = await import("@mortal/blueprints");
     for (const blueprint of FIRST_PARTY_BLUEPRINTS) {
       const { blueprintId } = runtime.blueprints.install({
         manifestJson: JSON.stringify(blueprint),
@@ -59,7 +60,7 @@ async function serve(argv: string[]): Promise<void> {
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
-  log.info(`liminal runtime ${RUNTIME_VERSION} ready`, {
+  log.info(`mortal runtime ${RUNTIME_VERSION} ready`, {
     root: runtime.root,
     port: runtime.port,
   });
@@ -76,10 +77,10 @@ switch (command) {
     break;
   default:
     process.stderr.write(
-      `usage: liminal-runtime <command>\n\n` +
+      `usage: mortal-runtime <command>\n\n` +
         `commands:\n` +
         `  serve   start the runtime service\n` +
-        `          --root <dir>          runtime root (default ~/.liminal or $LIMINAL_ROOT)\n` +
+        `          --root <dir>          runtime root (default ~/.mortal or $MORTAL_ROOT)\n` +
         `          --port <n>            api port (default: random loopback port)\n` +
         `          --admin-token <t>     admin bearer token (default: generated, written to <root>/admin.token)\n` +
         `          --seed-first-party    install the bundled first-party blueprints at startup\n` +

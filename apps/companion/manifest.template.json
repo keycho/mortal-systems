@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "liminal companion",
+  "name": "mortal companion",
   "version": "0.1.0",
-  "description": "identity badge, countdown, notes and ai context for this liminal space. talks only to the local liminal runtime; collects nothing from pages.",
+  "description": "identity badge, countdown, notes and ai context for this mortal space. talks only to the local mortal runtime; collects nothing from pages.",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -11,7 +11,7 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "liminal companion"
+    "default_title": "mortal companion"
   },
   "permissions": ["storage", "sidePanel", "alarms"],
   "host_permissions": ["http://127.0.0.1/*", "https://api.anthropic.com/*"],

@@ -7,8 +7,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId } from "@liminal/schema";
-import { LiminalRuntime } from "../src/runtime.js";
+import { composeManifest, generateIdentityId } from "@mortal/schema";
+import { MortalRuntime } from "../src/runtime.js";
 import {
   computeUnpackedExtensionId,
   pickCompanionExtensionId,
@@ -20,7 +20,7 @@ const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const companionDir = path.resolve(here, "../../../apps/companion");
 
-let runtime: LiminalRuntime;
+let runtime: MortalRuntime;
 let root: string;
 const idA = generateIdentityId();
 const idB = generateIdentityId();
@@ -53,10 +53,10 @@ async function pickedCompanionId(
 }
 
 beforeAll(async () => {
-  if (!process.env.LIMINAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
-    process.env.LIMINAL_BROWSER_PATH = BUNDLED_CHROMIUM;
+  if (!process.env.MORTAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
+    process.env.MORTAL_BROWSER_PATH = BUNDLED_CHROMIUM;
   }
-  process.env.LIMINAL_HEADLESS = "1";
+  process.env.MORTAL_HEADLESS = "1";
 
   // the smoke test needs the real template; build it if this run came in
   // without the turbo dependency having built it first
@@ -64,8 +64,8 @@ beforeAll(async () => {
     execFileSync("node", ["build.mjs"], { cwd: companionDir, stdio: "inherit" });
   }
 
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-companion-"));
-  runtime = await LiminalRuntime.start({ root });
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-companion-"));
+  runtime = await MortalRuntime.start({ root });
   const now = () => new Date().toISOString();
   runtime.identities.create({
     manifest: composeManifest({ id: idA, name: "alpha", createdAt: now(), color: "#F59E0B", lifetime: "12h" }),
@@ -91,7 +91,7 @@ describe("stamped companion inside real chromium", () => {
         [idA, "alpha"],
         [idB, "beta"],
       ] as const) {
-        const configPath = path.join(root, "companion-instances", id, "liminal.identity.json");
+        const configPath = path.join(root, "companion-instances", id, "mortal.identity.json");
         expect(fs.existsSync(configPath), `stamped config for ${name}`).toBe(true);
         const config = JSON.parse(fs.readFileSync(configPath, "utf8")) as {
           identityId: string;
@@ -108,7 +108,7 @@ describe("stamped companion inside real chromium", () => {
       const readToken = (id: string) =>
         (
           JSON.parse(
-            fs.readFileSync(path.join(root, "companion-instances", id, "liminal.identity.json"), "utf8")
+            fs.readFileSync(path.join(root, "companion-instances", id, "mortal.identity.json"), "utf8")
           ) as { token: string }
         ).token;
       expect(readToken(idA)).not.toBe(readToken(idB));
@@ -165,7 +165,7 @@ describe("stamped companion inside real chromium", () => {
       // the worker polls /v1/self on startup; verify the runtime resolved its
       // token by checking the identity can be resolved from the stamped file
       const config = JSON.parse(
-        fs.readFileSync(path.join(root, "companion-instances", idA, "liminal.identity.json"), "utf8")
+        fs.readFileSync(path.join(root, "companion-instances", idA, "mortal.identity.json"), "utf8")
       ) as { token: string };
       expect(runtime.identityForCompanionToken(config.token)).toBe(idA);
 

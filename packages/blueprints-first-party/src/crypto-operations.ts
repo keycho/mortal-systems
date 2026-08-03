@@ -1,4 +1,4 @@
-import type { BlueprintManifest } from "@liminal/schema";
+import type { BlueprintManifest } from "@mortal/schema";
 
 /**
  * note per the foundation doc: this is the blueprint most likely to be
@@ -11,7 +11,7 @@ export const cryptoOperations: BlueprintManifest = {
   blueprintVersion: "1.0.0",
   name: "Crypto Operations",
   description:
-    "a persistent space for wallet and explorer work. wallet: declared is a declaration, not a technical control — liminal does not restrict which wallet extensions run here in v1. recommended extensions are shown for consent and never auto-installed.",
+    "a persistent space for wallet and explorer work. wallet: declared is a declaration, not a technical control — mortal does not restrict which wallet extensions run here in v1. recommended extensions are shown for consent and never auto-installed.",
   category: "crypto",
   recommendedLifetime: "persistent",
   lifecycle: { onExpiry: "archive" },
@@ -36,5 +36,5 @@ export const cryptoOperations: BlueprintManifest = {
     email: { value: "none", enforcement: "roadmap" },
   },
   privacy: { retainHistory: { value: true, enforcement: "enforced" } },
-  publisher: { id: "liminal.first-party", reviewTier: "standard" },
+  publisher: { id: "mortal.first-party", reviewTier: "standard" },
 };

@@ -1,4 +1,4 @@
-import type { BlueprintManifest } from "@liminal/schema";
+import type { BlueprintManifest } from "@mortal/schema";
 
 export const clientOperations: BlueprintManifest = {
   schemaVersion: "2.0",
@@ -28,5 +28,5 @@ export const clientOperations: BlueprintManifest = {
     email: { value: "none", enforcement: "roadmap" },
   },
   privacy: { retainHistory: { value: true, enforcement: "enforced" } },
-  publisher: { id: "liminal.first-party", reviewTier: "standard" },
+  publisher: { id: "mortal.first-party", reviewTier: "standard" },
 };

@@ -20,8 +20,8 @@ const hangoutsTarget = {
 
 describe("computeUnpackedExtensionId", () => {
   it("produces 32-char a-p ids that vary with the path", () => {
-    const a = computeUnpackedExtensionId("/private/tmp/liminal/companion-instances/idn_a");
-    const b = computeUnpackedExtensionId("/private/tmp/liminal/companion-instances/idn_b");
+    const a = computeUnpackedExtensionId("/private/tmp/mortal/companion-instances/idn_a");
+    const b = computeUnpackedExtensionId("/private/tmp/mortal/companion-instances/idn_b");
     expect(a).toMatch(/^[a-p]{32}$/);
     expect(b).toMatch(/^[a-p]{32}$/);
     expect(a).not.toBe(b);

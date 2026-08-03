@@ -1,4 +1,4 @@
-import type { IdentityState } from "@liminal/schema";
+import type { IdentityState } from "@mortal/schema";
 import type { Repo } from "../store/repo.js";
 
 /**

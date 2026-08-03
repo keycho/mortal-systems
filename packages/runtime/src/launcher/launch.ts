@@ -1,11 +1,12 @@
+import { readEnv } from "../util/env.js";
 import { spawn, execFile, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { DetectedBrowser, IdentityManifest } from "@liminal/schema";
+import type { DetectedBrowser, IdentityManifest } from "@mortal/schema";
 import { errors } from "../errors.js";
 import { LAUNCHABLE_STATES } from "../identity/state.js";
-import type { LauncherApi, LiminalRuntime } from "../runtime.js";
+import type { LauncherApi, MortalRuntime } from "../runtime.js";
 import { dirSizeBytes } from "../util/fsx.js";
 import { insideRoot } from "../util/paths.js";
 import { log } from "../util/log.js";
@@ -74,9 +75,9 @@ export class Launcher implements LauncherApi {
   warnings: string[] = [];
   private readonly procs = new Map<string, Proc>();
   private readonly observedIds = new Map<string, string>();
-  private readonly runtime: LiminalRuntime;
+  private readonly runtime: MortalRuntime;
 
-  constructor(runtime: LiminalRuntime) {
+  constructor(runtime: MortalRuntime) {
     this.runtime = runtime;
   }
 
@@ -121,7 +122,7 @@ export class Launcher implements LauncherApi {
     if (!browser) {
       throw errors.browserNotFound(
         "no chromium-based browser available. install google chrome, chromium, or brave, " +
-          "or set LIMINAL_BROWSER_PATH."
+          "or set MORTAL_BROWSER_PATH."
       );
     }
     return browser;
@@ -185,7 +186,7 @@ export class Launcher implements LauncherApi {
       }
     }
     const headless =
-      process.env.LIMINAL_HEADLESS === "1" ||
+      readEnv("MORTAL_HEADLESS") === "1" ||
       (os.platform() === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY);
     if (headless) {
       args.push("--headless=new", "--disable-gpu", "--disable-dev-shm-usage");
@@ -394,7 +395,7 @@ export class Launcher implements LauncherApi {
       // timeout without a companion-shaped target: the extension did not load.
       // branded chrome ignores --load-extension since 137 (risk r3); say so.
       const warning =
-        "companion did not load in at least one identity's browser (branded chrome ignores --load-extension since 137; use chromium or brave, or set LIMINAL_BROWSER_PATH). the side panel/badge are unavailable there and /v1/self has no browser client.";
+        "companion did not load in at least one identity's browser (branded chrome ignores --load-extension since 137; use chromium or brave, or set MORTAL_BROWSER_PATH). the side panel/badge are unavailable there and /v1/self has no browser client.";
       log.warn(`companion for ${id} never appeared in the browser's target list`);
       if (!this.warnings.includes(warning)) this.warnings.push(warning);
     })();
@@ -424,7 +425,7 @@ export class Launcher implements LauncherApi {
 
   /** locate the built companion template: env override, then the monorepo build output */
   private companionTemplateDir(): string | null {
-    const override = process.env.LIMINAL_COMPANION_TEMPLATE;
+    const override = readEnv("MORTAL_COMPANION_TEMPLATE");
     if (override && fs.existsSync(path.join(override, "manifest.json"))) return override;
     const monorepo = path.resolve(
       path.dirname(new URL(import.meta.url).pathname),
@@ -446,7 +447,7 @@ export class Launcher implements LauncherApi {
     if (template === null) {
       if (!this.warnings.some((w) => w.includes("companion template"))) {
         this.warnings.push(
-          "companion template not built; identities launch without the liminal companion (run: pnpm --filter companion build)"
+          "companion template not built; identities launch without the mortal companion (run: pnpm --filter companion build)"
         );
       }
       return;
@@ -455,7 +456,7 @@ export class Launcher implements LauncherApi {
       fs.cpSync(template, instanceDir, { recursive: true });
     }
     fs.writeFileSync(
-      path.join(instanceDir, "liminal.identity.json"),
+      path.join(instanceDir, "mortal.identity.json"),
       JSON.stringify(
         {
           identityId: id,

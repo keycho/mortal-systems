@@ -4,7 +4,7 @@ type Level = "info" | "warn" | "error";
 
 function emit(level: Level, msg: string, extra?: Record<string, unknown>) {
   const suffix = extra ? ` ${JSON.stringify(extra)}` : "";
-  process.stderr.write(`[liminal-runtime] ${level} ${msg}${suffix}\n`);
+  process.stderr.write(`[mortal-runtime] ${level} ${msg}${suffix}\n`);
 }
 
 export const log = {

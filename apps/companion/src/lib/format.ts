@@ -1,7 +1,7 @@
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * countdown formatting, mirrored from @liminal/schema's formatRemaining.
+ * countdown formatting, mirrored from @mortal/schema's formatRemaining.
  * duplicated deliberately: the companion bundle stays dependency-free so the
  * stamped template never carries workspace code it does not need. the shared
  * unit test in test/format.test.ts pins both implementations to the same

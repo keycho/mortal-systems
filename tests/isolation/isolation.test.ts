@@ -4,8 +4,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { LiminalRuntime } from "@liminal/runtime";
-import { computeUnpackedExtensionId, pickCompanionExtensionId } from "@liminal/runtime";
+import type { MortalRuntime } from "@mortal/runtime";
+import { computeUnpackedExtensionId, pickCompanionExtensionId } from "@mortal/runtime";
 import { startFixtureServer, type FixtureServer } from "../fixtures/login-server.js";
 import {
   createIdentity,
@@ -18,14 +18,14 @@ import {
 
 const T = 120_000;
 
-let runtime: LiminalRuntime;
+let runtime: MortalRuntime;
 let root: string;
 let fixture: FixtureServer;
 let A: IdentityBrowser;
 let B: IdentityBrowser;
 
 beforeAll(async () => {
-  root = tmpRoot("liminal-iso-");
+  root = tmpRoot("mortal-iso-");
   fixture = await startFixtureServer();
   runtime = await startInProcRuntime(root);
   const idA = createIdentity(runtime, "iso-a", { color: "#F59E0B" });

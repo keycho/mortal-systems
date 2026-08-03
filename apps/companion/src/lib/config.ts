@@ -1,5 +1,5 @@
 /**
- * the runtime stamps liminal.identity.json into each per-identity copy of the
+ * the runtime stamps mortal.identity.json into each per-identity copy of the
  * companion at provision time. the unstamped template (as built, or as a
  * future store distribution) has no config and idles.
  */
@@ -13,7 +13,7 @@ export interface StampedConfig {
 
 export async function loadConfig(): Promise<StampedConfig | null> {
   try {
-    const res = await fetch(chrome.runtime.getURL("liminal.identity.json"));
+    const res = await fetch(chrome.runtime.getURL("mortal.identity.json"));
     if (!res.ok) return null;
     const config = (await res.json()) as StampedConfig;
     if (

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "liminal manager — the desktop interface. one client of the runtime, never a browser.",
+  "description": "mortal manager — the desktop interface. one client of the runtime, never a browser.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
@@ -13,7 +13,7 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
-    "@liminal/schema": "workspace:*",
+    "@mortal/schema": "workspace:*",
     "@tauri-apps/api": "^2.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

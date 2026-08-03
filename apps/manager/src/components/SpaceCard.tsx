@@ -1,4 +1,4 @@
-import { formatRemaining, type IdentitySummary } from "@liminal/schema";
+import { formatRemaining, type IdentitySummary } from "@mortal/schema";
 
 /** identity states rendered as quiet room-status language */
 const STATE_LABEL: Record<IdentitySummary["state"], string> = {

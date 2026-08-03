@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   ADVISORY_FIELDS,
@@ -11,7 +12,7 @@ import {
   type DetectedBrowser,
   type RuntimeCapabilities,
   type RuntimeStatus,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { errors } from "./errors.js";
 import { IdentityService } from "./identity/service.js";
 import { Destroyer } from "./destroy/destroy.js";
@@ -49,14 +50,14 @@ export interface LauncherApi {
 }
 
 /** day-2 injection point; assigned by the launcher module when present */
-export type AttachLauncher = (runtime: LiminalRuntime) => LauncherApi;
+export type AttachLauncher = (runtime: MortalRuntime) => LauncherApi;
 let attachLauncher: AttachLauncher | null = null;
 export function registerLauncher(factory: AttachLauncher): void {
   attachLauncher = factory;
 }
 
 export interface RuntimeOptions {
-  /** runtime root; defaults to ~/.liminal. all identity state lives under it. */
+  /** runtime root; defaults to ~/.mortal. all identity state lives under it. */
   root?: string;
   /** api port; 0 (default) selects a random loopback port */
   port?: number;
@@ -68,7 +69,7 @@ export interface RuntimeOptions {
   scheduler?: SchedulerOptions;
 }
 
-export class LiminalRuntime {
+export class MortalRuntime {
   readonly root: string;
   readonly repo: Repo;
   readonly identities: IdentityService;
@@ -112,7 +113,8 @@ export class LiminalRuntime {
     return findIdentityByToken(this.repo, this.tokenSecret, token);
   }
 
-  static async start(opts: RuntimeOptions = {}): Promise<LiminalRuntime> {
+  static async start(opts: RuntimeOptions = {}): Promise<MortalRuntime> {
+    migrateLegacyArtifacts(resolveRoot(opts.root));
     ensureDir(resolveRoot(opts.root));
     // canonicalize the root once, at startup: on macos, tmp and user paths
     // resolve through symlinks (/tmp -> /private/tmp) and chromium
@@ -123,9 +125,9 @@ export class LiminalRuntime {
     ensureDir(path.join(root, "files"));
     ensureDir(path.join(root, "companion-instances"));
 
-    const db = openDb(path.join(root, "liminal.db"));
+    const db = openDb(path.join(root, "mortal.db"));
     const repo = new Repo(db);
-    const runtime = new LiminalRuntime(root, repo, opts.adminToken ?? generateToken());
+    const runtime = new MortalRuntime(root, repo, opts.adminToken ?? generateToken());
 
     // attach the launcher (when the day-2 module has registered) before any
     // destruction resume, so the halt step is real
@@ -276,5 +278,39 @@ export class LiminalRuntime {
     // ensure the identity exists before entering the contract
     this.identities.mustGetRow(id);
     return this.destroyer.destroy(id, opts);
+  }
+}
+
+/**
+ * one-release migration for the mortal systems rename: an existing
+ * ~/.liminal root moves to ~/.mortal (identities and their spaces survive),
+ * a liminal.db inside any root becomes mortal.db (wal/shm sidecars included),
+ * and stale pre-rename companion configs are removed — the launcher stamps
+ * fresh mortal.identity.json files on the next launch.
+ */
+function migrateLegacyArtifacts(root: string): void {
+  const legacyDefault = path.join(os.homedir(), ".liminal");
+  const newDefault = path.join(os.homedir(), ".mortal");
+  if (root === newDefault && fs.existsSync(legacyDefault) && !fs.existsSync(newDefault)) {
+    fs.renameSync(legacyDefault, newDefault);
+    log.info("migrated runtime root ~/.liminal -> ~/.mortal (identities preserved)");
+  }
+  if (!fs.existsSync(root)) return;
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const oldDb = path.join(root, `liminal.db${suffix}`);
+    const newDb = path.join(root, `mortal.db${suffix}`);
+    if (fs.existsSync(oldDb) && !fs.existsSync(newDb)) {
+      fs.renameSync(oldDb, newDb);
+      if (suffix === "") log.info("migrated liminal.db -> mortal.db");
+    }
+  }
+  const instances = path.join(root, "companion-instances");
+  if (fs.existsSync(instances)) {
+    for (const entry of fs.readdirSync(instances)) {
+      const stale = path.join(instances, entry, "liminal.identity.json");
+      try {
+        if (fs.existsSync(stale)) fs.rmSync(stale, { force: true });
+      } catch {}
+    }
   }
 }

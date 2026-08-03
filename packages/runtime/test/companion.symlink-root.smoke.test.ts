@@ -10,8 +10,8 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId } from "@liminal/schema";
-import { LiminalRuntime } from "../src/runtime.js";
+import { composeManifest, generateIdentityId } from "@mortal/schema";
+import { MortalRuntime } from "../src/runtime.js";
 import {
   computeUnpackedExtensionId,
   pickCompanionExtensionId,
@@ -23,7 +23,7 @@ const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const companionDir = path.resolve(here, "../../../apps/companion");
 
-let runtime: LiminalRuntime;
+let runtime: MortalRuntime;
 let realRoot: string;
 let linkRoot: string;
 const id = generateIdentityId();
@@ -46,22 +46,22 @@ async function observeCompanionId(
 }
 
 beforeAll(async () => {
-  if (!process.env.LIMINAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
-    process.env.LIMINAL_BROWSER_PATH = BUNDLED_CHROMIUM;
+  if (!process.env.MORTAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
+    process.env.MORTAL_BROWSER_PATH = BUNDLED_CHROMIUM;
   }
-  process.env.LIMINAL_HEADLESS = "1";
+  process.env.MORTAL_HEADLESS = "1";
   if (!fs.existsSync(path.join(companionDir, "dist", "manifest.json"))) {
     execFileSync("node", ["build.mjs"], { cwd: companionDir, stdio: "inherit" });
   }
 
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-symlink-"));
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-symlink-"));
   realRoot = path.join(base, "real-root");
   linkRoot = path.join(base, "link-root");
   fs.mkdirSync(realRoot, { recursive: true });
   fs.symlinkSync(realRoot, linkRoot);
 
   // the runtime is handed the SYMLINKED path, as macos hands /tmp paths
-  runtime = await LiminalRuntime.start({ root: linkRoot });
+  runtime = await MortalRuntime.start({ root: linkRoot });
   runtime.identities.create({
     manifest: composeManifest({
       id,

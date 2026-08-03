@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { IdentitySummary } from "@liminal/schema";
+import type { IdentitySummary } from "@mortal/schema";
 import { SpaceCard, spaceLabel } from "../src/components/SpaceCard.js";
 
 afterEach(cleanup);

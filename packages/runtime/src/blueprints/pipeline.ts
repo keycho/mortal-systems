@@ -13,11 +13,11 @@ import {
   type IdentitySummary,
   type ManifestOverrides,
   type ValidationIssue,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { ZodError } from "zod";
 import { errors } from "../errors.js";
 import type { BlueprintRow } from "../store/repo.js";
-import type { LiminalRuntime } from "../runtime.js";
+import type { MortalRuntime } from "../runtime.js";
 
 /**
  * the blueprint import pipeline, every import without exception (first-party
@@ -37,7 +37,7 @@ export interface ValidateResult {
 }
 
 export class BlueprintService {
-  constructor(private readonly runtime: LiminalRuntime) {}
+  constructor(private readonly runtime: MortalRuntime) {}
 
   validate(manifestJson: string): ValidateResult {
     if (Buffer.byteLength(manifestJson, "utf8") > BLUEPRINT_MAX_BYTES) {
@@ -262,7 +262,7 @@ export class BlueprintService {
 }
 
 /** provisioning reads this to scaffold empty bookmark folders */
-export function bookmarkFoldersFor(runtime: LiminalRuntime, identityId: string): string[] {
+export function bookmarkFoldersFor(runtime: MortalRuntime, identityId: string): string[] {
   const raw = runtime.repo.getSetting(BOOKMARK_FOLDERS_SETTING(identityId));
   if (!raw) return [];
   try {

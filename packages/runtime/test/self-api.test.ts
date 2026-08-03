@@ -2,8 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId } from "@liminal/schema";
-import { LiminalRuntime } from "../src/runtime.js";
+import { composeManifest, generateIdentityId } from "@mortal/schema";
+import { MortalRuntime } from "../src/runtime.js";
 
 /**
  * day-3 gate, token half: the companion surface is identity-scoped by
@@ -12,7 +12,7 @@ import { LiminalRuntime } from "../src/runtime.js";
  * in-browser variant belongs to the day-6 isolation suite.
  */
 
-let runtime: LiminalRuntime;
+let runtime: MortalRuntime;
 let root: string;
 const idA = generateIdentityId();
 const idB = generateIdentityId();
@@ -33,8 +33,8 @@ function selfFetch(
 }
 
 beforeAll(async () => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-self-"));
-  runtime = await LiminalRuntime.start({ root });
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-self-"));
+  runtime = await MortalRuntime.start({ root });
   const now = () => new Date().toISOString();
   runtime.identities.create({
     manifest: composeManifest({

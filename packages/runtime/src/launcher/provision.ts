@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { IdentityManifest } from "@liminal/schema";
+import type { IdentityManifest } from "@mortal/schema";
 import type { Repo } from "../store/repo.js";
 import { ensureDir } from "../util/fsx.js";
 import { insideRoot } from "../util/paths.js";
@@ -50,7 +50,7 @@ export function provisionIdentity(
   if (!fs.existsSync(preferencesPath)) {
     const preferences = {
       profile: {
-        name: `${manifest.name} · liminal`,
+        name: `${manifest.name} · mortal`,
         exit_type: "Normal",
       },
       download: {

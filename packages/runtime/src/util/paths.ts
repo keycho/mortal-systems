@@ -4,7 +4,7 @@ import { errors } from "../errors.js";
 
 /** default runtime root. all identity state lives here, never inside the repo. */
 export function defaultRoot(): string {
-  return path.join(os.homedir(), ".liminal");
+  return path.join(os.homedir(), ".mortal");
 }
 
 /** resolve a user-supplied root to an absolute path, expanding a leading ~ */

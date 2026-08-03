@@ -4,7 +4,7 @@ import {
   generateIdentityId,
   isValidLifetime,
   type IdentityManifest,
-} from "@liminal/schema";
+} from "@mortal/schema";
 
 const PALETTE = ["#F59E0B", "#C8FF4D", "#FFB000", "#4DA3FF", "#A78BFA", "#8A8F98"];
 

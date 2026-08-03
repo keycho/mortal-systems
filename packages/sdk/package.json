@@ -1,5 +1,5 @@
 {
-  "name": "@liminal/sdk",
+  "name": "@mortal/sdk",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@liminal/schema": "workspace:*"
+    "@mortal/schema": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:"

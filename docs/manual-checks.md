@@ -6,7 +6,7 @@ pass without having been performed.
 
 ## M1 · macos launcher + companion smoke suites — PASS (brave), FAIL-then-explained (branded chrome)
 
-- **2026-08-03 · founder-run · macos, brave via `LIMINAL_BROWSER_PATH` → 55/55 runtime tests green**, including both companion smoke suites (per-identity extension ids, origin pinning, symlinked-root regression).
+- **2026-08-03 · founder-run · macos, brave via `MORTAL_BROWSER_PATH` → 55/55 runtime tests green**, including both companion smoke suites (per-identity extension ids, origin pinning, symlinked-root regression).
 - earlier failures on the same machine, fully explained and closed:
   - **branded chrome 141 ignores `--load-extension`** (removed in 137, risk r3). the only `chrome-extension://` target was chrome's built-in hangouts component (`nkeimhogjdpnpccoofpliimaahmaaome`, constant key-derived id), which the old observation logic mispinned and the id tests compared against. fixed: companion-shaped target chooser + explicit "companion did not load" runtime warning; verified chain in DECISIONS.md.
   - **environmental noise on the test machine**: gatekeeper first-launch latency on the browser binary, and an overbroad `pkill` that killed the esbuild service process; a clean `node_modules` resolved the latter.

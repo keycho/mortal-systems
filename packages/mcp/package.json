@@ -1,9 +1,9 @@
 {
-  "name": "@liminal/mcp",
+  "name": "@mortal/mcp",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "poc stub, intentionally empty. the liminal mcp server (agent integration) is days 31-60 scope.",
+  "description": "poc stub, intentionally empty. the mortal mcp server (agent integration) is days 31-60 scope.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

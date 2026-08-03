@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { IdentityManifest, IdentitySummary } from "@liminal/schema";
-import { ENFORCEMENT_TABLE } from "@liminal/schema";
+import type { IdentityManifest, IdentitySummary } from "@mortal/schema";
+import { ENFORCEMENT_TABLE } from "@mortal/schema";
 import { EnforcementBadge } from "./EnforcementBadge.js";
 import { spaceLabel } from "./SpaceCard.js";
 

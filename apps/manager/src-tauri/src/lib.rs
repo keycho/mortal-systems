@@ -10,21 +10,21 @@ struct RuntimeHandle {
     endpoint: Mutex<Option<(String, String)>>, // (base_url, admin_token)
 }
 
-fn liminal_root() -> PathBuf {
-    if let Ok(root) = std::env::var("LIMINAL_ROOT") {
+fn mortal_root() -> PathBuf {
+    if let Ok(root) = std::env::var("MORTAL_ROOT") {
         return PathBuf::from(root);
     }
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-    PathBuf::from(home).join(".liminal")
+    PathBuf::from(home).join(".mortal")
 }
 
 /// spawn `node <runtime>/dist/cli.js serve` as the runtime sidecar. the node
-/// binary and runtime path come from env in the poc (LIMINAL_NODE,
-/// LIMINAL_RUNTIME_DIR); packaging a self-contained sidecar binary is mvp
+/// binary and runtime path come from env in the poc (MORTAL_NODE,
+/// MORTAL_RUNTIME_DIR); packaging a self-contained sidecar binary is mvp
 /// scope.
 fn spawn_runtime() -> std::io::Result<Child> {
-    let node = std::env::var("LIMINAL_NODE").unwrap_or_else(|_| "node".into());
-    let runtime_dir = std::env::var("LIMINAL_RUNTIME_DIR")
+    let node = std::env::var("MORTAL_NODE").unwrap_or_else(|_| "node".into());
+    let runtime_dir = std::env::var("MORTAL_RUNTIME_DIR")
         .unwrap_or_else(|_| "../../packages/runtime".into());
     Command::new(node)
         .arg(format!("{runtime_dir}/dist/cli.js"))
@@ -35,7 +35,7 @@ fn spawn_runtime() -> std::io::Result<Child> {
 }
 
 fn read_endpoint() -> Option<(String, String)> {
-    let root = liminal_root();
+    let root = mortal_root();
     let meta: Value =
         serde_json::from_str(&std::fs::read_to_string(root.join("runtime.json")).ok()?).ok()?;
     let token: Value =
@@ -93,5 +93,5 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running liminal manager");
+        .expect("error while running mortal manager");
 }

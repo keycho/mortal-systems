@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 /**
  * builds the companion template into dist/. the runtime stamps per-identity
  * copies of dist/ into <root>/companion-instances/<id>/ and adds
- * liminal.identity.json (which is intentionally NOT part of the template).
+ * mortal.identity.json (which is intentionally NOT part of the template).
  */
 
 const here = path.dirname(fileURLToPath(import.meta.url));

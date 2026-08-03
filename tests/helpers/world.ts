@@ -5,19 +5,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright-core";
 // side-effect import wires the launcher for in-proc runtimes
-import "@liminal/runtime";
-import { LiminalRuntime } from "@liminal/runtime";
-import { composeManifest, generateIdentityId, type RpcResponse } from "@liminal/schema";
+import "@mortal/runtime";
+import { MortalRuntime } from "@mortal/runtime";
+import { composeManifest, generateIdentityId, type RpcResponse } from "@mortal/schema";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(here, "../..");
 const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
 
 export function prepareEnv(): void {
-  if (!process.env.LIMINAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
-    process.env.LIMINAL_BROWSER_PATH = BUNDLED_CHROMIUM;
+  if (!process.env.MORTAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
+    process.env.MORTAL_BROWSER_PATH = BUNDLED_CHROMIUM;
   }
-  process.env.LIMINAL_HEADLESS = "1";
+  process.env.MORTAL_HEADLESS = "1";
   const companion = path.join(REPO_ROOT, "apps/companion");
   if (!fs.existsSync(path.join(companion, "dist", "manifest.json"))) {
     execFileSync("node", ["build.mjs"], { cwd: companion, stdio: "inherit" });
@@ -30,13 +30,13 @@ export function tmpRoot(prefix: string): string {
 
 // ---- in-process runtime (isolation suite) ----
 
-export async function startInProcRuntime(root: string): Promise<LiminalRuntime> {
+export async function startInProcRuntime(root: string): Promise<MortalRuntime> {
   prepareEnv();
-  return LiminalRuntime.start({ root, scheduler: { tickMs: 60_000 } });
+  return MortalRuntime.start({ root, scheduler: { tickMs: 60_000 } });
 }
 
 export function createIdentity(
-  runtime: LiminalRuntime,
+  runtime: MortalRuntime,
   name: string,
   opts: { lifetime?: string; retainHistory?: boolean; color?: string } = {}
 ): string {
@@ -62,7 +62,7 @@ export interface IdentityBrowser {
 }
 
 /** launch an identity and attach playwright over its per-identity cdp endpoint */
-export async function launchAndConnect(runtime: LiminalRuntime, id: string): Promise<IdentityBrowser> {
+export async function launchAndConnect(runtime: MortalRuntime, id: string): Promise<IdentityBrowser> {
   const { pid, cdpEndpoint } = await runtime.launch(id);
   const httpEndpoint = `http://${new URL(cdpEndpoint!.replace("ws://", "http://")).host}`;
   const browser = await chromium.connectOverCDP(httpEndpoint);
@@ -94,8 +94,8 @@ export async function startRuntimeProcess(
   const child = spawn(process.execPath, [cli, "serve", "--root", root], {
     env: {
       ...process.env,
-      LIMINAL_TICK_MS: "500",
-      LIMINAL_GRACE_SECONDS: "1",
+      MORTAL_TICK_MS: "500",
+      MORTAL_GRACE_SECONDS: "1",
       ...env,
     },
     stdio: ["ignore", "ignore", "inherit"],

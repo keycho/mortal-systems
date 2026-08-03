@@ -5,13 +5,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId } from "@liminal/schema";
-import { LiminalRuntime } from "../src/runtime.js";
+import { composeManifest, generateIdentityId } from "@mortal/schema";
+import { MortalRuntime } from "../src/runtime.js";
 
 const LAUNCH_TIMEOUT = 90_000;
 const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
 
-let runtime: LiminalRuntime;
+let runtime: MortalRuntime;
 let root: string;
 const idA = generateIdentityId();
 const idB = generateIdentityId();
@@ -36,12 +36,12 @@ function pidAlive(pid: number): boolean {
 }
 
 beforeAll(async () => {
-  if (!process.env.LIMINAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
-    process.env.LIMINAL_BROWSER_PATH = BUNDLED_CHROMIUM;
+  if (!process.env.MORTAL_BROWSER_PATH && fs.existsSync(BUNDLED_CHROMIUM)) {
+    process.env.MORTAL_BROWSER_PATH = BUNDLED_CHROMIUM;
   }
-  process.env.LIMINAL_HEADLESS = "1";
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-smoke-"));
-  runtime = await LiminalRuntime.start({ root, noServer: true });
+  process.env.MORTAL_HEADLESS = "1";
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-smoke-"));
+  runtime = await MortalRuntime.start({ root, noServer: true });
 
   const now = () => new Date().toISOString();
   runtime.identities.create({

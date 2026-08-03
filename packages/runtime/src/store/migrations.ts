@@ -9,7 +9,7 @@ export interface Migration {
 /**
  * forward-only numbered migrations, tracked via PRAGMA user_version, applied
  * in a transaction at runtime startup. migrations never rewrite manifest_json
- * contents; manifest versioning is handled by @liminal/schema upgraders at
+ * contents; manifest versioning is handled by @mortal/schema upgraders at
  * read time.
  */
 export const MIGRATIONS: Migration[] = [

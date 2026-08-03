@@ -1,9 +1,9 @@
 {
-  "name": "@liminal/schema",
+  "name": "@mortal/schema",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "canonical zod manifests, api types, and shared constants for liminal. zero runtime deps beyond zod; imported by everything, imports nothing else.",
+  "description": "canonical zod manifests, api types, and shared constants for mortal. zero runtime deps beyond zod; imported by everything, imports nothing else.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

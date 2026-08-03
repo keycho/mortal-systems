@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blueprintManifestSchema } from "@liminal/schema";
+import { blueprintManifestSchema } from "@mortal/schema";
 import {
   clientOperations,
   cryptoOperations,

@@ -7,7 +7,7 @@ import {
   type ActivityEvent,
   type DestructionReport,
   type IdentitySummary,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { EnforcementBadge } from "../src/components/EnforcementBadge.js";
 import { ManifestView } from "../src/components/ManifestView.js";
 import { ActivityLog } from "../src/components/ActivityLog.js";

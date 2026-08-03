@@ -4,9 +4,9 @@ import {
   identityStateSchema,
   RESERVED_METHODS,
   toValidationIssues,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { errors, RuntimeError } from "../errors.js";
-import type { LiminalRuntime } from "../runtime.js";
+import type { MortalRuntime } from "../runtime.js";
 
 const createParams = z.object({ manifest: z.unknown() }).strict();
 const idParams = z.object({ id: identityIdSchema }).strict();
@@ -53,7 +53,7 @@ const createFromBlueprintParams = z
  * failure mode; the http layer maps those onto the wire envelope.
  */
 export async function dispatchRpc(
-  runtime: LiminalRuntime,
+  runtime: MortalRuntime,
   method: string,
   params: unknown
 ): Promise<unknown> {

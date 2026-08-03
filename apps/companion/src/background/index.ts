@@ -39,7 +39,7 @@ async function refresh(): Promise<void> {
     await chrome.action.setBadgeBackgroundColor({ color: body.summary.color });
     await chrome.action.setBadgeText({ text: badgeText(body.remainingMs) });
     await chrome.action.setTitle({
-      title: `${body.summary.name} · liminal${body.remainingMs !== null ? ` · ${badgeText(body.remainingMs)} left` : ""}`,
+      title: `${body.summary.name} · mortal${body.remainingMs !== null ? ` · ${badgeText(body.remainingMs)} left` : ""}`,
     });
   } catch {
     // runtime restarting or port rotated; fall back to stamped identity colors
@@ -51,14 +51,14 @@ async function refresh(): Promise<void> {
 
 chrome.runtime.onInstalled.addListener(() => void refresh());
 chrome.runtime.onStartup.addListener(() => void refresh());
-void chrome.alarms.create("liminal-refresh", { periodInMinutes: 0.5 });
+void chrome.alarms.create("mortal-refresh", { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "liminal-refresh") void refresh();
+  if (alarm.name === "mortal-refresh") void refresh();
 });
 
 // the content script badge asks who we are; nothing from the page ever comes back
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if ((message as { type?: string }).type === "liminal.identity") {
+  if ((message as { type?: string }).type === "mortal.systemsentity") {
     if (cached !== null) {
       sendResponse(cached);
     } else {

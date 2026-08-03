@@ -15,7 +15,7 @@ describe("composeManifest", () => {
     expect(m.lifecycle.onExpiry).toBe("archive");
     expect(m.surfaces.browser.profilePath).toBe(`profiles/${id}`);
     expect(m.surfaces.files.root).toBe(`files/${id}`);
-    expect(m.surfaces.browser.extensions).toContain("liminal-companion");
+    expect(m.surfaces.browser.extensions).toContain("mortal-companion");
     expect(m.privacy.retainHistory.value).toBe(true);
     expect(identityManifestSchema.safeParse(m).success).toBe(true);
   });
@@ -59,7 +59,7 @@ describe("manifestInputFromBlueprint", () => {
     ai: { systemInstructions: "cautious investigator." },
     permissions: { wallet: { value: "none", enforcement: "advisory" } },
     privacy: { retainHistory: { value: false, enforcement: "enforced" } },
-    publisher: { id: "liminal.first-party", reviewTier: "standard" },
+    publisher: { id: "mortal.first-party", reviewTier: "standard" },
     recommendedExtensions: [{ id: "nkbihfbeogaeaoehlefnkodbefgpgknn", name: "MetaMask" }],
   });
 
@@ -92,7 +92,7 @@ describe("manifestInputFromBlueprint", () => {
         signature: null,
       })
     );
-    expect(noConsent.surfaces.browser.extensions).toEqual(["liminal-companion"]);
+    expect(noConsent.surfaces.browser.extensions).toEqual(["mortal-companion"]);
 
     const consented = composeManifest(
       manifestInputFromBlueprint(bp, {
@@ -104,7 +104,7 @@ describe("manifestInputFromBlueprint", () => {
       })
     );
     expect(consented.surfaces.browser.extensions).toEqual([
-      "liminal-companion",
+      "mortal-companion",
       "nkbihfbeogaeaoehlefnkodbefgpgknn",
     ]);
   });

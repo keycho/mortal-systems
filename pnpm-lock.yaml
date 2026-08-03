@@ -62,7 +62,7 @@ importers:
 
   apps/manager:
     dependencies:
-      '@liminal/schema':
+      '@mortal/schema':
         specifier: workspace:*
         version: link:../../packages/schema
       '@tauri-apps/api':
@@ -111,7 +111,7 @@ importers:
 
   packages/blueprints-first-party:
     dependencies:
-      '@liminal/schema':
+      '@mortal/schema':
         specifier: workspace:*
         version: link:../schema
     devDependencies:
@@ -133,10 +133,10 @@ importers:
 
   packages/runtime:
     dependencies:
-      '@liminal/blueprints':
+      '@mortal/blueprints':
         specifier: workspace:*
         version: link:../blueprints-first-party
-      '@liminal/schema':
+      '@mortal/schema':
         specifier: workspace:*
         version: link:../schema
       better-sqlite3:
@@ -180,7 +180,7 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@liminal/schema':
+      '@mortal/schema':
         specifier: workspace:*
         version: link:../schema
     devDependencies:
@@ -190,13 +190,13 @@ importers:
 
   tests:
     dependencies:
-      '@liminal/blueprints':
+      '@mortal/blueprints':
         specifier: workspace:*
         version: link:../packages/blueprints-first-party
-      '@liminal/runtime':
+      '@mortal/runtime':
         specifier: workspace:*
         version: link:../packages/runtime
-      '@liminal/schema':
+      '@mortal/schema':
         specifier: workspace:*
         version: link:../packages/schema
       better-sqlite3:

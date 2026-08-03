@@ -4,7 +4,7 @@ import type {
   IdentityManifest,
   IdentitySummary,
   RuntimeStatus,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { rpc, RpcClientError } from "./lib/client.js";
 import { SpaceCard } from "./components/SpaceCard.js";
 import { CreateIdentityForm } from "./components/CreateIdentityForm.js";
@@ -78,7 +78,7 @@ export default function App() {
   return (
     <div className="h-full flex flex-col">
       <header className="px-4 py-3 border-b border-line flex items-baseline gap-3">
-        <span className="text-[15px] tracking-widest">liminal</span>
+        <span className="text-[15px] tracking-widest">mortal systems</span>
         <span className="text-mute text-[11px]">manager</span>
         <span className="text-mute text-[11px] ml-auto">
           identities that disappear when their work is done

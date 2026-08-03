@@ -1,11 +1,11 @@
-# threat model — liminal poc
+# threat model — mortal poc
 
 status: living document. the companion-trust section below is designed and
 current; sections marked *stub* get their full sweep on day 7.
 
 ## scope and assets
 
-liminal separates **state and context** between identities on one machine:
+mortal separates **state and context** between identities on one machine:
 chromium profile state (cookies, storage, sessions, extensions), files and
 downloads, notes, ai context, and lifecycle. the assets are (a) each
 identity's partition and memory, (b) the per-identity companion bearer

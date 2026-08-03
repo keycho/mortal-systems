@@ -7,10 +7,10 @@ import {
   randomId,
   toValidationIssues,
   type Enforcement,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import { errors, RuntimeError } from "../errors.js";
 import { computeUnpackedExtensionId } from "../launcher/extension-id.js";
-import type { LiminalRuntime } from "../runtime.js";
+import type { MortalRuntime } from "../runtime.js";
 
 /**
  * the companion's identity-scoped surface. every route derives the identity
@@ -96,7 +96,7 @@ function parseJson<T>(raw: Buffer, schema: z.ZodType<T>): T {
  * a token. token-only local processes without an Origin are inside the local
  * trust boundary by definition.)
  */
-function checkOrigin(runtime: LiminalRuntime, identityId: string, req: http.IncomingMessage): void {
+function checkOrigin(runtime: MortalRuntime, identityId: string, req: http.IncomingMessage): void {
   const origin = req.headers.origin;
   if (origin === undefined || origin === "" || origin === "null") return;
   const accepted = new Set<string>();
@@ -151,7 +151,7 @@ export interface PermissionRow {
  * throws RuntimeError for auth/validation failures (mapped by the caller).
  */
 export async function handleSelfRequest(
-  runtime: LiminalRuntime,
+  runtime: MortalRuntime,
   req: http.IncomingMessage,
   res: http.ServerResponse,
   url: URL,

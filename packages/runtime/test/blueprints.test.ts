@@ -6,24 +6,24 @@ import {
   blueprintManifestSchema,
   BLUEPRINT_MAX_BYTES,
   identityManifestSchema,
-} from "@liminal/schema";
+} from "@mortal/schema";
 import {
   clientOperations,
   cryptoOperations,
   onchainInvestigator,
-} from "@liminal/blueprints";
-import { LiminalRuntime } from "../src/runtime.js";
+} from "@mortal/blueprints";
+import { MortalRuntime } from "../src/runtime.js";
 import { provisionIdentity } from "../src/launcher/provision.js";
 import { RuntimeError } from "../src/errors.js";
 
-let runtime: LiminalRuntime;
+let runtime: MortalRuntime;
 let root: string;
 
 const json = (v: unknown) => JSON.stringify(v);
 
 beforeAll(async () => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), "liminal-bp-"));
-  runtime = await LiminalRuntime.start({ root, noServer: true, scheduler: { tickMs: 60_000 } });
+  root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-bp-"));
+  runtime = await MortalRuntime.start({ root, noServer: true, scheduler: { tickMs: 60_000 } });
 });
 
 afterAll(async () => {
@@ -135,7 +135,7 @@ describe("install and createFromBlueprint", () => {
     expect(manifest!.privacy.retainHistory.value).toBe(false);
     expect(manifest!.permissions.wallet).toEqual({ value: "none", enforcement: "advisory" });
     // no extensions beyond the companion without explicit consent
-    expect(manifest!.surfaces.browser.extensions).toEqual(["liminal-companion"]);
+    expect(manifest!.surfaces.browser.extensions).toEqual(["mortal-companion"]);
 
     const bookmarks = runtime.repo.listBookmarks(summary.id);
     expect(bookmarks.map((b) => b.title)).toEqual(["Solscan", "Birdeye", "Dexscreener", "Etherscan"]);
@@ -155,14 +155,14 @@ describe("install and createFromBlueprint", () => {
     });
     const { manifest } = runtime.identities.get(withConsent.id);
     expect(manifest!.surfaces.browser.extensions).toEqual([
-      "liminal-companion",
+      "mortal-companion",
       "nkbihfbeogaeaoehlefnkodbefgpgknn",
     ]);
 
     const withoutConsent = runtime.blueprints.createIdentity({ blueprintId: cryptoId });
     expect(
       runtime.identities.get(withoutConsent.id).manifest!.surfaces.browser.extensions
-    ).toEqual(["liminal-companion"]);
+    ).toEqual(["mortal-companion"]);
   });
 
   it("client operations: persistent (no job), notes template seeded, empty folders provisioned", () => {

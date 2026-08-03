@@ -13,7 +13,7 @@ interface IdentityInfo {
 
 function mountBadge(info: IdentityInfo): void {
   const host = document.createElement("div");
-  host.setAttribute("data-liminal-badge", "");
+  host.setAttribute("data-mortal-badge", "");
   const shadow = host.attachShadow({ mode: "closed" });
 
   const badge = document.createElement("div");
@@ -51,13 +51,13 @@ function mountBadge(info: IdentityInfo): void {
   document.documentElement.append(host);
 
   // window-title suffix so the os window list is attributable too
-  const suffix = ` · ${info.name} · liminal`;
+  const suffix = ` · ${info.name} · mortal`;
   if (!document.title.endsWith(suffix)) {
     document.title = `${document.title}${suffix}`;
   }
 }
 
-chrome.runtime.sendMessage({ type: "liminal.identity" }, (info: IdentityInfo | null) => {
+chrome.runtime.sendMessage({ type: "mortal.systemsentity" }, (info: IdentityInfo | null) => {
   if (chrome.runtime.lastError || info === null || !info.name) return;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => mountBadge(info), { once: true });

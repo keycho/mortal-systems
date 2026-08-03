@@ -1,7 +1,7 @@
 // side-effect import: wires the chromium launcher into runtime startup
 import "./launcher/register.js";
 
-export { LiminalRuntime, registerLauncher, type LauncherApi, type RuntimeOptions } from "./runtime.js";
+export { MortalRuntime, registerLauncher, type LauncherApi, type RuntimeOptions } from "./runtime.js";
 export { Launcher } from "./launcher/launch.js";
 export { discoverBrowsers, discoveryWarnings, majorVersion } from "./launcher/discover.js";
 export { provisionIdentity, scrubHistory, hexToSkColor } from "./launcher/provision.js";

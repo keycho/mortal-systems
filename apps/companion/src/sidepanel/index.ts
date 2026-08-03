@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   const res = await apiFetch(config, "/v1/self");
   if (!res.ok) {
     $("idle").hidden = false;
-    $("idle").textContent = `runtime unreachable (${res.status}). is liminal running?`;
+    $("idle").textContent = `runtime unreachable (${res.status}). is mortal running?`;
     return;
   }
   const body = (await res.json()) as { summary: SelfSummary; remainingMs: number | null };

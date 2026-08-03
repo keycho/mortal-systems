@@ -1,4 +1,4 @@
-import type { BlueprintManifest } from "@liminal/schema";
+import type { BlueprintManifest } from "@mortal/schema";
 import { clientOperations } from "./client-operations.js";
 import { onchainInvestigator } from "./onchain-investigator.js";
 import { cryptoOperations } from "./crypto-operations.js";

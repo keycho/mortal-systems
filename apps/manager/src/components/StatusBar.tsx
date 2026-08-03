@@ -1,4 +1,4 @@
-import type { RuntimeStatus } from "@liminal/schema";
+import type { RuntimeStatus } from "@mortal/schema";
 
 export function StatusBar({ status, error }: { status: RuntimeStatus | null; error: string | null }) {
   return (
