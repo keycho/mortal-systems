@@ -24,6 +24,7 @@ import { RUNTIME_VERSION } from "./version.js";
 import { createApiServer, type ApiServer } from "./api/server.js";
 import { EventBus } from "./api/events.js";
 import { findIdentityByToken, getOrCreateTokenSecret, tokenForIdentity } from "./api/tokens.js";
+import { Scheduler, type SchedulerOptions } from "./scheduler/scheduler.js";
 
 /**
  * the contract the day-2 chromium launcher fulfills. kept as an interface so
@@ -62,6 +63,8 @@ export interface RuntimeOptions {
   adminToken?: string;
   /** skip binding the http api (for in-process unit tests) */
   noServer?: boolean;
+  /** scheduler pacing overrides (tests); defaults 15s tick / 60s grace */
+  scheduler?: SchedulerOptions;
 }
 
 export class LiminalRuntime {
@@ -72,6 +75,7 @@ export class LiminalRuntime {
   readonly events: EventBus;
   readonly adminToken: string;
   readonly startedAt: string;
+  scheduler: Scheduler | null = null;
   /** wired by the day-2 launcher; null means launch/suspend/resume are unavailable */
   launcher: LauncherApi | null = null;
   port = 0;
@@ -134,6 +138,12 @@ export class LiminalRuntime {
       log.warn(`resumed ${resumed.length} interrupted destruction(s) on startup`);
     }
 
+    // lifecycle enforcement: catch-up runs before the api serves, so a
+    // missed expiry is honored before any client can act on the identity
+    runtime.scheduler = new Scheduler(runtime, opts.scheduler);
+    await runtime.scheduler.catchUp();
+    runtime.scheduler.start();
+
     if (!opts.noServer) {
       runtime.api = createApiServer(runtime, runtime.adminToken);
       runtime.port = await runtime.api.listen(opts.port ?? 0);
@@ -155,6 +165,7 @@ export class LiminalRuntime {
   }
 
   async stop(): Promise<void> {
+    this.scheduler?.stop();
     if (this.launcher) await this.launcher.stopAll("runtime shutdown");
     this.events.stop();
     if (this.api) await this.api.close();
@@ -232,10 +243,15 @@ export class LiminalRuntime {
     this.identities.transition(id, "expiring");
     this.repo.appendActivity(id, "expiring", { action, manual: true }, now);
 
+    // manual expiry is user-confirmed in the ui; no grace period applies
     if (this.launcher) {
       await this.launcher.haltIfRunning(id);
     }
+    await this.applyOnExpiry(id, action);
+  }
 
+  /** run an onExpiry action; shared by manual expire and the scheduler */
+  async applyOnExpiry(id: string, action: "destroy" | "suspend" | "archive"): Promise<void> {
     switch (action) {
       case "destroy":
         await this.destroyIdentity(id, { reason: "expired" });
