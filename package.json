@@ -8,9 +8,9 @@
   },
   "scripts": {
     "dev": "turbo run dev --filter=@mortal/runtime --filter=manager",
-    "dev:web": "pnpm --filter web dev",
-    "dev:manager": "pnpm --filter manager dev",
-    "dev:runtime": "pnpm --filter @mortal/runtime dev",
+    "dev:web": "turbo run dev --filter=web",
+    "dev:manager": "turbo run dev --filter=manager",
+    "dev:runtime": "turbo run dev --filter=@mortal/runtime",
     "build": "turbo run build",
     "build:web": "turbo run build --filter=web",
     "build:manager": "turbo run tauri:build --filter=manager",
@@ -19,8 +19,9 @@
     "test": "turbo run test",
     "test:isolation": "pnpm --filter mortal-tests test:isolation",
     "test:lifecycle": "pnpm --filter mortal-tests test:lifecycle",
-    "check": "pnpm lint && turbo run typecheck && pnpm check:guarantees",
-    "check:guarantees": "tsx scripts/check-guarantees.ts"
+    "check": "pnpm lint && turbo run typecheck && pnpm check:guarantees && pnpm check:cli",
+    "check:guarantees": "tsx scripts/check-guarantees.ts",
+    "check:cli": "turbo run build --filter=@mortal/runtime && node scripts/smoke-cli.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",
