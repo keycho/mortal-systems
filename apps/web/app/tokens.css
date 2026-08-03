@@ -1,0 +1,33 @@
+/**
+ * mortal systems design tokens — the single source for the site, and the
+ * seed for the manager/companion design pass (see DECISIONS.md).
+ * semantic, not decorative: lifecycle states and enforcement levels are the
+ * only colors that mean anything.
+ */
+:root {
+  /* canvas */
+  --bg: #0a0a0b;
+  --card: #101013;
+  --card-2: #16161a;
+  --line: #1f2328;
+  --line-strong: #2a2f36;
+  --ink: #e6e7e9;
+  --mute: #8a8f98;
+
+  /* lifecycle states (match the manager) */
+  --state-persistent: #f59e0b;
+  --state-active: #c8ff4d;
+  --state-expiring: #f97316;
+  --state-destroying: #b3565b;
+  --state-archived: #8a8f98;
+
+  /* enforcement: solid = enforced, outlined = advisory, dashed = roadmap */
+  --enforced-bg: var(--ink);
+  --enforced-ink: var(--bg);
+  --advisory-border: var(--ink);
+  --roadmap-border: var(--mute);
+
+  /* rhythm */
+  --rail: 3px;
+  --radius: 2px;
+}

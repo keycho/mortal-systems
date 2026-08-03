@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // the site is static content; nothing here launches or manages identities
-  transpilePackages: ["@mortal/schema"],
+  // the site is fully static content; nothing here launches or manages
+  // identities, and there is no server, no analytics, no data collection
+  output: "export",
+  transpilePackages: ["@mortal/schema", "@mortal/blueprints"],
 };
 
 export default nextConfig;

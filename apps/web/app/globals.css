@@ -1,22 +1,54 @@
 @import "tailwindcss";
+@import "./tokens.css";
 
 @theme {
-  --color-void: #0b0c0e;
-  --color-panel: #121417;
-  --color-panel-2: #16191d;
-  --color-line: #1f2328;
-  --color-ink: #e6e7e9;
-  --color-mute: #8a8f98;
-  --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --color-void: var(--bg);
+  --color-panel: var(--card);
+  --color-panel-2: var(--card-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-mute: var(--mute);
+  --color-persistent: var(--state-persistent);
+  --color-active: var(--state-active);
+  --color-expiring: var(--state-expiring);
+  --color-destroying: var(--state-destroying);
+  --color-archived: var(--state-archived);
 }
 
 body {
-  background: var(--color-void);
-  color: var(--color-ink);
-  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-jetbrains), ui-monospace, Menlo, monospace;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #2a2f36;
+  background: var(--line-strong);
+}
+
+:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* live wall + simulator motion. all of it collapses under reduced motion. */
+@keyframes decay {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+@keyframes collapse {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(4px); }
+}
+@keyframes provision-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.anim-decay { animation: decay 2.4s ease-in-out infinite; }
+.anim-collapse { animation: collapse 700ms ease-in forwards; }
+.anim-provision { animation: provision-in 500ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-decay, .anim-collapse, .anim-provision { animation: none; }
 }
