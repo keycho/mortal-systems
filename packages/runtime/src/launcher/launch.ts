@@ -10,7 +10,11 @@ import { dirSizeBytes } from "../util/fsx.js";
 import { insideRoot } from "../util/paths.js";
 import { log } from "../util/log.js";
 import { discoverBrowsers, discoveryWarnings } from "./discover.js";
-import { computeUnpackedExtensionId } from "./extension-id.js";
+import {
+  computeUnpackedExtensionId,
+  pickCompanionExtensionId,
+  type ObservedTarget,
+} from "./extension-id.js";
 import { provisionIdentity, scrubHistory } from "./provision.js";
 
 interface Proc {
@@ -367,30 +371,32 @@ export class Launcher implements LauncherApi {
         if (this.procs.get(id)?.cdpPort !== cdpPort) return; // stopped or relaunched
         try {
           const res = await fetch(`http://127.0.0.1:${cdpPort}/json/list`);
-          const targets = (await res.json()) as Array<{ url: string }>;
-          const ids = new Set(
-            targets
-              .filter((t) => t.url.startsWith("chrome-extension://"))
-              .map((t) => new URL(t.url).host)
-          );
-          if (ids.size > 0) {
-            const chosen = ids.has(computed) ? computed : ids.size === 1 ? [...ids][0]! : null;
-            if (chosen !== null) {
-              this.observedIds.set(id, chosen);
-              try {
-                fs.writeFileSync(path.join(instanceDir, "observed-extension-id"), chosen);
-              } catch {}
-              if (chosen !== computed) {
-                log.warn(
-                  `companion for ${id}: chromium assigned ${chosen} but the computed id was ${computed}; origin pinned to the observed id`
-                );
-              }
+          const targets = (await res.json()) as ObservedTarget[];
+          // only companion-shaped targets count; branded chrome ships
+          // constant-id component extensions (hangouts et al.) that must
+          // never be pinned as an identity's companion origin
+          const chosen = pickCompanionExtensionId(targets, computed);
+          if (chosen !== null) {
+            this.observedIds.set(id, chosen);
+            try {
+              fs.writeFileSync(path.join(instanceDir, "observed-extension-id"), chosen);
+            } catch {}
+            if (chosen !== computed) {
+              log.warn(
+                `companion for ${id}: chromium assigned ${chosen} but the computed id was ${computed}; origin pinned to the observed id`
+              );
             }
             return;
           }
         } catch {}
         await sleep(250);
       }
+      // timeout without a companion-shaped target: the extension did not load.
+      // branded chrome ignores --load-extension since 137 (risk r3); say so.
+      const warning =
+        "companion did not load in at least one identity's browser (branded chrome ignores --load-extension since 137; use chromium or brave, or set LIMINAL_BROWSER_PATH). the side panel/badge are unavailable there and /v1/self has no browser client.";
+      log.warn(`companion for ${id} never appeared in the browser's target list`);
+      if (!this.warnings.includes(warning)) this.warnings.push(warning);
     })();
   }
 

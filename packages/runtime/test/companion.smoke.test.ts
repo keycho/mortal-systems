@@ -9,7 +9,11 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { composeManifest, generateIdentityId } from "@liminal/schema";
 import { LiminalRuntime } from "../src/runtime.js";
-import { computeUnpackedExtensionId } from "../src/launcher/extension-id.js";
+import {
+  computeUnpackedExtensionId,
+  pickCompanionExtensionId,
+  type ObservedTarget,
+} from "../src/launcher/extension-id.js";
 
 const LAUNCH_TIMEOUT = 90_000;
 const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
@@ -21,32 +25,31 @@ let root: string;
 const idA = generateIdentityId();
 const idB = generateIdentityId();
 
-interface CdpTarget {
-  type: string;
-  url: string;
-}
-
-async function cdpTargets(cdpEndpoint: string): Promise<CdpTarget[]> {
+async function cdpTargets(cdpEndpoint: string): Promise<ObservedTarget[]> {
   const url = new URL(cdpEndpoint.replace("ws://", "http://"));
   const res = await fetch(`http://${url.host}/json/list`);
-  return (await res.json()) as CdpTarget[];
+  return (await res.json()) as ObservedTarget[];
 }
 
-/** poll for an extension target (service workers register asynchronously) */
-async function extensionIds(cdpEndpoint: string, timeoutMs: number): Promise<Set<string>> {
+/**
+ * poll until a companion-shaped target is pickable (service workers register
+ * asynchronously). uses the same chooser as the runtime, so components like
+ * hangouts on branded chrome can never satisfy the wait.
+ */
+async function pickedCompanionId(
+  cdpEndpoint: string,
+  computedId: string,
+  timeoutMs: number
+): Promise<{ picked: string | null; targets: ObservedTarget[] }> {
   const deadline = Date.now() + timeoutMs;
-  let ids = new Set<string>();
+  let targets: ObservedTarget[] = [];
   while (Date.now() < deadline) {
-    const targets = await cdpTargets(cdpEndpoint);
-    ids = new Set(
-      targets
-        .filter((t) => t.url.startsWith("chrome-extension://"))
-        .map((t) => new URL(t.url).host)
-    );
-    if (ids.size > 0) return ids;
+    targets = await cdpTargets(cdpEndpoint);
+    const picked = pickCompanionExtensionId(targets, computedId);
+    if (picked !== null) return { picked, targets };
     await new Promise((r) => setTimeout(r, 250));
   }
-  return ids;
+  return { picked: null, targets };
 }
 
 beforeAll(async () => {
@@ -114,7 +117,7 @@ describe("stamped companion inside real chromium", () => {
   );
 
   it(
-    "loads each identity's companion under the runtime-computed extension id (G6/G16 shape)",
+    "loads each identity's companion as a distinct per-identity extension (G6/G16 shape)",
     async () => {
       const cdpA = runtime.launcher!.cdpEndpointFor(idA)!;
       const cdpB = runtime.launcher!.cdpEndpointFor(idB)!;
@@ -127,17 +130,21 @@ describe("stamped companion inside real chromium", () => {
       expect(expectedA).toMatch(/^[a-p]{32}$/);
       expect(expectedA).not.toBe(expectedB);
 
-      const idsInA = await extensionIds(cdpA, 20_000);
-      const idsInB = await extensionIds(cdpB, 20_000);
-
-      // the computed id matches what chromium actually assigned (verifies the
-      // sha256-path algorithm against the real browser)
-      expect([...idsInA], "A loads its own companion").toContain(expectedA);
-      expect([...idsInB], "B loads its own companion").toContain(expectedB);
+      // the model under test: ids are path-derived and per-identity, and the
+      // chooser only ever sees companion-shaped targets (a component
+      // extension like hangouts on branded chrome could never satisfy this)
+      const a = await pickedCompanionId(cdpA, expectedA, 20_000);
+      const b = await pickedCompanionId(cdpB, expectedB, 20_000);
+      expect(a.picked, "A's companion loaded and matches the computed id").toBe(expectedA);
+      expect(b.picked, "B's companion loaded and matches the computed id").toBe(expectedB);
 
       // extension state isolation: A's instance is absent from B and vice versa
-      expect([...idsInA]).not.toContain(expectedB);
-      expect([...idsInB]).not.toContain(expectedA);
+      const companionHosts = (targets: ObservedTarget[]) =>
+        targets
+          .filter((t) => t.url.startsWith("chrome-extension://") && t.url.endsWith("/background.js"))
+          .map((t) => new URL(t.url).host);
+      expect(companionHosts(a.targets)).not.toContain(expectedB);
+      expect(companionHosts(b.targets)).not.toContain(expectedA);
     },
     LAUNCH_TIMEOUT
   );

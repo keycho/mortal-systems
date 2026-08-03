@@ -12,7 +12,11 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { composeManifest, generateIdentityId } from "@liminal/schema";
 import { LiminalRuntime } from "../src/runtime.js";
-import { computeUnpackedExtensionId } from "../src/launcher/extension-id.js";
+import {
+  computeUnpackedExtensionId,
+  pickCompanionExtensionId,
+  type ObservedTarget,
+} from "../src/launcher/extension-id.js";
 
 const LAUNCH_TIMEOUT = 90_000;
 const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
@@ -24,20 +28,21 @@ let realRoot: string;
 let linkRoot: string;
 const id = generateIdentityId();
 
-async function observedExtensionIds(cdpEndpoint: string, timeoutMs: number): Promise<Set<string>> {
+async function observeCompanionId(
+  cdpEndpoint: string,
+  computedId: string,
+  timeoutMs: number
+): Promise<string | null> {
   const url = new URL(cdpEndpoint.replace("ws://", "http://"));
   const deadline = Date.now() + timeoutMs;
-  let ids = new Set<string>();
   while (Date.now() < deadline) {
     const res = await fetch(`http://${url.host}/json/list`);
-    const targets = (await res.json()) as Array<{ url: string }>;
-    ids = new Set(
-      targets.filter((t) => t.url.startsWith("chrome-extension://")).map((t) => new URL(t.url).host)
-    );
-    if (ids.size > 0) return ids;
+    const targets = (await res.json()) as ObservedTarget[];
+    const picked = pickCompanionExtensionId(targets, computedId);
+    if (picked !== null) return picked;
     await new Promise((r) => setTimeout(r, 250));
   }
-  return ids;
+  return null;
 }
 
 beforeAll(async () => {
@@ -92,8 +97,8 @@ describe("companion identity under a symlinked runtime root", () => {
       const computed = computeUnpackedExtensionId(
         fs.realpathSync(path.join(runtime.root, "companion-instances", id))
       );
-      const observed = await observedExtensionIds(cdp, 20_000);
-      expect([...observed], "chromium assigned exactly the computed id").toContain(computed);
+      const observed = await observeCompanionId(cdp, computed, 20_000);
+      expect(observed, "chromium assigned exactly the computed id").toBe(computed);
 
       // the launcher's own observation is recorded and used by the origin check
       // (background task; give it a moment)
@@ -108,7 +113,7 @@ describe("companion identity under a symlinked runtime root", () => {
       // end to end: the real assigned origin authenticates; a foreign one is refused
       const token = runtime.companionTokenFor(id);
       const genuine = await fetch(`http://127.0.0.1:${runtime.port}/v1/self`, {
-        headers: { authorization: `Bearer ${token}`, origin: `chrome-extension://${[...observed][0]}` },
+        headers: { authorization: `Bearer ${token}`, origin: `chrome-extension://${observed}` },
       });
       expect(genuine.status).toBe(200);
       const foreign = await fetch(`http://127.0.0.1:${runtime.port}/v1/self`, {
