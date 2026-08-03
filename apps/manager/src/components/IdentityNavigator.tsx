@@ -11,7 +11,7 @@ import {
   Settings,
   ShieldCheck,
 } from "lucide-react";
-import { STATE_COLOR, STATE_LABEL } from "./IdentityRow.js";
+import { STATE_LABEL } from "./IdentityRow.js";
 
 export type View =
   | "overview"
@@ -27,21 +27,20 @@ interface Group {
   items: IdentitySummary[];
 }
 
-/** partition, first match wins: running > expiring > persistent > receipts */
+/** partition, first match wins: active > persistent > ready > receipts */
 function groupIdentities(identities: IdentitySummary[]): Group[] {
   const destroyed = identities.filter((i) => i.state === "destroyed");
   const live = identities.filter((i) => i.state !== "destroyed");
-  const running = live.filter((i) => i.state === "running" || i.state === "expiring");
-  const expiring = live.filter(
-    (i) => i.state !== "running" && i.state !== "expiring" && i.expiresAt !== null
+  const active = live.filter(
+    (i) => i.state === "running" || i.state === "expiring" || i.state === "destroying"
   );
-  const persistent = live.filter(
-    (i) => i.state !== "running" && i.state !== "expiring" && i.expiresAt === null
-  );
+  const rest = live.filter((i) => !active.includes(i));
+  const persistent = rest.filter((i) => i.expiresAt === null);
+  const ready = rest.filter((i) => i.expiresAt !== null);
   return [
-    { key: "running", title: "running", items: running },
-    { key: "expiring", title: "expiring", items: expiring },
+    { key: "active", title: "active", items: active },
     { key: "persistent", title: "persistent", items: persistent },
+    { key: "ready", title: "ready", items: ready },
     { key: "receipts", title: "receipts", items: destroyed },
   ].filter((g) => g.items.length > 0);
 }
@@ -73,27 +72,15 @@ function NavIdentity({
       aria-current={selected ? "true" : undefined}
       onClick={() => onSelect(summary.id)}
     >
-      <span
-        aria-hidden
-        className="w-2.5 h-2.5 rounded-full shrink-0"
-        style={{ background: summary.color }}
-      />
       <span className="flex flex-col min-w-0 flex-1">
         <span className="text-[14px] truncate leading-snug">{summary.name}</span>
-        <span className="flex items-center gap-2 leading-snug">
-          <span
-            className="text-[12px]"
-            style={{ color: destroyed ? "var(--text-muted)" : STATE_COLOR[summary.state] }}
-          >
-            {STATE_LABEL[summary.state]}
-          </span>
+        <span className="flex items-center gap-1.5 leading-snug text-[12.5px] text-mute">
+          <span>{STATE_LABEL[summary.state]}</span>
           {summary.state === "running" && (
-            <span aria-label="browser running" className="text-[11.5px] text-mute">
-              · browser
-            </span>
+            <span aria-label="browser running">· browser</span>
           )}
           {remaining !== null && (
-            <span data-testid="nav-countdown" className="ml-auto font-mono tabular-nums text-[11.5px] text-mute">
+            <span data-testid="nav-countdown" className="ml-auto font-mono tabular-nums text-[12px]">
               {remaining}
             </span>
           )}
@@ -132,7 +119,7 @@ export function IdentityNavigator({
   const groups = useMemo(() => groupIdentities(filtered), [filtered]);
 
   const links: Array<{ view: View; label: string; icon: React.ReactNode }> = [
-    { view: "overview", label: "dashboard", icon: <LayoutDashboard size={16} strokeWidth={1.75} /> },
+    { view: "overview", label: "home", icon: <LayoutDashboard size={16} strokeWidth={1.75} /> },
     { view: "blueprints", label: "blueprints", icon: <Package size={16} strokeWidth={1.75} /> },
     { view: "activity", label: "activity", icon: <Activity size={16} strokeWidth={1.75} /> },
     { view: "guarantees", label: "guarantees", icon: <ShieldCheck size={16} strokeWidth={1.75} /> },
@@ -182,9 +169,9 @@ export function IdentityNavigator({
       <div className="px-4 pt-4 pb-3 flex items-center gap-2">
         <span className="text-[15px] font-medium tracking-wide">mortal</span>
         <span
+          aria-hidden
           className="w-1.5 h-1.5 rounded-full"
-          style={{ background: status !== null ? "var(--app-active)" : "var(--app-danger)" }}
-          aria-label={status !== null ? "runtime connected" : "runtime unreachable"}
+          style={{ background: "var(--app-brand)" }}
           title={status !== null ? `runtime ${status.version}` : "runtime unreachable"}
         />
         <button

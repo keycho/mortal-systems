@@ -1,40 +1,34 @@
-import type { IdentityManifest } from "@mortal/schema";
+import type { Enforcement, IdentityManifest } from "@mortal/schema";
 import { ENFORCEMENT_TABLE } from "@mortal/schema";
 import { EnforcementBadge } from "./EnforcementBadge.js";
 
-const rows = new Map(ENFORCEMENT_TABLE.map((r) => [r.field, r]));
+const table = new Map(ENFORCEMENT_TABLE.map((r) => [r.field, r]));
 
+/** one policy: title, plain-language line, enforcement — technical depth behind the group's disclosure */
 export function PermissionRow({
   field,
   title,
-  value,
+  plain,
   enforcement,
   extra,
 }: {
   field: string;
   title: string;
-  value: string;
-  enforcement: "enforced" | "advisory" | "roadmap";
+  plain: string;
+  enforcement: Enforcement;
   extra?: string;
 }) {
-  const row = rows.get(field);
   return (
-    <div className="rounded-xl bg-surface px-5 py-4 flex flex-col gap-1.5">
-      <div className="flex items-center gap-3" data-testid={`perm-${field}`}>
-        <span className="text-[14.5px] font-medium">{title}</span>
-        <span className="ml-auto font-mono text-[13px] text-sec">{value}</span>
-        <EnforcementBadge enforcement={enforcement} />
+    <div className="flex flex-col gap-0.5" data-testid={`perm-${field}`}>
+      <div className="flex items-baseline gap-4">
+        <span className="text-[15px] font-medium">{title}</span>
+        <span className="ml-auto shrink-0">
+          <EnforcementBadge enforcement={enforcement} />
+        </span>
       </div>
-      {row !== undefined && (
-        <p className="text-[13px] text-sec leading-relaxed">{row.description}</p>
-      )}
-      {enforcement === "enforced" && row !== undefined && row.plannedTests.length > 0 && (
-        <p className="font-mono text-[11.5px] text-mute">
-          verified by {row.plannedTests.join(" · ")}
-        </p>
-      )}
+      <p className="text-[14px] text-sec leading-relaxed max-w-xl">{plain}</p>
       {extra !== undefined && (
-        <p className="text-[12.5px]" style={{ color: "var(--app-warning)" }}>
+        <p className="text-[13px]" style={{ color: "var(--app-warning)" }}>
           {extra}
         </p>
       )}
@@ -42,28 +36,92 @@ export function PermissionRow({
   );
 }
 
-/** grouped policy cards, values and badges straight from the manifest */
+function TechnicalGuarantees({ fields }: { fields: string[] }) {
+  const rows = fields.map((f) => table.get(f)).filter((r) => r !== undefined);
+  if (rows.length === 0) return null;
+  return (
+    <details>
+      <summary className="cursor-pointer text-[13px] text-mute hover:text-sec select-none">
+        technical guarantees
+      </summary>
+      <div className="flex flex-col gap-3 pt-3">
+        {rows.map((row) => (
+          <div key={row!.field} className="flex flex-col gap-0.5">
+            <span className="text-[13.5px] text-sec">{row!.label}</span>
+            <p className="text-[13px] text-mute leading-relaxed">{row!.description}</p>
+            {row!.enforcement === "enforced" && row!.plannedTests.length > 0 && (
+              <span className="font-mono text-[12px] text-mute">
+                verified by {row!.plannedTests.join(" · ")}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function Group({
+  title,
+  fields,
+  children,
+}: {
+  title: string;
+  fields: string[];
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-5">
+      <h2 className="text-[16px] font-medium">{title}</h2>
+      {children}
+      <TechnicalGuarantees fields={fields} />
+    </section>
+  );
+}
+
+/** the manifest's policies in human-readable groups; values come from the real manifest */
 export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
   return (
-    <div className="flex flex-col gap-6 max-w-3xl">
-      <section className="flex flex-col gap-2.5">
-        <h3 className="text-[16px] font-medium">permissions</h3>
+    <div className="flex flex-col gap-10 max-w-xl">
+      <Group
+        title="browser and local data"
+        fields={["surfaces.browser.isolation", "permissions.filesystem", "permissions.memoryScope"]}
+      >
+        <PermissionRow
+          field="surfaces.browser.isolation"
+          title="browser isolation"
+          plain="each identity uses its own separate browser profile. logins, cookies and history never cross identities."
+          enforcement="enforced"
+        />
         <PermissionRow
           field="permissions.filesystem"
-          title="filesystem"
-          value={manifest.permissions.filesystem.value}
+          title="files"
+          plain="downloads and files stay inside this identity's own managed partition, and destroy removes them."
           enforcement={manifest.permissions.filesystem.enforcement}
         />
         <PermissionRow
           field="permissions.memoryScope"
-          title="memory scope"
-          value={manifest.permissions.memoryScope.value}
+          title="memory"
+          plain="notes and ai context belong to this identity only. the runtime refuses cross-identity access."
           enforcement={manifest.permissions.memoryScope.enforcement}
+        />
+      </Group>
+
+      <Group title="connections" fields={["permissions.network", "permissions.wallet"]}>
+        <PermissionRow
+          field="permissions.network"
+          title="network route"
+          plain="this identity currently shares your normal ip address and network path."
+          enforcement={manifest.permissions.network.enforcement}
         />
         <PermissionRow
           field="permissions.wallet"
           title="wallet"
-          value={manifest.permissions.wallet.value}
+          plain={
+            manifest.permissions.wallet.value === "none"
+              ? "no wallet is declared for this identity."
+              : "a wallet is declared for this identity."
+          }
           enforcement={manifest.permissions.wallet.enforcement}
           extra={
             manifest.permissions.wallet.value !== "none"
@@ -71,37 +129,37 @@ export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
               : undefined
           }
         />
+      </Group>
+
+      <Group title="privacy" fields={["privacy.retainHistory"]}>
+        <PermissionRow
+          field="privacy.retainHistory"
+          title="browsing history"
+          plain={
+            manifest.privacy.retainHistory.value
+              ? "browsing history is kept for the life of this identity, then removed with it."
+              : "browsing-history artifacts are removed from the profile when the browser session ends."
+          }
+          enforcement={manifest.privacy.retainHistory.enforcement}
+        />
+      </Group>
+
+      <Group title="future capabilities" fields={["permissions.email", "privacy.redaction"]}>
         <PermissionRow
           field="permissions.email"
-          title="email"
-          value={manifest.permissions.email.value}
+          title="email aliasing"
+          plain="not built yet. the field exists so blueprints can declare intent; it enforces nothing today."
           enforcement={manifest.permissions.email.enforcement}
         />
         <PermissionRow
-          field="permissions.network"
-          title="network"
-          value={manifest.permissions.network.value}
-          enforcement={manifest.permissions.network.enforcement}
-        />
-      </section>
-
-      <section className="flex flex-col gap-2.5">
-        <h3 className="text-[16px] font-medium">privacy</h3>
-        <PermissionRow
-          field="privacy.retainHistory"
-          title="retain history"
-          value={String(manifest.privacy.retainHistory.value)}
-          enforcement={manifest.privacy.retainHistory.enforcement}
-        />
-        <PermissionRow
           field="privacy.redaction"
-          title="redaction"
-          value={String(manifest.privacy.redaction.value)}
+          title="content redaction"
+          plain="not built yet. the schema pins this off until it exists."
           enforcement={manifest.privacy.redaction.enforcement}
         />
-      </section>
+      </Group>
 
-      <p className="text-[12.5px] text-mute">
+      <p className="text-[13px] text-mute max-w-xl">
         enforced means a passing automated test backs the control. advisory and roadmap are labeled
         honestly — we do not sell controls that do not exist.
       </p>
@@ -114,11 +172,8 @@ export const TOMBSTONE_MESSAGE =
 
 export function Tombstone() {
   return (
-    <div
-      className="text-sec text-[13.5px] rounded-xl bg-surface px-5 py-4 max-w-lg"
-      data-testid="tombstone"
-    >
+    <p className="text-sec text-[14.5px]" data-testid="tombstone">
       {TOMBSTONE_MESSAGE}
-    </div>
+    </p>
   );
 }

@@ -24,6 +24,7 @@
   --color-warn: var(--app-warning);
   --color-danger: var(--app-danger);
   --color-info: var(--app-info);
+  --color-brand: var(--app-brand);
   --font-sans: var(--type-sans);
   --font-mono: var(--type-mono);
 }
@@ -38,8 +39,8 @@ body {
   background: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--type-sans);
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 15.5px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 

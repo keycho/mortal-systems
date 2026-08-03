@@ -15,10 +15,12 @@ function PlannedNote({ what }: { what: string }) {
 }
 
 export function BlueprintsView({
+  initialPreviewId = null,
   blueprints,
   onLoadManifest,
   onCreate,
 }: {
+  initialPreviewId?: string | null;
   blueprints: BlueprintSummary[];
   onLoadManifest: (id: string) => Promise<BlueprintManifest>;
   onCreate: (input: {
@@ -36,7 +38,7 @@ export function BlueprintsView({
           explicit confirm.
         </p>
       </div>
-      <BlueprintsPanel blueprints={blueprints} onLoadManifest={onLoadManifest} onCreate={onCreate} />
+      <BlueprintsPanel initialPreviewId={initialPreviewId} blueprints={blueprints} onLoadManifest={onLoadManifest} onCreate={onCreate} />
     </div>
   );
 }

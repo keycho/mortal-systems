@@ -218,6 +218,10 @@ export function DestructionReportView({ report }: { report: DestructionReport })
             )}
           </span>
           <span className="font-mono text-[12px] text-mute pt-0.5">{receiptId}</span>
+          <span className="text-[13.5px] text-sec pt-1 leading-relaxed">
+            the browser was closed, the profile and managed files were deleted, and local memory
+            was erased. what remains is this receipt and a tombstone entry.
+          </span>
         </div>
         <div className="flex flex-col items-end gap-0.5 text-[12.5px] shrink-0 pt-1">
           {report.completedAt !== null && (
@@ -243,8 +247,12 @@ export function DestructionReportView({ report }: { report: DestructionReport })
         ))}
       </div>
 
-      {/* D0–D7 vertical timeline */}
-      <ol className="px-7 pb-6 flex flex-col">
+      {/* D0–D7 lives behind the technical timeline; the first view stays plain-language */}
+      <details className="px-7 pb-6" data-testid="technical-timeline">
+        <summary className="cursor-pointer select-none text-[14px] text-sec hover:text-ink pb-2">
+          technical timeline · D0–D7
+        </summary>
+      <ol className="flex flex-col pt-3">
         {report.steps.map((step, i) => {
           const meta = DESTROY_STEP_META[step.step] ?? { name: step.step, means: "" };
           const last = i === report.steps.length - 1;
@@ -286,6 +294,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
           );
         })}
       </ol>
+      </details>
 
       {/* caveats: plainly visible, cleanly presented */}
       <div className="px-7 py-6 bg-elevated/60 flex flex-col gap-2.5">

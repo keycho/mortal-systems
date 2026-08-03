@@ -78,7 +78,7 @@ describe("identity workspace", () => {
     expect(focus.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
 
     fireEvent.click(screen.getByRole("tab", { name: "files" }));
-    expect(screen.getByText(/needs a runtime rpc method that is not exposed yet/)).toBeTruthy();
+    expect(screen.getByText(/is not exposed yet, so this screen shows the real boundary/)).toBeTruthy();
     expect(screen.getByTestId("cannot-read").textContent).toContain(
       "no rpc method exposes their contents"
     );
@@ -105,11 +105,13 @@ describe("identity workspace", () => {
   });
 });
 
-describe("files inspector", () => {
-  it("shows the managed partition boundary from the real runtime root", () => {
+describe("files tab", () => {
+  it("shows the managed boundary; real paths live behind technical details", () => {
     render(<FilesTab data={data} status={status} />);
-    expect(screen.getByText("4096 bytes on disk")).toBeTruthy();
-    // paths are abbreviated by default; the full path is preserved for copy/title
+    expect(screen.getByText("4096 bytes")).toBeTruthy();
+    // paths are inside the technical-details drawer, abbreviated with the full
+    // path preserved for copy/title — never fabricated, never dumped by default
+    expect(screen.getByTestId("technical-details")).toBeTruthy();
     expect(screen.getByTitle(`${status.root}/files/${summary.id}`)).toBeTruthy();
     expect(screen.getByTitle(`${status.root}/companion-instances/${summary.id}`)).toBeTruthy();
   });
@@ -171,7 +173,8 @@ describe("identity navigator", () => {
         onNewIdentity={noop}
       />
     );
-    expect(screen.getByText("running")).toBeTruthy();
+    // "active" appears as both the group header and the state label
+    expect(screen.getAllByText("active").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("persistent")).toBeTruthy();
     expect(screen.getByText("receipts")).toBeTruthy();
     expect(screen.getByLabelText("browser running")).toBeTruthy();

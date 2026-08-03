@@ -18,17 +18,19 @@
   /* application design system (manager only — the site is editorial, the
      manager is modern software; see DECISIONS.md). layered neutral surfaces,
      soft alpha borders, no universal amber accent. */
-  --bg-app: #171717;
-  --bg-sidebar: #111111;
-  --bg-surface: #1f1f1f;
-  --bg-surface-hover: #262626;
-  --bg-elevated: #292929;
-  --bg-input: #242424;
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --text-primary: #f4f4f4;
-  --text-secondary: #b4b4b4;
-  --text-muted: #7f7f7f;
+  --bg-app: #212121;
+  --bg-sidebar: #171717;
+  --bg-surface: #2b2b2b;
+  --bg-surface-hover: #333333;
+  --bg-elevated: #333333;
+  --bg-input: #2b2b2b;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.11);
+  --text-primary: #f2f2f2;
+  --text-secondary: #b7b7b7;
+  --text-muted: #808080;
+  /* the one restrained brand accent inside the app (wordmark, rare highlights) */
+  --app-brand: #f59e0b;
   --app-active: #a8dc66;
   --app-warning: #d7a84a;
   --app-danger: #d86a5d;

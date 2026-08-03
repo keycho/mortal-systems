@@ -12,12 +12,15 @@ const LIFETIME_PRESETS = ["persistent", "1h", "12h", "7d"] as const;
 
 export interface CreateIdentityFormProps {
   onCreate: (manifest: IdentityManifest) => Promise<void>;
+  /** prefills from the home prompt ("what needs its own identity?") */
+  initialName?: string;
+  initialLifetime?: string;
 }
 
-export function CreateIdentityForm({ onCreate }: CreateIdentityFormProps) {
-  const [name, setName] = useState("");
+export function CreateIdentityForm({ onCreate, initialName, initialLifetime }: CreateIdentityFormProps) {
+  const [name, setName] = useState(initialName ?? "");
   const [color, setColor] = useState(PALETTE[0] as string);
-  const [lifetime, setLifetime] = useState<string>("persistent");
+  const [lifetime, setLifetime] = useState<string>(initialLifetime ?? "persistent");
   const [custom, setCustom] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

@@ -15,6 +15,8 @@ import { EnforcementBadge } from "./EnforcementBadge.js";
  */
 
 export interface BlueprintsPanelProps {
+  /** open this blueprint's preview immediately (home suggestions) */
+  initialPreviewId?: string | null;
   blueprints: BlueprintSummary[];
   onLoadManifest: (id: string) => Promise<BlueprintManifest>;
   onCreate: (input: {
@@ -24,8 +26,8 @@ export interface BlueprintsPanelProps {
   }) => Promise<void>;
 }
 
-export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: BlueprintsPanelProps) {
-  const [previewId, setPreviewId] = useState<string | null>(null);
+export function BlueprintsPanel({ initialPreviewId = null, blueprints, onLoadManifest, onCreate }: BlueprintsPanelProps) {
+  const [previewId, setPreviewId] = useState<string | null>(initialPreviewId);
   const [manifest, setManifest] = useState<BlueprintManifest | null>(null);
   const [lifetime, setLifetime] = useState("");
   const [consented, setConsented] = useState<Set<string>>(new Set());

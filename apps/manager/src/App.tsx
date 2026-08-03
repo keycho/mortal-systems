@@ -10,7 +10,7 @@ import { rpc, RpcClientError } from "./lib/client.js";
 import { IdentityNavigator, type View } from "./components/IdentityNavigator.js";
 import { Button, Modal, Toasts, type ToastItem } from "./components/ui.js";
 import { CreateIdentityForm } from "./components/CreateIdentityForm.js";
-import { OverviewView } from "./views/OverviewView.js";
+import { HomeView } from "./views/HomeView.js";
 import { IdentityWorkspace, type WorkspaceData } from "./views/IdentityWorkspace.js";
 import {
   ActivityView,
@@ -32,6 +32,9 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkspaceData | null>(null);
   const [creating, setCreating] = useState(false);
+  const [prefillName, setPrefillName] = useState<string | null>(null);
+  const [prefillLifetime, setPrefillLifetime] = useState<string | null>(null);
+  const [preselectBlueprint, setPreselectBlueprint] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastId = useRef(0);
 
@@ -133,7 +136,11 @@ export default function App() {
         view={view}
         selectedId={selectedId}
         onSelect={openIdentity}
-        onNewIdentity={() => setCreating(true)}
+        onNewIdentity={() => {
+          setPrefillName(null);
+          setPrefillLifetime(null);
+          setCreating(true);
+        }}
         onNavigate={(v) => {
           setView(v);
           setSelectedId(null);
@@ -189,6 +196,7 @@ export default function App() {
           <div className="flex-1 overflow-auto">
             <div className="max-w-4xl mx-auto px-8 py-7">
               <BlueprintsView
+                initialPreviewId={preselectBlueprint}
                 blueprints={blueprints}
                 onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
                 onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
@@ -226,15 +234,26 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <OverviewView
+          <HomeView
             identities={identities}
-            status={status}
+            blueprints={blueprints}
             recentEvents={recentEvents}
+            runtimeUp={status !== null}
             onOpenIdentity={openIdentity}
-            onNewIdentity={() => setCreating(true)}
-            onGoBlueprints={() => {
+            onCreateWithName={(name) => {
+              setPrefillName(name);
+              setPrefillLifetime(null);
+              setCreating(true);
+            }}
+            onPickBlueprint={(blueprintId) => {
+              setPreselectBlueprint(blueprintId);
               setView("blueprints");
               setSelectedId(null);
+            }}
+            onTemporaryBrowsing={() => {
+              setPrefillName("temporary browsing");
+              setPrefillLifetime("1h");
+              setCreating(true);
             }}
           />
         )}
@@ -243,6 +262,8 @@ export default function App() {
       {creating && (
         <Modal title="new identity" onClose={() => setCreating(false)}>
           <CreateIdentityForm
+            initialName={prefillName ?? undefined}
+            initialLifetime={prefillLifetime ?? undefined}
             onCreate={async (manifest: IdentityManifest) => {
               await act(() => rpc("identity.create", { manifest }), "identity created");
               setCreating(false);

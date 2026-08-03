@@ -31,9 +31,9 @@ describe("enforcement badge (manager)", () => {
     const badges = screen.getAllByTestId("enforcement-badge");
     expect(badges).toHaveLength(3);
     const byLevel = new Map(badges.map((b) => [b.getAttribute("data-enforcement"), b.className]));
-    // filled = enforced, outlined = advisory, dashed = roadmap — visually unmistakable
-    expect(byLevel.get("enforced")).toContain("bg-ok/15");
-    expect(byLevel.get("advisory")).toContain("border-line-strong");
+    // text-led but visually unmistakable: ok-colored check / secondary info / muted dashed
+    expect(byLevel.get("enforced")).toContain("text-ok");
+    expect(byLevel.get("advisory")).toContain("text-sec");
     expect(byLevel.get("advisory")).not.toContain("border-dashed");
     expect(byLevel.get("roadmap")).toContain("border-dashed");
   });
@@ -65,7 +65,8 @@ describe("permission rows (workspace permissions tab)", () => {
     render(<PermissionRows manifest={manifest} />);
     const badges = screen.getAllByTestId("enforcement-badge");
     const levels = badges.map((b) => b.getAttribute("data-enforcement"));
-    expect(levels.filter((l) => l === "enforced")).toHaveLength(3); // filesystem, memoryScope, retainHistory
+    // browser isolation (structural), filesystem, memoryScope, retainHistory
+    expect(levels.filter((l) => l === "enforced")).toHaveLength(4);
     expect(levels.filter((l) => l === "advisory")).toHaveLength(2); // wallet, network
     expect(levels.filter((l) => l === "roadmap")).toHaveLength(2); // email, redaction
     // the wallet honesty line is present because the value is not "none"
