@@ -13,6 +13,7 @@ export {
 export { tokenForIdentity, getOrCreateTokenSecret, findIdentityByToken } from "./api/tokens.js";
 export { EventBus, type SelfEvent } from "./api/events.js";
 export { Scheduler, type SchedulerOptions } from "./scheduler/scheduler.js";
+export { BlueprintService, bookmarkFoldersFor } from "./blueprints/pipeline.js";
 export { RuntimeError, errors } from "./errors.js";
 export { openDb } from "./store/db.js";
 export { migrate, MIGRATIONS, type Migration } from "./store/migrations.js";

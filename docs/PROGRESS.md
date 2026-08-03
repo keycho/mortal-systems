@@ -118,3 +118,28 @@ days 1-4 of the poc are built, gated, and green (103 tests, real chromium for la
 - 2026-08-03 fix/macos-constant-id: verified nkeimhog… is chrome's built-in hangouts component (constant key-derived id) and bare linux chromium has zero extension targets — mac failure = branded chrome 141 ignoring --load-extension (r3), observation mispinned the only visible extension; no manifest key exists (pasted); chooser now accepts only companion-shaped targets (/background.js), refuses to guess, and surfaces a companion-did-not-load runtime warning; 6 new chooser unit tests, both smoke tests re-asserted on the chosen model; 111 tests green on linux; mac re-run pending (chromium/brave or LIMINAL_BROWSER_PATH)
 - 2026-08-03 macos-verified: founder re-ran on macos under brave — 55/55 green incl. both companion smokes; root cause chain closed (branded chrome --load-extension removal + gatekeeper latency + overbroad pkill on the test machine); recorded as manual check M1; store-distribution pairing handshake designed into DECISIONS.md + threat-model.md (no store submission, no implementation)
 - 2026-08-03 day5/step1: lifecycle scheduler — tick over lifecycle_jobs (15s default, test-injectable), startup catch-up before the api serves (missed expiry honored late, expired_late logged, already-honored actions never refire), 60s grace via sse when a browser is open then halt then onExpiry; manual expire stays graceless (user-confirmed); 4/4 scheduler tests incl. real-browser grace; 59/59 runtime tests
+- 2026-08-03 day5/step2: blueprint pipeline + first-party blueprints — @liminal/blueprints (client-operations with meeting-notes template + empty client folders, onchain-investigator 12h/destroy/no-history, crypto-operations with declared-wallet disclaimer + metamask/phantom store ids); pipeline: 256kb size gate -> json -> strict zod -> url hygiene, idempotent install, blueprint.get for preview, createFromBlueprint (bookmark/note/folder seeding, expiry job, consent-gated extension declarations), export strips ids/paths/timestamps/notes and must re-pass the import pipeline; cli --seed-first-party; 11 pipeline tests + 4 blueprint content tests; 1 stale day-1 assertion updated (blueprint.list now real)
+
+## day-5 gate — PASS (2026-08-03)
+
+```
+@liminal/schema:test:      Test Files  4 passed (4)    Tests  41 passed (41)
+@liminal/blueprints:test:  Test Files  1 passed (1)    Tests   4 passed (4)
+@liminal/runtime:test:     Test Files 10 passed (10)   Tests  70 passed (70)
+companion:test:            Test Files  2 passed (2)    Tests   6 passed (6)
+manager:test:              Test Files  2 passed (2)    Tests   9 passed (9)
+Tasks: 8 successful, 8 total          (130 tests)
+
+pnpm lint: clean · pnpm typecheck: Tasks: 8 successful, 8 total
+
+day-5 specifics:
+ scheduler: due job auto-destroys within tolerance (G10 shape, full deletion contract) · suspend/archive actions run
+   once and never refire · startup catch-up honors missed expiry with expired_late before the api serves (G11 shape) ·
+   running identity gets an sse grace notice, then halt, then destroy (real chromium)
+ blueprints (G17 shape): 256kb gate · malformed json · banned/unknown fields with field-level issues · javascript:/creds
+   urls · path extension refs · over-claimed enforcement — all rejected; 3 first-party installed (unsigned, standard
+   tier), investigator 5m demo override, consent-gated extension declarations, client-ops folders provisioned into
+   chrome bookmarks, export contains nothing session-shaped and re-imports cleanly
+```
+
+honest gaps at day-5 close: manager ui has no blueprint install/preview screen yet (the pipeline, preview data api, and consent semantics exist and are tested; the screen itself is upcoming ui work alongside day 6/7). browser-level G10-G14/G1-G17 remain day-6 scope.

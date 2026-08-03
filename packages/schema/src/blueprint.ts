@@ -91,6 +91,8 @@ export const blueprintManifestSchema = z
       .strict()
       .optional(),
     bookmarks: z.array(bookmarkTemplateSchema).max(100).optional(),
+    /** empty bookmark folders to scaffold (e.g. per-client folders) */
+    bookmarkFolders: z.array(z.string().min(1).max(60)).max(20).optional(),
     notes: z.array(noteTemplateSchema).max(10).optional(),
     recommendedExtensions: z.array(recommendedExtensionSchema).max(10).optional(),
     ai: z

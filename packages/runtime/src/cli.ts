@@ -35,6 +35,17 @@ async function serve(argv: string[]): Promise<void> {
     adminToken: flags.get("admin-token") ?? process.env.LIMINAL_ADMIN_TOKEN,
   });
 
+  if (flags.has("seed-first-party")) {
+    const { FIRST_PARTY_BLUEPRINTS, FIRST_PARTY_SOURCE } = await import("@liminal/blueprints");
+    for (const blueprint of FIRST_PARTY_BLUEPRINTS) {
+      const { blueprintId } = runtime.blueprints.install({
+        manifestJson: JSON.stringify(blueprint),
+        source: `${FIRST_PARTY_SOURCE}:${blueprint.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      });
+      log.info(`first-party blueprint available: ${blueprint.name} (${blueprintId})`);
+    }
+  }
+
   const shutdown = async (signal: string) => {
     log.info(`received ${signal}, shutting down`);
     try {
@@ -71,6 +82,7 @@ switch (command) {
         `          --root <dir>          runtime root (default ~/.liminal or $LIMINAL_ROOT)\n` +
         `          --port <n>            api port (default: random loopback port)\n` +
         `          --admin-token <t>     admin bearer token (default: generated, written to <root>/admin.token)\n` +
+        `          --seed-first-party    install the bundled first-party blueprints at startup\n` +
         `  version print the runtime version\n`
     );
     process.exit(command === undefined || command === "help" ? 0 : 1);

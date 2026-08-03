@@ -77,10 +77,10 @@ describe("loopback api", () => {
     }
   });
 
-  it("labels day-5 methods honestly as not implemented yet", async () => {
-    const res = await rpc("blueprint.list", {});
-    expect(res.status).toBe(501);
-    if (!res.body.ok) expect(res.body.error.message).toContain("day-5");
+  it("serves blueprint.list (implemented on day 5; empty on a fresh root)", async () => {
+    const res = await rpc<unknown[]>("blueprint.list", {});
+    expect(res.status).toBe(200);
+    if (res.body.ok) expect(res.body.result).toEqual([]);
   });
 
   it("404s unknown methods", async () => {

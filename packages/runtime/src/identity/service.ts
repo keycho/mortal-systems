@@ -70,7 +70,7 @@ export class IdentityService {
    * against the canonical schema; runtime-assigned paths must match the
    * identity id (the poc does not accept custom partition layouts).
    */
-  create(input: { manifest: unknown }): IdentitySummary {
+  create(input: { manifest: unknown; blueprintId?: string }): IdentitySummary {
     let manifest: IdentityManifest;
     try {
       manifest = identityManifestSchema.parse(input.manifest);
@@ -103,7 +103,7 @@ export class IdentityService {
         name: manifest.name,
         state: "created",
         manifestJson: JSON.stringify(manifest),
-        blueprintId: null,
+        blueprintId: input.blueprintId ?? null,
         createdAt: manifest.lifecycle.createdAt,
         expiresAt: manifest.lifecycle.expiresAt,
       });

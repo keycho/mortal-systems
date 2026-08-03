@@ -67,8 +67,13 @@ export function provisionIdentity(
   }
 
   const bookmarks = repo.listBookmarks(manifest.id);
+  let emptyFolders: string[] = [];
+  try {
+    const raw = repo.getSetting(`bookmark_folders:${manifest.id}`);
+    if (raw) emptyFolders = JSON.parse(raw) as string[];
+  } catch {}
   const bookmarksPath = path.join(defaultDir, "Bookmarks");
-  if (bookmarks.length > 0 && !fs.existsSync(bookmarksPath)) {
+  if ((bookmarks.length > 0 || emptyFolders.length > 0) && !fs.existsSync(bookmarksPath)) {
     let nextId = 1;
     const nid = () => String(++nextId);
     type ChromeNode = {
@@ -81,6 +86,14 @@ export function provisionIdentity(
     };
     const topLevel: ChromeNode[] = [];
     const folders = new Map<string, ChromeNode>();
+    // blueprint-scaffolded empty folders (e.g. per-client folders) come first
+    for (const name of emptyFolders) {
+      if (!folders.has(name)) {
+        const folder: ChromeNode = { id: nid(), name, type: "folder", date_added: "0", children: [] };
+        folders.set(name, folder);
+        topLevel.push(folder);
+      }
+    }
     for (const bm of bookmarks) {
       const node: ChromeNode = {
         id: nid(),

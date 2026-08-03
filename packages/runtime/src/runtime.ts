@@ -25,6 +25,7 @@ import { createApiServer, type ApiServer } from "./api/server.js";
 import { EventBus } from "./api/events.js";
 import { findIdentityByToken, getOrCreateTokenSecret, tokenForIdentity } from "./api/tokens.js";
 import { Scheduler, type SchedulerOptions } from "./scheduler/scheduler.js";
+import { BlueprintService } from "./blueprints/pipeline.js";
 
 /**
  * the contract the day-2 chromium launcher fulfills. kept as an interface so
@@ -75,6 +76,7 @@ export class LiminalRuntime {
   readonly events: EventBus;
   readonly adminToken: string;
   readonly startedAt: string;
+  readonly blueprints: BlueprintService;
   scheduler: Scheduler | null = null;
   /** wired by the day-2 launcher; null means launch/suspend/resume are unavailable */
   launcher: LauncherApi | null = null;
@@ -97,6 +99,7 @@ export class LiminalRuntime {
       root,
       halt: async () => ({ halted: false, detail: "no process (launcher not attached)" }),
     });
+    this.blueprints = new BlueprintService(this);
   }
 
   /** the per-identity companion bearer token (stamped into the instance config) */

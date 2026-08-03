@@ -1,4 +1,5 @@
 import type { Enforcement } from "./enforcement.js";
+import type { BlueprintManifest } from "./blueprint.js";
 import type { IdentityManifest, IdentityState } from "./manifest.js";
 
 /**
@@ -217,6 +218,11 @@ export interface RpcContract {
   };
   "blueprint.export": { params: { identityId: string }; result: { manifestJson: string } };
   "blueprint.list": { params: Record<string, never>; result: BlueprintSummary[] };
+  /** full manifest for the install/preview screen */
+  "blueprint.get": {
+    params: { id: string };
+    result: { summary: BlueprintSummary; manifest: BlueprintManifest };
+  };
   "activity.read": {
     params: { identityId: string; limit?: number };
     result: ActivityEvent[];
