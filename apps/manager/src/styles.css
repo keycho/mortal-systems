@@ -1,13 +1,30 @@
+@import "@mortal/tokens/tokens.css";
 @import "tailwindcss";
 
+/**
+ * manager theme: every value comes from @mortal/tokens (shared with the site).
+ * app-specific aliases only — no raw colors below this line.
+ * type rule: sans for ui text, mono strictly for machine values
+ * (ids, countdowns, durations, hashes, json, paths).
+ */
 @theme {
-  --color-void: #0b0c0e;
-  --color-panel: #121417;
-  --color-panel-2: #16191d;
-  --color-line: #1f2328;
-  --color-ink: #e6e7e9;
-  --color-mute: #8a8f98;
-  --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --color-void: var(--bg);
+  --color-panel: var(--card);
+  --color-panel-2: var(--card-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-mute: var(--mute);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-state-persistent: var(--state-persistent);
+  --color-state-active: var(--state-active);
+  --color-state-expiring: var(--state-expiring);
+  --color-state-destroying: var(--state-destroying);
+  --color-state-archived: var(--state-archived);
+  --font-sans: var(--type-sans);
+  --font-mono: var(--type-mono);
 }
 
 html,
@@ -17,13 +34,13 @@ body,
 }
 
 body {
-  background: var(--color-void);
-  color: var(--color-ink);
-  font-family: var(--font-mono);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--type-sans);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #2a2f36;
+  background: var(--line-strong);
 }

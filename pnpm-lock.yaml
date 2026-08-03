@@ -68,6 +68,9 @@ importers:
       '@mortal/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@mortal/tokens':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       '@tauri-apps/api':
         specifier: ^2.5.0
         version: 2.11.1
@@ -240,6 +243,8 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+
+  packages/tokens: {}
 
   tests:
     dependencies:

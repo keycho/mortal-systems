@@ -1,0 +1,12 @@
+{
+  "name": "@mortal/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "mortal systems design tokens — one css source consumed by the site and the manager.",
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  },
+  "files": [
+    "tokens.css"
+  ]
+}
