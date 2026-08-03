@@ -186,7 +186,8 @@ export interface RpcContract {
   };
   "identity.get": {
     params: { id: string };
-    result: { summary: IdentitySummary; manifest: IdentityManifest };
+    /** manifest is null once the identity is destroyed (only the tombstone remains) */
+    result: { summary: IdentitySummary; manifest: IdentityManifest | null };
   };
   "identity.list": {
     params: { filter?: { state?: IdentityState[] } };
