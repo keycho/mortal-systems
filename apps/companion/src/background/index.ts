@@ -75,11 +75,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return undefined;
 });
 
-// open the side panel from the toolbar button
-chrome.action.onClicked.addListener((tab) => {
-  if (tab.windowId !== undefined) {
-    void chrome.sidePanel.open({ windowId: tab.windowId });
-  }
-});
+// open the side panel from the toolbar button. preferred: declare it as
+// native browser behavior (setPanelBehavior), so the companion performs no
+// scripted navigation at all — brave's shields/interstitial treats scripted
+// chrome-extension:// page-style loads of sideloaded extensions with
+// suspicion, and a declared panel never becomes a page load. fallback for
+// engines without setPanelBehavior: a guarded explicit open. there is
+// deliberately no tab fallback — the companion never opens a page, period.
+if (chrome.sidePanel?.setPanelBehavior) {
+  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+} else if (chrome.action?.onClicked) {
+  chrome.action.onClicked.addListener((tab) => {
+    if (tab.windowId !== undefined && chrome.sidePanel?.open) {
+      void chrome.sidePanel.open({ windowId: tab.windowId });
+    }
+  });
+}
 
 void refresh();

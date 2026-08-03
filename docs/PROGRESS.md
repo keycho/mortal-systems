@@ -143,3 +143,4 @@ day-5 specifics:
 ```
 
 honest gaps at day-5 close: manager ui has no blueprint install/preview screen yet (the pipeline, preview data api, and consent semantics exist and are tested; the screen itself is upcoming ui work alongside day 6/7). browser-level G10-G14/G1-G17 remain day-6 scope.
+- 2026-08-03 fix/brave-interstitial: audited (zero page-open primitives) + verified empirically (zero page-type extension targets after launch on chromium) — the only scriptable surface was toolbar-click sidePanel.open; replaced with native setPanelBehavior (guarded fallback, never a tab), smoke regression guard added asserting the companion never opens a page; brave-specific note added to the store-mode design; companion 6/6 + smoke 3/3 green

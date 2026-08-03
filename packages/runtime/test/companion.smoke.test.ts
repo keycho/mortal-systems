@@ -145,6 +145,16 @@ describe("stamped companion inside real chromium", () => {
           .map((t) => new URL(t.url).host);
       expect(companionHosts(a.targets)).not.toContain(expectedB);
       expect(companionHosts(b.targets)).not.toContain(expectedA);
+
+      // the companion never opens a page: no page-type chrome-extension
+      // target may ever exist (regression guard for the brave interstitial —
+      // scripted extension-page loads are what shields interposes on)
+      for (const targets of [a.targets, b.targets]) {
+        const extensionPages = targets.filter(
+          (t) => t.url.startsWith("chrome-extension://") && t.type === "page"
+        );
+        expect(extensionPages).toEqual([]);
+      }
     },
     LAUNCH_TIMEOUT
   );
