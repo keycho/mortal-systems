@@ -113,3 +113,5 @@ check:guarantees: FAIL BY DESIGN — tests/guarantees.map.ts is day-6 scope; 6 e
 
 ## the honest one-liner
 days 1-4 of the poc are built, gated, and green (103 tests, real chromium for launch/isolation-surface/companion smoke); automatic scheduled expiry, blueprints, the full G-suite, and the public site are deliberately untouched and wait for founder go-ahead on days 5-7.
+- 2026-08-03 fix/macos-extension-id: canonicalized runtime root at startup (realpath) + launcher now observes the chromium-assigned extension id via cdp and the origin check pins to it (computed id as pre-observation fallback); linux repro with symlinked root added and green (105 tests total); macos re-run pending on reporter's machine — see DECISIONS.md
+- 2026-08-03 dev-flow: README added documenting the three-process dev flow (dev:runtime, dev:manager browser mode, optional 'pnpm --filter manager tauri:dev' where tauri owns vite); manager gains tauri:dev script; native window compile stays deferred until after the money test

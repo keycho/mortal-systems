@@ -99,18 +99,25 @@ function parseJson<T>(raw: Buffer, schema: z.ZodType<T>): T {
 function checkOrigin(runtime: LiminalRuntime, identityId: string, req: http.IncomingMessage): void {
   const origin = req.headers.origin;
   if (origin === undefined || origin === "" || origin === "null") return;
+  const accepted = new Set<string>();
+  // preferred: the id chromium actually assigned, observed by the launcher.
+  // prediction can diverge from chromium's path canonicalization on some
+  // platforms (macos firmlinks/symlinked tmp), so observation wins.
+  const observed = runtime.launcher?.observedExtensionIdFor(identityId) ?? null;
+  if (observed !== null) accepted.add(`chrome-extension://${observed}`);
+  // fallback: the computed id from the canonical instance path (covers the
+  // window before the first observation lands)
   const instanceDir = path.join(runtime.root, "companion-instances", identityId);
-  let expected: string | null = null;
   try {
     if (fs.existsSync(path.join(instanceDir, "manifest.json"))) {
-      expected = `chrome-extension://${computeUnpackedExtensionId(fs.realpathSync(instanceDir))}`;
+      accepted.add(`chrome-extension://${computeUnpackedExtensionId(fs.realpathSync(instanceDir))}`);
     }
   } catch {}
-  if (expected === null) {
+  if (accepted.size === 0) {
     // no stamped instance yet: any browser-originated request is refused
     throw errors.forbidden("no companion instance is provisioned for this identity");
   }
-  if (origin !== expected) {
+  if (!accepted.has(origin)) {
     throw errors.forbidden("origin is not this identity's companion instance");
   }
 }

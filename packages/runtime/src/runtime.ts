@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import {
   ADVISORY_FIELDS,
@@ -35,6 +36,8 @@ export interface LauncherApi {
   init?(): Promise<void>;
   runningCount(): number;
   cdpEndpointFor(id: string): string | null;
+  /** the extension id chromium actually assigned to the identity's companion, once observed */
+  observedExtensionIdFor(id: string): string | null;
   launch(id: string): Promise<{ pid: number; cdpEndpoint: string | null }>;
   suspend(id: string): Promise<void>;
   resume(id: string): Promise<{ pid: number; cdpEndpoint: string | null }>;
@@ -103,8 +106,12 @@ export class LiminalRuntime {
   }
 
   static async start(opts: RuntimeOptions = {}): Promise<LiminalRuntime> {
-    const root = resolveRoot(opts.root);
-    ensureDir(root);
+    ensureDir(resolveRoot(opts.root));
+    // canonicalize the root once, at startup: on macos, tmp and user paths
+    // resolve through symlinks (/tmp -> /private/tmp) and chromium
+    // canonicalizes extension paths before hashing them into extension ids.
+    // every path the runtime derives must start from the same canonical form.
+    const root = fs.realpathSync(resolveRoot(opts.root));
     ensureDir(path.join(root, "profiles"));
     ensureDir(path.join(root, "files"));
     ensureDir(path.join(root, "companion-instances"));

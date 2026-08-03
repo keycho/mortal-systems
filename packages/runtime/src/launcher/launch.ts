@@ -10,6 +10,7 @@ import { dirSizeBytes } from "../util/fsx.js";
 import { insideRoot } from "../util/paths.js";
 import { log } from "../util/log.js";
 import { discoverBrowsers, discoveryWarnings } from "./discover.js";
+import { computeUnpackedExtensionId } from "./extension-id.js";
 import { provisionIdentity, scrubHistory } from "./provision.js";
 
 interface Proc {
@@ -68,6 +69,7 @@ export class Launcher implements LauncherApi {
   browsers: DetectedBrowser[] = [];
   warnings: string[] = [];
   private readonly procs = new Map<string, Proc>();
+  private readonly observedIds = new Map<string, string>();
   private readonly runtime: LiminalRuntime;
 
   constructor(runtime: LiminalRuntime) {
@@ -221,6 +223,7 @@ export class Launcher implements LauncherApi {
     const proc: Proc = { child, pid, cdpPort, cdpEndpoint, exited, stopping: false };
     this.procs.set(id, proc);
     void exited.then(() => this.onExit(id, proc));
+    this.observeCompanion(id, cdpPort);
 
     const now = new Date().toISOString();
     this.runtime.identities.transition(id, "running");
@@ -344,6 +347,66 @@ export class Launcher implements LauncherApi {
       const filesDir = insideRoot(this.runtime.root, manifest.surfaces.files.root);
       this.runtime.repo.setIdentityStorageBytes(id, dirSizeBytes(profileDir) + dirSizeBytes(filesDir));
     } catch {}
+  }
+
+  /**
+   * observe which extension id chromium ACTUALLY assigned to the stamped
+   * companion, via the browser's own target list. prediction (sha256 of the
+   * canonical path) can diverge from chromium's canonicalization on some
+   * platforms (macos firmlinks/symlinked tmp), so the origin check pins to
+   * the observed id once available. best-effort, background, cached on disk
+   * in the instance dir so restarts keep the pin without a relaunch.
+   */
+  private observeCompanion(id: string, cdpPort: number): void {
+    const instanceDir = path.join(this.runtime.root, "companion-instances", id);
+    if (!fs.existsSync(path.join(instanceDir, "manifest.json"))) return;
+    const computed = computeUnpackedExtensionId(fs.realpathSync(instanceDir));
+    void (async () => {
+      const deadline = Date.now() + 20_000;
+      while (Date.now() < deadline) {
+        if (this.procs.get(id)?.cdpPort !== cdpPort) return; // stopped or relaunched
+        try {
+          const res = await fetch(`http://127.0.0.1:${cdpPort}/json/list`);
+          const targets = (await res.json()) as Array<{ url: string }>;
+          const ids = new Set(
+            targets
+              .filter((t) => t.url.startsWith("chrome-extension://"))
+              .map((t) => new URL(t.url).host)
+          );
+          if (ids.size > 0) {
+            const chosen = ids.has(computed) ? computed : ids.size === 1 ? [...ids][0]! : null;
+            if (chosen !== null) {
+              this.observedIds.set(id, chosen);
+              try {
+                fs.writeFileSync(path.join(instanceDir, "observed-extension-id"), chosen);
+              } catch {}
+              if (chosen !== computed) {
+                log.warn(
+                  `companion for ${id}: chromium assigned ${chosen} but the computed id was ${computed}; origin pinned to the observed id`
+                );
+              }
+            }
+            return;
+          }
+        } catch {}
+        await sleep(250);
+      }
+    })();
+  }
+
+  observedExtensionIdFor(id: string): string | null {
+    const cached = this.observedIds.get(id);
+    if (cached !== undefined) return cached;
+    try {
+      const value = fs
+        .readFileSync(path.join(this.runtime.root, "companion-instances", id, "observed-extension-id"), "utf8")
+        .trim();
+      if (/^[a-p]{32}$/.test(value)) {
+        this.observedIds.set(id, value);
+        return value;
+      }
+    } catch {}
+    return null;
   }
 
   // ---- companion stamping: one identity, one instance, one token ----
