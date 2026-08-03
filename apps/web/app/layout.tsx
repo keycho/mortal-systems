@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import Link from "next/link";
 import { Wordmark } from "../components/Wordmark";
 import "./globals.css";
 
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+// self-hosted (OFL): no build-time network, no third-party font requests
+const jetbrains = localFont({
+  src: [
+    { path: "../fonts/JetBrainsMono-Regular.woff2", weight: "400", style: "normal" },
+    { path: "../fonts/JetBrainsMono-Medium.woff2", weight: "500", style: "normal" },
+    { path: "../fonts/JetBrainsMono-Bold.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-jetbrains",
   display: "swap",
 });
