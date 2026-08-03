@@ -1,0 +1,26 @@
+{
+  "name": "liminal-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "browser-level isolation (G1-G9, G15-G18) and lifecycle (G10-G14) suites over per-identity cdp, plus the guarantees map the ci gate reads.",
+  "scripts": {
+    "test": "vitest run",
+    "test:isolation": "vitest run isolation",
+    "test:lifecycle": "vitest run lifecycle",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@liminal/blueprints": "workspace:*",
+    "@liminal/runtime": "workspace:*",
+    "@liminal/schema": "workspace:*",
+    "better-sqlite3": "^12.2.0",
+    "playwright-core": "^1.53.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

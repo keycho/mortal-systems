@@ -58,6 +58,33 @@ async function main(): Promise<void> {
     }
   }
 
+  // every mapped test id must actually appear in a test file — a map entry
+  // pointing at a test that does not exist is a fake guarantee
+  const testDirs = [
+    path.resolve(here, "../tests"),
+    path.resolve(here, "../packages/runtime/test"),
+    path.resolve(here, "../packages/schema/test"),
+    path.resolve(here, "../apps/manager/test"),
+    path.resolve(here, "../apps/companion/test"),
+  ];
+  const corpus: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }) : []) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory() && entry.name !== "node_modules") walk(full);
+      else if (/\.(test\.tsx?|spec\.tsx?)$/.test(entry.name)) corpus.push(fs.readFileSync(full, "utf8"));
+    }
+  };
+  for (const dir of testDirs) walk(dir);
+  const haystack = corpus.join("\n");
+  const allIds = new Set([...Object.values(GUARANTEES_MAP), ...Object.values(BADGE_TESTS)].flat());
+  for (const id of allIds) {
+    if (!haystack.includes(id)) {
+      console.error(`guarantees gate: test id "${id}" is mapped but appears in no test file`);
+      failed = true;
+    }
+  }
+
   if (failed) process.exit(1);
   console.log(
     `guarantees gate: OK — ${ENFORCED_FIELDS.length} enforced fields mapped, ` +

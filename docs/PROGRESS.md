@@ -144,3 +144,18 @@ day-5 specifics:
 
 honest gaps at day-5 close: manager ui has no blueprint install/preview screen yet (the pipeline, preview data api, and consent semantics exist and are tested; the screen itself is upcoming ui work alongside day 6/7). browser-level G10-G14/G1-G17 remain day-6 scope.
 - 2026-08-03 fix/brave-interstitial: audited (zero page-open primitives) + verified empirically (zero page-type extension targets after launch on chromium) — the only scriptable surface was toolbar-click sidePanel.open; replaced with native setPanelBehavior (guarded fallback, never a tab), smoke regression guard added asserting the companion never opens a page; brave-specific note added to the store-mode design; companion 6/6 + smoke 3/3 green
+- 2026-08-03 day6: browser-level suites — isolation G1-G8+G15+G16+G18b over per-identity cdp with a self-hosted login/cache/download fixture (10/10), lifecycle G10-G14 over a real child-process runtime incl. downtime expiry and mid-destroy crash-resume (4/4); guarantees.map.ts + gate green for real (enforced fields mapped, badge tests verified, mapped test ids must exist); two fix rounds recorded honestly: G8 required un-hijacking playwright's browser-wide download interception, and headless chromium keeps the crdownload name — the partition, not the filename, is the guarantee
+
+## day-6 gate — PASS (2026-08-03)
+
+```
+@liminal/schema:test:      Tests  41 passed   @liminal/blueprints:test:  Tests   4 passed
+@liminal/runtime:test:     Tests  70 passed   companion:test:            Tests   6 passed
+manager:test:              Tests   9 passed   liminal-tests:test:        Tests  14 passed
+Tasks: 10 successful, 10 total          (144 tests)
+
+check:guarantees: OK — 6 enforced fields mapped, 4 advisory/roadmap fields badge-tested
+pnpm lint: clean · pnpm typecheck: green
+```
+
+full pnpm check now passes end to end: every "enforced" label maps to at least one existing, passing test.
