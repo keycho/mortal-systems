@@ -1,0 +1,39 @@
+{
+  "name": "liminal.id",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@liminal/runtime --filter=manager",
+    "dev:web": "pnpm --filter web dev",
+    "dev:manager": "pnpm --filter manager dev",
+    "dev:runtime": "pnpm --filter @liminal/runtime dev",
+    "build": "turbo run build",
+    "build:web": "turbo run build --filter=web",
+    "build:manager": "turbo run tauri:build --filter=manager",
+    "lint": "eslint .",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:isolation": "pnpm --filter liminal-tests test:isolation",
+    "test:lifecycle": "pnpm --filter liminal-tests test:lifecycle",
+    "check": "pnpm lint && turbo run typecheck && pnpm check:guarantees",
+    "check:guarantees": "tsx scripts/check-guarantees.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "eslint": "^9.30.0",
+    "tsx": "^4.19.0",
+    "turbo": "^2.5.0",
+    "typescript": "catalog:",
+    "typescript-eslint": "^8.35.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
+  }
+}

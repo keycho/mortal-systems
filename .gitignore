@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+apps/manager/src-tauri/target/
+apps/web/next-env.d.ts
+apps/web/.vercel/
+
+# test artifacts
+test-results/
+playwright-report/
+tests/.tmp/
+
+# runtime state never lives in the repo
+.liminal/
+
+# misc
+.DS_Store
+*.log
+.env
+.env.*
