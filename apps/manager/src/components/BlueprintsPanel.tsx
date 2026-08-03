@@ -43,25 +43,24 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
   const summary = blueprints.find((b) => b.id === previewId) ?? null;
 
   return (
-    <div className="border border-line bg-panel p-4 flex flex-col gap-3">
-      <span className="text-mute text-[11px] tracking-widest uppercase">blueprints</span>
+    <div className="flex flex-col gap-3">
       {blueprints.length === 0 && (
-        <span className="text-[11px] text-mute">
+        <span className="text-[13.5px] text-sec rounded-xl bg-surface px-5 py-4">
           none installed. start the runtime with --seed-first-party or install from json.
         </span>
       )}
       {blueprints.map((b) => (
-        <div key={b.id} className="flex items-baseline gap-2 text-[12px]">
-          <span aria-hidden className="w-2 h-2 inline-block" style={{ background: b.theme }} />
-          <span>{b.name}</span>
-          <span className="text-mute text-[10px]">v{b.version}</span>
+        <div key={b.id} className="rounded-xl bg-surface px-5 py-4 flex items-center gap-3 text-[14px]">
+          <span aria-hidden className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ background: b.theme }} />
+          <span className="font-medium">{b.name}</span>
+          <span className="text-mute text-[12px] font-mono">v{b.version}</span>
           {!b.signed && (
-            <span data-testid="unsigned-badge" className="text-[10px] border border-dashed border-mute text-mute px-1">
+            <span data-testid="unsigned-badge" className="text-[11.5px] border border-dashed border-line-strong text-mute px-2 py-0.5 rounded-full">
               unsigned
             </span>
           )}
           <button
-            className="ml-auto border border-line px-2 py-0.5 text-[10px] hover:bg-panel-2"
+            className="ml-auto h-8 px-3 rounded-lg bg-elevated border border-line text-[12.5px] hover:bg-surface-hover outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             onClick={() => setPreviewId(b.id)}
           >
             preview + install
@@ -70,21 +69,21 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
       ))}
 
       {summary !== null && manifest !== null && (
-        <div data-testid="blueprint-preview" className="border border-line bg-panel-2 p-3 flex flex-col gap-3 text-[11px]">
+        <div data-testid="blueprint-preview" className="rounded-2xl bg-surface px-6 py-5 flex flex-col gap-4 text-[13px]">
           <div className="flex items-baseline gap-2">
-            <span className="text-[13px]">{manifest.name}</span>
+            <span className="text-[16px] font-medium">{manifest.name}</span>
             <span className="text-mute">by {manifest.publisher.id ?? "unknown"}</span>
             <span className="text-mute">· {summary.reviewTier}</span>
             {!summary.signed && <span className="text-mute">· unsigned</span>}
           </div>
-          <p className="text-mute">{manifest.description}</p>
+          <p className="text-sec leading-relaxed">{manifest.description}</p>
 
           <div className="flex gap-3 items-baseline">
             <span className="text-mute">lifetime</span>
             <span>{manifest.recommendedLifetime}</span>
             <input
               aria-label="lifetime override"
-              className="bg-panel border border-line px-2 py-1 w-24"
+              className="h-8 w-24 bg-input rounded-lg px-2.5 font-mono text-[12.5px] outline-none border border-transparent focus:border-line-strong"
               placeholder="override"
               value={lifetime}
               onChange={(e) => setLifetime(e.target.value)}
@@ -94,12 +93,12 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
 
           {manifest.bookmarks && manifest.bookmarks.length > 0 && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] tracking-widest uppercase text-mute">bookmarks</span>
+              <span className="text-[13px] font-medium">bookmarks</span>
               {manifest.bookmarks.map((bm) => (
                 <span key={bm.url} className="text-mute">
                   {bm.title} · {bm.url}
                   {urlContainsPunycode(bm.url) && (
-                    <span data-testid="punycode-warning" className="text-[#F59E0B]">
+                    <span data-testid="punycode-warning" style={{ color: "var(--app-warning)" }}>
                       {" "}
                       · punycode host, verify before trusting
                     </span>
@@ -111,13 +110,13 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
 
           {manifest.ai?.systemInstructions && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] tracking-widest uppercase text-mute">ai instructions</span>
+              <span className="text-[13px] font-medium">ai instructions</span>
               <span className="text-mute whitespace-pre-wrap">{manifest.ai.systemInstructions}</span>
             </div>
           )}
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] tracking-widest uppercase text-mute">permissions</span>
+            <span className="text-[13px] font-medium">permissions</span>
             {(
               [
                 ["wallet", manifest.permissions?.wallet],
@@ -142,13 +141,13 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
               </div>
             )}
             {manifest.permissions?.wallet && manifest.permissions.wallet.value !== "none" && (
-              <span className="text-[10px] text-mute">a declaration, not a technical control</span>
+              <span className="text-[12.5px]" style={{ color: "var(--app-warning)" }}>a declaration, not a technical control</span>
             )}
           </div>
 
           {manifest.recommendedExtensions && manifest.recommendedExtensions.length > 0 && (
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] tracking-widest uppercase text-mute">
+              <span className="text-[13px] font-medium">
                 recommended extensions · installed by you, never automatically
               </span>
               {manifest.recommendedExtensions.map((ext) => (
@@ -165,7 +164,7 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
                     }}
                   />
                   <span>{ext.name}</span>
-                  <span className="text-mute text-[10px]">{ext.id}</span>
+                  <span className="text-mute text-[11.5px] font-mono">{ext.id}</span>
                 </label>
               ))}
             </div>
@@ -173,7 +172,7 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
 
           <div className="flex gap-2 pt-1">
             <button
-              className="border border-line px-3 py-1 hover:bg-panel"
+              className="h-9 px-4 rounded-lg bg-ink text-app font-medium text-[13.5px] hover:bg-white disabled:opacity-45 outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -189,7 +188,7 @@ export function BlueprintsPanel({ blueprints, onLoadManifest, onCreate }: Bluepr
             >
               {busy ? "creating…" : "confirm: create this space"}
             </button>
-            <button className="border border-line px-3 py-1 text-mute" onClick={() => setPreviewId(null)}>
+            <button className="h-9 px-4 rounded-lg text-sec hover:text-ink hover:bg-surface-hover text-[13.5px] outline-none focus-visible:ring-2 focus-visible:ring-white/40" onClick={() => setPreviewId(null)}>
               cancel
             </button>
           </div>

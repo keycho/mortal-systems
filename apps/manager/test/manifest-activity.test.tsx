@@ -11,7 +11,7 @@ import {
 import { EnforcementBadge } from "../src/components/EnforcementBadge.js";
 import { PermissionRows } from "../src/components/PermissionRows.js";
 import { ActivityLog } from "../src/components/ActivityLog.js";
-import { PermissionsInspector } from "../src/views/IdentityWorkspace.js";
+import { PermissionsTab } from "../src/views/IdentityWorkspace.js";
 
 afterEach(cleanup);
 
@@ -31,9 +31,10 @@ describe("enforcement badge (manager)", () => {
     const badges = screen.getAllByTestId("enforcement-badge");
     expect(badges).toHaveLength(3);
     const byLevel = new Map(badges.map((b) => [b.getAttribute("data-enforcement"), b.className]));
-    expect(byLevel.get("enforced")).toContain("bg-ink");
-    expect(byLevel.get("advisory")).toContain("border-ink");
-    expect(byLevel.get("advisory")).not.toContain("bg-ink ");
+    // filled = enforced, outlined = advisory, dashed = roadmap — visually unmistakable
+    expect(byLevel.get("enforced")).toContain("bg-ok/15");
+    expect(byLevel.get("advisory")).toContain("border-line-strong");
+    expect(byLevel.get("advisory")).not.toContain("border-dashed");
     expect(byLevel.get("roadmap")).toContain("border-dashed");
   });
 });
@@ -73,7 +74,7 @@ describe("permission rows (workspace permissions tab)", () => {
 
   it("renders a tombstone message for destroyed identities", () => {
     render(
-      <PermissionsInspector
+      <PermissionsTab
         data={{ summary: { ...summary, state: "destroyed" }, manifest: null, events: [] }}
       />
     );

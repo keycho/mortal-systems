@@ -15,18 +15,24 @@
   --ink: #e6e7e9;
   --mute: #8a8f98;
 
-  /* application surfaces (manager: layered charcoal, daily-driver contrast).
-     four elevations so navigation, content, raised panels and hover states
-     separate without borders doing all the work. */
-  --surface-0: #121316;
-  --surface-1: #17191d;
-  --surface-2: #1d2025;
-  --surface-3: #23272d;
-  --line-1: #262b31;
-  --line-2: #323841;
-  --ink-app: #eceef1;
-  --mute-app: #9aa1ab;
-  --faint-app: #6b727c;
+  /* application design system (manager only — the site is editorial, the
+     manager is modern software; see DECISIONS.md). layered neutral surfaces,
+     soft alpha borders, no universal amber accent. */
+  --bg-app: #171717;
+  --bg-sidebar: #111111;
+  --bg-surface: #1f1f1f;
+  --bg-surface-hover: #262626;
+  --bg-elevated: #292929;
+  --bg-input: #242424;
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text-primary: #f4f4f4;
+  --text-secondary: #b4b4b4;
+  --text-muted: #7f7f7f;
+  --app-active: #a8dc66;
+  --app-warning: #d7a84a;
+  --app-danger: #d86a5d;
+  --app-info: #7da7d9;
 
   /* restrained accent — the persistent amber doubles as the brand accent */
   --accent: #f59e0b;

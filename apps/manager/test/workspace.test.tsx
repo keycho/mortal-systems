@@ -11,9 +11,9 @@ import {
 } from "@mortal/schema";
 import { IdentityNavigator } from "../src/components/IdentityNavigator.js";
 import {
-  FilesInspector,
+  FilesTab,
   IdentityWorkspace,
-  ReceiptInspector,
+  ReceiptTab,
   type WorkspaceData,
 } from "../src/views/IdentityWorkspace.js";
 
@@ -70,16 +70,15 @@ function renderWorkspace(d: WorkspaceData, onDestroy: (id: string) => void = noo
   );
 }
 
-describe("identity workspace (three-pane)", () => {
-  it("defaults the inspector to the browser tab and stays honest about what rpc cannot show", () => {
+describe("identity workspace", () => {
+  it("stays honest about what rpc cannot show, tab by tab", () => {
     renderWorkspace(data);
-    // browser inspector: honest about unavailable url/title/screenshot
-    expect(screen.getByText(/active url, page title and screenshots are not exposed/)).toBeTruthy();
-    // focus action exists but is disabled, never fake
-    const focus = screen.getByRole("button", { name: "focus browser window" });
-    expect((focus as HTMLButtonElement).disabled).toBe(true);
+    // overview: the focus action exists but is disabled, never fake
+    const focus = screen.getAllByRole("button", { name: "focus browser" });
+    expect(focus.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
 
     fireEvent.click(screen.getByRole("tab", { name: "files" }));
+    expect(screen.getByText(/needs a runtime rpc method that is not exposed yet/)).toBeTruthy();
     expect(screen.getByTestId("cannot-read").textContent).toContain(
       "no rpc method exposes their contents"
     );
@@ -91,22 +90,24 @@ describe("identity workspace (three-pane)", () => {
     expect(screen.getByTestId("no-receipt").textContent).toContain("has not been destroyed");
   });
 
-  it("requires an explicit confirm before destroy fires", () => {
+  it("keeps destroy inside the more menu behind an explicit confirmation dialog", () => {
     let destroyed: string | null = null;
     renderWorkspace(data, (id) => {
       destroyed = id;
     });
-    fireEvent.click(screen.getByRole("button", { name: "destroy" }));
+    fireEvent.click(screen.getByRole("button", { name: "more actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "destroy identity…" }));
     expect(destroyed).toBeNull();
+    expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText(/this cannot be undone/)).toBeTruthy();
-    fireEvent.click(screen.getAllByRole("button", { name: "destroy" })[1] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "destroy" }));
     expect(destroyed).toBe(summary.id);
   });
 });
 
 describe("files inspector", () => {
   it("shows the managed partition boundary from the real runtime root", () => {
-    render(<FilesInspector data={data} status={status} />);
+    render(<FilesTab data={data} status={status} />);
     expect(screen.getByText("4096 bytes on disk")).toBeTruthy();
     // paths are abbreviated by default; the full path is preserved for copy/title
     expect(screen.getByTitle(`${status.root}/files/${summary.id}`)).toBeTruthy();
@@ -138,13 +139,13 @@ describe("receipt inspector", () => {
       },
     ];
     render(
-      <ReceiptInspector
+      <ReceiptTab
         data={{ summary: { ...summary, state: "destroyed" }, manifest: null, events }}
       />
     );
     expect(screen.getByTestId("destruction-report")).toBeTruthy();
     expect(screen.getAllByTestId("caveat")).toHaveLength(DESTRUCTION_CAVEATS.length);
-    expect(screen.getByText("processes stopped")).toBeTruthy();
+    expect(screen.getByText("browser process stopped")).toBeTruthy();
     expect(screen.getByText("journal finalized")).toBeTruthy();
     expect(screen.getByRole("button", { name: "copy receipt" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "export json" })).toBeTruthy();
@@ -172,7 +173,7 @@ describe("identity navigator", () => {
     );
     expect(screen.getByText("running")).toBeTruthy();
     expect(screen.getByText("persistent")).toBeTruthy();
-    expect(screen.getByText("destroyed · receipts")).toBeTruthy();
+    expect(screen.getByText("receipts")).toBeTruthy();
     expect(screen.getByLabelText("browser running")).toBeTruthy();
   });
 

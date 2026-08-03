@@ -1,7 +1,17 @@
 import { useMemo, useState } from "react";
 import { formatRemaining, type IdentitySummary, type RuntimeStatus } from "@mortal/schema";
+import {
+  Activity,
+  LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Package,
+  Plus,
+  Search,
+  Settings,
+  ShieldCheck,
+} from "lucide-react";
 import { STATE_COLOR, STATE_LABEL } from "./IdentityRow.js";
-import { Button, shortId } from "./ui.js";
 
 export type View =
   | "overview"
@@ -17,27 +27,23 @@ interface Group {
   items: IdentitySummary[];
 }
 
-/** partition, first match wins: running > suspended > expiring > persistent */
-function groupIdentities(identities: IdentitySummary[]): { groups: Group[]; destroyed: IdentitySummary[] } {
+/** partition, first match wins: running > expiring > persistent > receipts */
+function groupIdentities(identities: IdentitySummary[]): Group[] {
   const destroyed = identities.filter((i) => i.state === "destroyed");
   const live = identities.filter((i) => i.state !== "destroyed");
-  const running = live.filter((i) => i.state === "running");
-  const suspended = live.filter((i) => i.state === "suspended");
+  const running = live.filter((i) => i.state === "running" || i.state === "expiring");
   const expiring = live.filter(
-    (i) => i.state !== "running" && i.state !== "suspended" && i.expiresAt !== null
+    (i) => i.state !== "running" && i.state !== "expiring" && i.expiresAt !== null
   );
   const persistent = live.filter(
-    (i) => i.state !== "running" && i.state !== "suspended" && i.expiresAt === null
+    (i) => i.state !== "running" && i.state !== "expiring" && i.expiresAt === null
   );
-  return {
-    groups: [
-      { key: "running", title: "running", items: running },
-      { key: "expiring", title: "expiring", items: expiring },
-      { key: "suspended", title: "suspended", items: suspended },
-      { key: "persistent", title: "persistent", items: persistent },
-    ].filter((g) => g.items.length > 0),
-    destroyed,
-  };
+  return [
+    { key: "running", title: "running", items: running },
+    { key: "expiring", title: "expiring", items: expiring },
+    { key: "persistent", title: "persistent", items: persistent },
+    { key: "receipts", title: "receipts", items: destroyed },
+  ].filter((g) => g.items.length > 0);
 }
 
 function NavIdentity({
@@ -60,39 +66,34 @@ function NavIdentity({
   return (
     <button
       data-testid={`nav-identity-${summary.id}`}
-      className={`w-full text-left px-3 py-2 flex items-center gap-2.5 border-l-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 ${
-        selected
-          ? "border-accent bg-panel-3 text-ink"
-          : "border-transparent hover:bg-panel-2 text-ink"
-      } ${destroyed ? "opacity-60" : ""}`}
+      title={`${summary.name} · ${summary.id}`}
+      className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+        selected ? "bg-surface-hover text-ink" : "hover:bg-surface text-ink"
+      } ${destroyed ? "opacity-55" : ""}`}
       aria-current={selected ? "true" : undefined}
       onClick={() => onSelect(summary.id)}
     >
       <span
         aria-hidden
-        className="w-2.5 h-2.5 rounded-[3px] shrink-0"
+        className="w-2.5 h-2.5 rounded-full shrink-0"
         style={{ background: summary.color }}
       />
-      <span className="flex flex-col min-w-0 flex-1 gap-0.5">
-        <span className="flex items-baseline gap-2 min-w-0">
-          <span className="text-[13.5px] font-medium truncate">{summary.name}</span>
-          <span className="font-mono text-[10.5px] text-faint shrink-0">{shortId(summary.id)}</span>
-        </span>
-        <span className="flex items-center gap-2">
+      <span className="flex flex-col min-w-0 flex-1">
+        <span className="text-[14px] truncate leading-snug">{summary.name}</span>
+        <span className="flex items-center gap-2 leading-snug">
           <span
-            className="text-[11.5px]"
-            style={{ color: destroyed ? "var(--faint-app)" : STATE_COLOR[summary.state] }}
+            className="text-[12px]"
+            style={{ color: destroyed ? "var(--text-muted)" : STATE_COLOR[summary.state] }}
           >
             {STATE_LABEL[summary.state]}
           </span>
           {summary.state === "running" && (
-            <span aria-label="browser running" className="flex items-center gap-1 text-[11px] text-mute">
-              <span aria-hidden className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--state-active)" }} />
-              browser
+            <span aria-label="browser running" className="text-[11.5px] text-mute">
+              · browser
             </span>
           )}
           {remaining !== null && (
-            <span data-testid="nav-countdown" className="ml-auto font-mono tabular-nums text-[11px] text-mute">
+            <span data-testid="nav-countdown" className="ml-auto font-mono tabular-nums text-[11.5px] text-mute">
               {remaining}
             </span>
           )}
@@ -120,6 +121,7 @@ export function IdentityNavigator({
   onNewIdentity: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q === "") return identities;
@@ -127,60 +129,103 @@ export function IdentityNavigator({
       (i) => i.name.toLowerCase().includes(q) || i.id.toLowerCase().includes(q)
     );
   }, [identities, query]);
-  const { groups, destroyed } = useMemo(() => groupIdentities(filtered), [filtered]);
+  const groups = useMemo(() => groupIdentities(filtered), [filtered]);
 
-  const topLink = (v: View, label: string) => (
-    <button
-      className={`w-full text-left px-3 py-1.5 text-[13px] border-l-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 ${
-        view === v && selectedId === null
-          ? "border-accent bg-panel-3 text-ink"
-          : "border-transparent text-mute hover:text-ink hover:bg-panel-2"
-      }`}
-      aria-current={view === v && selectedId === null ? "page" : undefined}
-      onClick={() => onNavigate(v)}
-    >
-      {label}
-    </button>
-  );
+  const links: Array<{ view: View; label: string; icon: React.ReactNode }> = [
+    { view: "overview", label: "dashboard", icon: <LayoutDashboard size={16} strokeWidth={1.75} /> },
+    { view: "blueprints", label: "blueprints", icon: <Package size={16} strokeWidth={1.75} /> },
+    { view: "activity", label: "activity", icon: <Activity size={16} strokeWidth={1.75} /> },
+    { view: "guarantees", label: "guarantees", icon: <ShieldCheck size={16} strokeWidth={1.75} /> },
+    { view: "settings", label: "settings", icon: <Settings size={16} strokeWidth={1.75} /> },
+  ];
+
+  if (collapsed) {
+    return (
+      <nav aria-label="identities" className="w-14 shrink-0 bg-sidebar flex flex-col items-center py-4 gap-2">
+        <button
+          className="p-2 rounded-lg text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          aria-label="expand sidebar"
+          title="expand sidebar"
+          onClick={() => setCollapsed(false)}
+        >
+          <PanelLeftOpen size={17} strokeWidth={1.75} />
+        </button>
+        <button
+          className="p-2 rounded-lg text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          aria-label="new identity"
+          title="new identity"
+          onClick={onNewIdentity}
+        >
+          <Plus size={17} strokeWidth={1.75} />
+        </button>
+        {links.map((l) => (
+          <button
+            key={l.view}
+            className={`p-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              view === l.view && selectedId === null
+                ? "bg-surface-hover text-ink"
+                : "text-sec hover:text-ink hover:bg-surface"
+            }`}
+            aria-label={l.label}
+            title={l.label}
+            onClick={() => onNavigate(l.view)}
+          >
+            {l.icon}
+          </button>
+        ))}
+      </nav>
+    );
+  }
 
   return (
-    <nav aria-label="identities" className="w-[270px] shrink-0 border-r border-line flex flex-col bg-panel">
+    <nav aria-label="identities" className="w-[268px] shrink-0 bg-sidebar flex flex-col">
       <div className="px-4 pt-4 pb-3 flex items-center gap-2">
-        <div className="flex flex-col">
-          <span className="text-[15px] font-medium tracking-wide leading-tight">mortal</span>
-          <span className="text-faint text-[11px] leading-tight">manager</span>
-        </div>
+        <span className="text-[15px] font-medium tracking-wide">mortal</span>
         <span
-          className="ml-auto w-2 h-2 rounded-full"
-          style={{ background: status !== null ? "var(--state-active)" : "var(--danger)" }}
+          className="w-1.5 h-1.5 rounded-full"
+          style={{ background: status !== null ? "var(--app-active)" : "var(--app-danger)" }}
           aria-label={status !== null ? "runtime connected" : "runtime unreachable"}
           title={status !== null ? `runtime ${status.version}` : "runtime unreachable"}
         />
+        <button
+          className="ml-auto p-1.5 rounded-lg text-mute hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          aria-label="collapse sidebar"
+          title="collapse sidebar"
+          onClick={() => setCollapsed(true)}
+        >
+          <PanelLeftClose size={16} strokeWidth={1.75} />
+        </button>
       </div>
 
-      <div className="px-3 pb-2 flex flex-col gap-2">
-        <Button variant="primary" className="w-full" onClick={onNewIdentity}>
-          + new identity
-        </Button>
-        <input
-          type="search"
-          aria-label="search identities"
-          placeholder="search identities"
-          className="bg-panel-2 border border-line px-3 py-1.5 text-[13px] outline-none focus:border-line-strong focus-visible:ring-2 focus-visible:ring-accent/60 rounded-[2px]"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      <div className="px-3 pb-3 flex flex-col gap-2">
+        <button
+          className="h-9 rounded-lg bg-surface border border-line text-[13.5px] text-ink flex items-center gap-2 px-3 hover:bg-surface-hover outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          onClick={onNewIdentity}
+        >
+          <Plus size={15} strokeWidth={2} />
+          new identity
+        </button>
+        <div className="relative">
+          <Search
+            size={14}
+            strokeWidth={1.75}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-mute pointer-events-none"
+          />
+          <input
+            type="search"
+            aria-label="search identities"
+            placeholder="search"
+            className="w-full h-9 bg-input rounded-lg pl-8.5 pr-3 text-[13.5px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-white/25"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
       </div>
 
-      <div className="px-1 pb-1">{topLink("overview", "dashboard")}</div>
-
-      <div className="flex-1 overflow-auto px-1 py-1 flex flex-col gap-3">
+      <div className="flex-1 overflow-auto px-3 pb-2 flex flex-col gap-4">
         {groups.map((group) => (
-          <div key={group.key}>
-            <div className="px-3 pb-1 text-[10.5px] tracking-[0.16em] uppercase text-faint flex items-baseline gap-2">
-              {group.title}
-              <span className="font-mono">{group.items.length}</span>
-            </div>
+          <div key={group.key} className="flex flex-col gap-0.5">
+            <div className="px-3 pb-1 text-[12px] text-mute">{group.title}</div>
             {group.items.map((summary) => (
               <NavIdentity
                 key={summary.id}
@@ -192,34 +237,29 @@ export function IdentityNavigator({
           </div>
         ))}
         {filtered.length === 0 && identities.length > 0 && (
-          <p className="px-3 text-[12.5px] text-mute">nothing matches "{query}".</p>
+          <p className="px-3 text-[13px] text-mute">nothing matches "{query}".</p>
         )}
         {identities.length === 0 && (
-          <p className="px-3 text-[12.5px] text-mute">
-            no identities yet. create one or install a blueprint.
-          </p>
-        )}
-        {destroyed.length > 0 && (
-          <div>
-            <div className="px-3 pb-1 text-[10.5px] tracking-[0.16em] uppercase text-faint flex items-baseline gap-2">
-              destroyed · receipts
-              <span className="font-mono">{destroyed.length}</span>
-            </div>
-            {destroyed.map((summary) => (
-              <NavIdentity
-                key={summary.id}
-                summary={summary}
-                selected={selectedId === summary.id}
-                onSelect={onSelect}
-              />
-            ))}
-          </div>
+          <p className="px-3 text-[13px] text-mute">no identities yet.</p>
         )}
       </div>
 
-      <div className="border-t border-line px-1 py-1.5">
-        {topLink("blueprints", "blueprints")}
-        {topLink("settings", "settings")}
+      <div className="px-3 py-2 flex flex-col gap-0.5 border-t border-line">
+        {links.map((l) => (
+          <button
+            key={l.view}
+            className={`w-full text-left px-3 py-2 rounded-lg text-[14px] flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              view === l.view && selectedId === null
+                ? "bg-surface-hover text-ink"
+                : "text-sec hover:text-ink hover:bg-surface"
+            }`}
+            aria-current={view === l.view && selectedId === null ? "page" : undefined}
+            onClick={() => onNavigate(l.view)}
+          >
+            {l.icon}
+            {l.label}
+          </button>
+        ))}
       </div>
     </nav>
   );

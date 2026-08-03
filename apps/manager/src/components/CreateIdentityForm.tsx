@@ -5,22 +5,25 @@ import {
   isValidLifetime,
   type IdentityManifest,
 } from "@mortal/schema";
+import { Button } from "./ui.js";
 
 const PALETTE = ["#F59E0B", "#C8FF4D", "#FFB000", "#4DA3FF", "#A78BFA", "#8A8F98"];
+const LIFETIME_PRESETS = ["persistent", "1h", "12h", "7d"] as const;
 
 export interface CreateIdentityFormProps {
   onCreate: (manifest: IdentityManifest) => Promise<void>;
 }
 
-/** minimal day-1 create form: name, color, lifetime. blueprint install is day-5 scope. */
 export function CreateIdentityForm({ onCreate }: CreateIdentityFormProps) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(PALETTE[0] as string);
-  const [lifetime, setLifetime] = useState("persistent");
+  const [lifetime, setLifetime] = useState<string>("persistent");
+  const [custom, setCustom] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const lifetimeOk = lifetime === "persistent" || isValidLifetime(lifetime);
+  const effective = custom.trim() !== "" ? custom.trim() : lifetime;
+  const lifetimeOk = effective === "persistent" || isValidLifetime(effective);
 
   async function submit() {
     setError(null);
@@ -29,7 +32,7 @@ export function CreateIdentityForm({ onCreate }: CreateIdentityFormProps) {
       return;
     }
     if (!lifetimeOk) {
-      setError('lifetime must be "persistent" or like 30m / 12h / 7d');
+      setError('lifetime must be "persistent" or a duration like 30m, 12h, 7d');
       return;
     }
     setBusy(true);
@@ -39,11 +42,12 @@ export function CreateIdentityForm({ onCreate }: CreateIdentityFormProps) {
         name: name.trim(),
         createdAt: new Date().toISOString(),
         color,
-        lifetime,
+        lifetime: effective,
       });
       await onCreate(manifest);
       setName("");
       setLifetime("persistent");
+      setCustom("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -52,41 +56,73 @@ export function CreateIdentityForm({ onCreate }: CreateIdentityFormProps) {
   }
 
   return (
-    <div className="border border-line bg-panel p-5 flex flex-col gap-3.5">
-      <span className="text-mute text-[11px] tracking-[0.18em] uppercase">new identity</span>
-      <input
-        aria-label="identity name"
-        className="bg-panel-2 border border-line px-3.5 py-2.5 text-[13.5px] outline-none focus:border-line-strong"
-        placeholder="name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <div className="flex gap-2 items-center">
-        {PALETTE.map((c) => (
-          <button
-            key={c}
-            aria-label={`color ${c}`}
-            className="w-5 h-5 border"
-            style={{ background: c, borderColor: c === color ? "#fff" : "var(--color-line)" }}
-            onClick={() => setColor(c)}
-          />
-        ))}
+    <div className="flex flex-col gap-4">
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[13px] text-sec">name</span>
+        <input
+          aria-label="identity name"
+          className="h-10 bg-input rounded-lg px-3.5 text-[14px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-white/25"
+          placeholder="e.g. client acme"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[13px] text-sec">color</span>
+        <div className="flex gap-2.5 items-center">
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              aria-label={`color ${c}`}
+              className="w-6 h-6 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              style={{
+                background: c,
+                boxShadow: c === color ? "0 0 0 2px var(--bg-elevated), 0 0 0 3.5px #fff" : "none",
+              }}
+              onClick={() => setColor(c)}
+            />
+          ))}
+        </div>
       </div>
-      <input
-        aria-label="lifetime"
-        className="bg-panel-2 border border-line px-3.5 py-2.5 font-mono text-[13px] outline-none focus:border-line-strong"
-        value={lifetime}
-        onChange={(e) => setLifetime(e.target.value)}
-        placeholder='persistent or "30m" "12h" "7d"'
-      />
-      {error !== null && <div className="text-[12.5px] text-danger">{error}</div>}
-      <button
-        className="bg-accent/10 border border-accent/40 text-accent px-3.5 py-2.5 text-[13px] font-medium hover:bg-accent/15 disabled:opacity-50 transition-colors"
-        disabled={busy}
-        onClick={() => void submit()}
-      >
-        {busy ? "creating…" : "create"}
-      </button>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[13px] text-sec">lifetime</span>
+        <div className="flex gap-2 flex-wrap items-center">
+          {LIFETIME_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              className={`h-9 px-3.5 rounded-lg text-[13.5px] outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+                lifetime === preset && custom.trim() === ""
+                  ? "bg-elevated text-ink"
+                  : "bg-input text-sec hover:text-ink"
+              }`}
+              onClick={() => {
+                setLifetime(preset);
+                setCustom("");
+              }}
+            >
+              {preset}
+            </button>
+          ))}
+          <input
+            aria-label="custom lifetime"
+            className="h-9 w-24 bg-input rounded-lg px-3 font-mono text-[13px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-white/25"
+            placeholder="custom"
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+          />
+        </div>
+        <span className="text-[12.5px] text-mute">
+          a finite identity expires on schedule; what happens then (destroy, suspend, archive) is
+          set by its manifest.
+        </span>
+      </div>
+
+      {error !== null && <div className="text-[13px] text-danger">{error}</div>}
+      <Button variant="primary" size="lg" disabled={busy} onClick={() => void submit()} className="self-start">
+        {busy ? "creating…" : "create identity"}
+      </Button>
     </div>
   );
 }

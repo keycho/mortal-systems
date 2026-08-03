@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ActivityEvent,
   BlueprintSummary,
@@ -8,7 +8,7 @@ import type {
 } from "@mortal/schema";
 import { rpc, RpcClientError } from "./lib/client.js";
 import { IdentityNavigator, type View } from "./components/IdentityNavigator.js";
-import { Button } from "./components/ui.js";
+import { Button, Modal, Toasts, type ToastItem } from "./components/ui.js";
 import { CreateIdentityForm } from "./components/CreateIdentityForm.js";
 import { OverviewView } from "./views/OverviewView.js";
 import { IdentityWorkspace, type WorkspaceData } from "./views/IdentityWorkspace.js";
@@ -32,6 +32,14 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkspaceData | null>(null);
   const [creating, setCreating] = useState(false);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastId = useRef(0);
+
+  const toast = useCallback((message: string) => {
+    const id = ++toastId.current;
+    setToasts((t) => [...t, { id, message }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -57,7 +65,7 @@ export default function App() {
         feeds
           .flat()
           .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-          .slice(0, 20)
+          .slice(0, 24)
       );
     } catch (err) {
       setStatus(null);
@@ -94,17 +102,18 @@ export default function App() {
   }, [selectedId, refreshDetail]);
 
   const act = useCallback(
-    async (fn: () => Promise<unknown>) => {
+    async (fn: () => Promise<unknown>, done?: string) => {
       try {
         await fn();
         await refresh();
         if (selectedId !== null) await refreshDetail(selectedId);
+        if (done !== undefined) toast(done);
       } catch (err) {
         if (err instanceof RpcClientError) setError(`${err.code}: ${err.message}`);
         else setError(err instanceof Error ? err.message : String(err));
       }
     },
-    [refresh, refreshDetail, selectedId]
+    [refresh, refreshDetail, selectedId, toast]
   );
 
   function openIdentity(id: string) {
@@ -113,33 +122,27 @@ export default function App() {
     setSelectedId(id);
   }
 
-  function newIdentity() {
-    setView("identities");
-    setSelectedId(null);
-    setCreating(true);
-  }
-
   const workspace = selectedId !== null && detail !== null ? detail : null;
+  const unreachable = loaded && status === null;
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex bg-app">
       <IdentityNavigator
         identities={identities}
         status={status}
         view={view}
         selectedId={selectedId}
         onSelect={openIdentity}
-        onNewIdentity={newIdentity}
+        onNewIdentity={() => setCreating(true)}
         onNavigate={(v) => {
           setView(v);
           setSelectedId(null);
-          setCreating(false);
         }}
       />
 
       <div className="flex-1 min-w-0 flex flex-col">
-        {error !== null && (
-          <div className="border-b border-danger/40 bg-panel text-danger px-6 py-2.5 text-[13px] flex items-center gap-4 shrink-0">
+        {error !== null && !unreachable && (
+          <div className="mx-8 mt-4 rounded-xl bg-surface border border-danger/40 text-danger px-4 py-2.5 text-[13px] flex items-center gap-4">
             <span className="truncate">{error}</span>
             <Button variant="secondary" size="sm" className="ml-auto shrink-0" onClick={() => void refresh()}>
               retry
@@ -148,24 +151,26 @@ export default function App() {
         )}
 
         {!loaded ? (
-          <div className="flex-1 flex items-center justify-center text-[14px] text-mute">
-            connecting to the runtime…
+          <div className="flex-1 flex flex-col items-center justify-center gap-4" aria-busy="true">
+            <div className="w-full max-w-md flex flex-col gap-3 px-8">
+              <div className="h-7 w-40 rounded-lg bg-surface animate-pulse" />
+              <div className="h-24 rounded-2xl bg-surface animate-pulse" />
+              <div className="h-16 rounded-xl bg-surface animate-pulse" />
+            </div>
           </div>
-        ) : creating ? (
-          <div className="flex-1 overflow-auto px-8 py-6">
-            <div className="max-w-md flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <h1 className="text-[20px] font-medium">new identity</h1>
-                <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setCreating(false)}>
-                  cancel
-                </Button>
-              </div>
-              <CreateIdentityForm
-                onCreate={async (manifest: IdentityManifest) => {
-                  await act(() => rpc("identity.create", { manifest }));
-                  setCreating(false);
-                }}
-              />
+        ) : unreachable ? (
+          <div className="flex-1 flex items-center justify-center px-8">
+            <div className="rounded-2xl bg-surface px-8 py-10 max-w-md flex flex-col items-center gap-3 text-center">
+              <span className="text-[17px] font-medium">the runtime is unreachable</span>
+              <p className="text-[13.5px] text-sec leading-relaxed">
+                the manager talks to the local mortal runtime over loopback. start it with{" "}
+                <span className="font-mono text-[12.5px]">pnpm dev:runtime</span> and it will
+                reconnect automatically.
+              </p>
+              {error !== null && <p className="font-mono text-[12px] text-mute break-all">{error}</p>}
+              <Button variant="primary" className="mt-1" onClick={() => void refresh()}>
+                retry now
+              </Button>
             </div>
           </div>
         ) : workspace !== null ? (
@@ -174,41 +179,51 @@ export default function App() {
             data={workspace}
             status={status}
             blueprints={blueprints}
-            onLaunch={(id) => void act(() => rpc("identity.launch", { id }))}
-            onSuspend={(id) => void act(() => rpc("identity.suspend", { id }))}
-            onResume={(id) => void act(() => rpc("identity.resume", { id }))}
-            onExpireNow={(id) => void act(() => rpc("identity.expire", { id }))}
-            onDestroy={(id) => void act(() => rpc("identity.destroy", { id }))}
+            onLaunch={(id) => void act(() => rpc("identity.launch", { id }), "browser launched")}
+            onSuspend={(id) => void act(() => rpc("identity.suspend", { id }), "suspended — data kept")}
+            onResume={(id) => void act(() => rpc("identity.resume", { id }), "resumed")}
+            onExpireNow={(id) => void act(() => rpc("identity.expire", { id }), "expiry started")}
+            onDestroy={(id) => void act(() => rpc("identity.destroy", { id }), "destroyed — receipt recorded")}
           />
         ) : view === "blueprints" ? (
-          <div className="flex-1 overflow-auto px-8 py-6">
-            <BlueprintsView
-              blueprints={blueprints}
-              onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
-              onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
-                act(() =>
-                  rpc("identity.createFromBlueprint", {
-                    blueprintId,
-                    overrides: {
-                      ...(lifetime ? { lifetime } : {}),
-                      ...(consentedExtensionIds.length > 0 ? { consentedExtensionIds } : {}),
-                    },
-                  })
-                )
-              }
-            />
+          <div className="flex-1 overflow-auto">
+            <div className="max-w-4xl mx-auto px-8 py-7">
+              <BlueprintsView
+                blueprints={blueprints}
+                onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
+                onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
+                  act(
+                    () =>
+                      rpc("identity.createFromBlueprint", {
+                        blueprintId,
+                        overrides: {
+                          ...(lifetime ? { lifetime } : {}),
+                          ...(consentedExtensionIds.length > 0 ? { consentedExtensionIds } : {}),
+                        },
+                      }),
+                    "identity created from blueprint"
+                  )
+                }
+              />
+            </div>
           </div>
         ) : view === "activity" ? (
-          <div className="flex-1 overflow-auto px-8 py-6">
-            <ActivityView />
+          <div className="flex-1 overflow-auto">
+            <div className="max-w-4xl mx-auto px-8 py-7">
+              <ActivityView />
+            </div>
           </div>
         ) : view === "guarantees" ? (
-          <div className="flex-1 overflow-auto px-8 py-6">
-            <GuaranteesView />
+          <div className="flex-1 overflow-auto">
+            <div className="max-w-4xl mx-auto px-8 py-7">
+              <GuaranteesView />
+            </div>
           </div>
         ) : view === "settings" ? (
-          <div className="flex-1 overflow-auto px-8 py-6">
-            <SettingsView status={status} />
+          <div className="flex-1 overflow-auto">
+            <div className="max-w-4xl mx-auto px-8 py-7">
+              <SettingsView status={status} />
+            </div>
           </div>
         ) : (
           <OverviewView
@@ -216,11 +231,27 @@ export default function App() {
             status={status}
             recentEvents={recentEvents}
             onOpenIdentity={openIdentity}
-            onNewIdentity={newIdentity}
-            onGoBlueprints={() => setView("blueprints")}
+            onNewIdentity={() => setCreating(true)}
+            onGoBlueprints={() => {
+              setView("blueprints");
+              setSelectedId(null);
+            }}
           />
         )}
       </div>
+
+      {creating && (
+        <Modal title="new identity" onClose={() => setCreating(false)}>
+          <CreateIdentityForm
+            onCreate={async (manifest: IdentityManifest) => {
+              await act(() => rpc("identity.create", { manifest }), "identity created");
+              setCreating(false);
+            }}
+          />
+        </Modal>
+      )}
+
+      <Toasts items={toasts} />
     </div>
   );
 }

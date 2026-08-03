@@ -2,30 +2,28 @@
 @import "tailwindcss";
 
 /**
- * manager theme: every value comes from @mortal/tokens (shared with the site).
- * the manager maps the application-surface tokens (layered charcoal), not the
- * marketing canvas. app-specific aliases only — no raw colors below this line.
+ * manager theme — the application design system from @mortal/tokens
+ * (bg-app / sidebar / surface / elevated tiers, alpha borders, no universal
+ * amber accent). the marketing site's editorial tokens are not used here.
  * type rule: sans for ui text, mono strictly for machine values
  * (ids, countdowns, durations, hashes, json, paths, timestamps).
  */
 @theme {
-  --color-void: var(--surface-0);
-  --color-panel: var(--surface-1);
-  --color-panel-2: var(--surface-2);
-  --color-panel-3: var(--surface-3);
-  --color-line: var(--line-1);
-  --color-line-strong: var(--line-2);
-  --color-ink: var(--ink-app);
-  --color-mute: var(--mute-app);
-  --color-faint: var(--faint-app);
-  --color-accent: var(--accent);
-  --color-danger: var(--danger);
-  --color-warn: var(--warn);
-  --color-state-persistent: var(--state-persistent);
-  --color-state-active: var(--state-active);
-  --color-state-expiring: var(--state-expiring);
-  --color-state-destroying: var(--state-destroying);
-  --color-state-archived: var(--state-archived);
+  --color-app: var(--bg-app);
+  --color-sidebar: var(--bg-sidebar);
+  --color-surface: var(--bg-surface);
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-elevated: var(--bg-elevated);
+  --color-input: var(--bg-input);
+  --color-line: var(--border-subtle);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text-primary);
+  --color-sec: var(--text-secondary);
+  --color-mute: var(--text-muted);
+  --color-ok: var(--app-active);
+  --color-warn: var(--app-warning);
+  --color-danger: var(--app-danger);
+  --color-info: var(--app-info);
   --font-sans: var(--type-sans);
   --font-mono: var(--type-mono);
 }
@@ -37,20 +35,38 @@ body,
 }
 
 body {
-  background: var(--surface-0);
-  color: var(--ink-app);
+  background: var(--bg-app);
+  color: var(--text-primary);
   font-family: var(--type-sans);
-  font-size: 14.5px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--line-2);
+  background: rgba(255, 255, 255, 0.16);
 }
 
-/* quiet scrollbars that still read on charcoal */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--line-2) transparent;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* interaction polish: quiet, fast, and off under reduced motion */
+button,
+a,
+input,
+[role="tab"] {
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
