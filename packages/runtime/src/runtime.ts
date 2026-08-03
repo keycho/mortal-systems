@@ -29,7 +29,10 @@ import { createApiServer, type ApiServer } from "./api/server.js";
 export interface LauncherApi {
   browsers: DetectedBrowser[];
   warnings: string[];
+  /** discovery + stale-state reconciliation; runtime startup awaits it when present */
+  init?(): Promise<void>;
   runningCount(): number;
+  cdpEndpointFor(id: string): string | null;
   launch(id: string): Promise<{ pid: number; cdpEndpoint: string | null }>;
   suspend(id: string): Promise<void>;
   resume(id: string): Promise<{ pid: number; cdpEndpoint: string | null }>;
@@ -97,6 +100,7 @@ export class LiminalRuntime {
     if (attachLauncher) {
       runtime.launcher = attachLauncher(runtime);
       runtime.destroyer.setHalt((id) => runtime.launcher!.halt(id));
+      if (runtime.launcher.init) await runtime.launcher.init();
     }
 
     // crash recovery: resume interrupted destructions before serving anything

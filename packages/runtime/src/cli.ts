@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// side-effect import: wires the chromium launcher into runtime startup
+import "./launcher/register.js";
 import { LiminalRuntime } from "./runtime.js";
 import { log } from "./util/log.js";
 import { RUNTIME_VERSION } from "./version.js";
