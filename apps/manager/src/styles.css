@@ -40,7 +40,7 @@ body {
   background: var(--surface-0);
   color: var(--ink-app);
   font-family: var(--type-sans);
-  font-size: 14px;
+  font-size: 14.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }

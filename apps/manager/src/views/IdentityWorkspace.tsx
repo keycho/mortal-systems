@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type {
   ActivityEvent,
+  BlueprintSummary,
   DestructionReport,
   IdentityManifest,
   IdentitySummary,
@@ -10,25 +11,17 @@ import { formatRemaining } from "@mortal/schema";
 import { ActivityLog, DestructionReportView } from "../components/ActivityLog.js";
 import { formatBytes, spaceLabel, StatePill } from "../components/IdentityRow.js";
 import { PermissionRows, Tombstone } from "../components/PermissionRows.js";
-import { EnforcementBadge } from "../components/EnforcementBadge.js";
+import { Button, PathValue, shortId } from "../components/ui.js";
 
-export type WorkspaceTab =
-  | "overview"
-  | "activity"
-  | "files"
-  | "memory"
-  | "permissions"
-  | "lifecycle"
-  | "receipt";
+export type InspectorTab = "browser" | "files" | "memory" | "permissions" | "lifecycle" | "receipt";
 
-const TABS: Array<{ tab: WorkspaceTab; label: string }> = [
-  { tab: "overview", label: "overview" },
-  { tab: "activity", label: "activity" },
+const INSPECTOR_TABS: Array<{ tab: InspectorTab; label: string }> = [
+  { tab: "browser", label: "browser" },
   { tab: "files", label: "files" },
   { tab: "memory", label: "memory" },
   { tab: "permissions", label: "permissions" },
   { tab: "lifecycle", label: "lifecycle" },
-  { tab: "receipt", label: "destruction receipt" },
+  { tab: "receipt", label: "receipt" },
 ];
 
 export interface WorkspaceData {
@@ -46,26 +39,23 @@ export function destructionReportFrom(events: ActivityEvent[]): DestructionRepor
   return null;
 }
 
+export function lastLaunchPid(events: ActivityEvent[]): number | null {
+  for (const event of events) {
+    if (event.event === "launched" && typeof event.detail?.pid === "number") {
+      return event.detail.pid;
+    }
+  }
+  return null;
+}
+
 /* ---------------------------------------------------------------- */
-/* shared card primitives                                            */
+/* shared primitives                                                 */
 /* ---------------------------------------------------------------- */
 
-function Card({
-  title,
-  children,
-  span2 = false,
-}: {
-  title: string;
-  children: React.ReactNode;
-  span2?: boolean;
-}) {
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section
-      className={`border border-line bg-panel px-5 py-4 flex flex-col gap-3 ${
-        span2 ? "xl:col-span-2" : ""
-      }`}
-    >
-      <h3 className="text-[11px] tracking-[0.18em] uppercase text-mute">{title}</h3>
+    <section className="border border-line bg-panel px-5 py-4 flex flex-col gap-3 rounded-[2px]">
+      <h3 className="text-[11px] tracking-[0.16em] uppercase text-mute">{title}</h3>
       {children}
     </section>
   );
@@ -73,9 +63,9 @@ function Card({
 
 function Fact({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex items-baseline gap-3 text-[13px]">
-      <span className="text-mute w-36 shrink-0">{label}</span>
-      <span className={`${mono ? "font-mono text-[12.5px]" : ""} break-all`}>{value}</span>
+    <div className="flex items-baseline gap-3 text-[13.5px]">
+      <span className="text-mute w-32 shrink-0">{label}</span>
+      <span className={`${mono ? "font-mono text-[13px]" : ""} break-words min-w-0`}>{value}</span>
     </div>
   );
 }
@@ -84,7 +74,7 @@ function Fact({ label, value, mono = true }: { label: string; value: string; mon
 function CannotRead({ what, deletedAt }: { what: string; deletedAt: string }) {
   return (
     <p
-      className="text-[12.5px] text-mute border border-dashed border-line px-4 py-3 leading-relaxed max-w-2xl"
+      className="text-[13px] text-mute border border-dashed border-line px-4 py-3 leading-relaxed"
       data-testid="cannot-read"
     >
       the manager does not read {what} — no rpc method exposes their contents. they belong to the
@@ -112,10 +102,10 @@ function browserStatusLine(state: IdentitySummary["state"]): string {
 }
 
 /* ---------------------------------------------------------------- */
-/* overview tab: structured cards                                    */
+/* inspector tabs                                                    */
 /* ---------------------------------------------------------------- */
 
-export function OverviewTab({
+export function BrowserInspector({
   data,
   status,
 }: {
@@ -123,151 +113,113 @@ export function OverviewTab({
   status: RuntimeStatus | null;
 }) {
   const { summary, manifest } = data;
-  const [showRaw, setShowRaw] = useState(false);
-  const root = status?.root ?? "<runtime root>";
-
-  if (manifest === null) {
-    return (
-      <div className="flex flex-col gap-4">
-        <Tombstone />
-        <p className="text-[12.5px] text-mute">
-          the destruction receipt tab holds the full report of what was removed.
-        </p>
-      </div>
-    );
-  }
-
+  if (manifest === null) return <Tombstone />;
+  const root = status?.root ?? null;
+  const pid = lastLaunchPid(data.events);
+  const open = summary.state === "running" || summary.state === "expiring";
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <Card title="browser">
-          <Fact label="status" value={browserStatusLine(summary.state)} mono={false} />
-          <Fact
-            label="engine"
-            value={
-              status?.defaultBrowser !== null && status !== undefined
-                ? `${status?.defaultBrowser?.kind ?? "—"} ${status?.defaultBrowser?.version ?? ""}`.trim()
-                : "none detected"
-            }
-          />
-          <Fact label="profile" value={`${root}/profiles/${summary.id}`} />
-          <p className="text-[12px] text-faint">
-            a real chromium instance on its own profile — never a webview inside the manager.
-          </p>
-        </Card>
-
-        <Card title="lifecycle">
-          <Fact label="lifetime" value={manifest.lifecycle.lifetime} />
-          <Fact label="on expiry" value={manifest.lifecycle.onExpiry} />
-          {manifest.lifecycle.expiresAt !== null && (
-            <Fact label="expires" value={new Date(manifest.lifecycle.expiresAt).toLocaleString()} />
-          )}
-          {summary.lastLaunchedAt !== null && (
-            <Fact label="last launched" value={new Date(summary.lastLaunchedAt).toLocaleString()} />
-          )}
-        </Card>
-
-        <Card title="memory">
-          <Fact label="scope" value={manifest.permissions.memoryScope.value} />
-          <Fact label="ai provider" value={manifest.ai.provider} />
-          <Fact label="history" value={manifest.ai.historyRetention} />
-          <p className="text-[12px] text-faint">
-            notes and ai context stay inside this identity; the manager cannot read them.
-          </p>
-        </Card>
-
-        <Card title="files">
-          <Fact label="storage" value={formatBytes(summary.storageBytes)} />
-          <Fact label="partition" value={`${root}/files/${summary.id}`} />
-          <p className="text-[12px] text-faint">
-            removed at steps D3/D4 of the destruction contract.
-          </p>
-        </Card>
-
-        <Card title="guarantees" span2>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            {(
-              [
-                ["filesystem", manifest.permissions.filesystem],
-                ["memory", manifest.permissions.memoryScope],
-                ["wallet", manifest.permissions.wallet],
-                ["email", manifest.permissions.email],
-                ["network", manifest.permissions.network],
-                ["history", manifest.privacy.retainHistory],
-              ] as const
-            ).map(([label, perm]) => (
-              <span key={label} className="flex items-center gap-2 text-[12.5px]">
-                <span className="text-mute">{label}</span>
-                <EnforcementBadge enforcement={perm.enforcement} />
-              </span>
-            ))}
-          </div>
-          <p className="text-[12px] text-faint">
-            full values and what each level means: the permissions tab.
-          </p>
-        </Card>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <span className="font-mono text-[11.5px] text-faint">{summary.id}</span>
-        {manifest.blueprint.source !== null && (
-          <span className="text-[12px] text-mute">
-            from {manifest.blueprint.source} v{manifest.blueprint.version}
-            {manifest.blueprint.signature === null ? " · unsigned" : ""}
-          </span>
-        )}
-        <button
-          className="ml-auto border border-line px-3.5 py-1.5 text-[12px] hover:bg-panel-3 transition-colors"
-          onClick={() => setShowRaw((v) => !v)}
+      <Card title="process">
+        <Fact label="status" value={browserStatusLine(summary.state)} mono={false} />
+        {open && pid !== null && <Fact label="pid" value={String(pid)} />}
+        <Fact
+          label="engine"
+          value={
+            status?.defaultBrowser != null
+              ? `${status.defaultBrowser.kind} ${status.defaultBrowser.version ?? ""}`.trim()
+              : "none detected"
+          }
+        />
+        <Fact label="cdp" value={open ? "endpoint held by the runtime" : "—"} mono={false} />
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled
+          title="needs a runtime rpc method that is not exposed yet — the manager will not pretend"
+          className="self-start"
         >
-          {showRaw ? "hide" : "show"} manifest json
-        </button>
-      </div>
-      {showRaw && (
-        <pre className="font-mono text-[11px] text-mute border border-line bg-panel p-3 overflow-auto max-h-80">
-          {JSON.stringify(manifest, null, 2)}
-        </pre>
-      )}
+          focus browser window
+        </Button>
+      </Card>
+      <Card title="profile">
+        {root !== null ? (
+          <PathValue path={`${root}/profiles/${summary.id}`} label="profile path" />
+        ) : (
+          <span className="text-[12.5px] text-mute">runtime unreachable</span>
+        )}
+        <Fact label="storage" value={formatBytes(summary.storageBytes)} />
+        {summary.lastLaunchedAt !== null && (
+          <Fact label="last launched" value={new Date(summary.lastLaunchedAt).toLocaleString()} />
+        )}
+      </Card>
+      <p className="text-[12.5px] text-mute leading-relaxed border border-dashed border-line px-4 py-3">
+        the browser is a real chromium process on its own profile — never a webview inside the
+        manager. active url, page title and screenshots are not exposed over the runtime's rpc yet,
+        so this panel does not show them.
+      </p>
     </div>
   );
 }
 
-/* ---------------------------------------------------------------- */
-/* files / memory / permissions tabs                                 */
-/* ---------------------------------------------------------------- */
-
-export function FilesTab({ data, status }: { data: WorkspaceData; status: RuntimeStatus | null }) {
+export function FilesInspector({
+  data,
+  status,
+}: {
+  data: WorkspaceData;
+  status: RuntimeStatus | null;
+}) {
   const { summary, manifest } = data;
   if (manifest === null) return <Tombstone />;
-  const root = status?.root ?? "<runtime root>";
+  const root = status?.root ?? null;
   return (
-    <div className="flex flex-col gap-4 max-w-3xl">
-      <Card title="partition">
-        <Fact label="browser profile" value={`${root}/profiles/${summary.id}`} />
-        <Fact label="identity files" value={`${root}/files/${summary.id}`} />
-        <Fact label="companion" value={`${root}/companion-instances/${summary.id}`} />
-        <Fact label="storage" value={`${summary.storageBytes} bytes on disk`} />
+    <div className="flex flex-col gap-4">
+      <Card title="managed partition">
+        {root !== null ? (
+          <>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-baseline gap-3 text-[13.5px]">
+                <span className="text-mute w-24 shrink-0">profile</span>
+                <PathValue path={`${root}/profiles/${summary.id}`} />
+              </div>
+              <div className="flex items-baseline gap-3 text-[13.5px]">
+                <span className="text-mute w-24 shrink-0">files</span>
+                <PathValue path={`${root}/files/${summary.id}`} />
+              </div>
+              <div className="flex items-baseline gap-3 text-[13.5px]">
+                <span className="text-mute w-24 shrink-0">companion</span>
+                <PathValue path={`${root}/companion-instances/${summary.id}`} />
+              </div>
+            </div>
+            <Fact label="storage" value={`${summary.storageBytes} bytes on disk`} />
+          </>
+        ) : (
+          <span className="text-[12.5px] text-mute">runtime unreachable</span>
+        )}
       </Card>
-      <Card title="what is enforced">
+      <Card title="boundary">
         <p className="text-[13px] text-mute leading-relaxed">
           filesystem access is{" "}
           <span className="text-ink font-mono text-[12.5px]">
             {manifest.permissions.filesystem.value}
           </span>{" "}
-          ({manifest.permissions.filesystem.enforcement}): each identity gets its own on-disk
-          partition, and destroy removes it (steps D3/D4).
+          ({manifest.permissions.filesystem.enforcement}): downloads and files land inside this
+          identity's partition, and destroy removes it (steps D3/D4).
         </p>
       </Card>
+      <p className="text-[12.5px] text-mute leading-relaxed border border-dashed border-line px-4 py-3">
+        a per-file listing (type, size, modified) needs a runtime rpc method that is not exposed
+        yet — this panel shows the real boundary and totals instead of a fabricated file tree.
+      </p>
       <CannotRead what="identity files" deletedAt="steps D3/D4" />
     </div>
   );
 }
 
-export function MemoryTab({ data }: { data: WorkspaceData }) {
+export function MemoryInspector({ data }: { data: WorkspaceData }) {
   const { manifest } = data;
   if (manifest === null) return <Tombstone />;
   return (
-    <div className="flex flex-col gap-4 max-w-3xl">
+    <div className="flex flex-col gap-4">
       <Card title="scope">
         <p className="text-[13px] text-mute leading-relaxed">
           memory scope is{" "}
@@ -279,40 +231,81 @@ export function MemoryTab({ data }: { data: WorkspaceData }) {
         </p>
       </Card>
       <Card title="ai configuration">
-        <div className="text-[12.5px] text-mute whitespace-pre-wrap border border-line bg-panel-2 p-3 font-mono leading-relaxed">
+        <div className="text-[12.5px] text-mute whitespace-pre-wrap border border-line bg-panel-2 p-3 font-mono leading-relaxed max-h-48 overflow-auto">
           {manifest.ai.systemInstructions || "no system instructions."}
         </div>
         <Fact label="provider" value={manifest.ai.provider} />
-        <Fact label="history retention" value={manifest.ai.historyRetention} />
+        <Fact label="history" value={manifest.ai.historyRetention} />
       </Card>
       <CannotRead what="notes or ai messages" deletedAt="step D5" />
     </div>
   );
 }
 
-export function PermissionsTab({ data }: { data: WorkspaceData }) {
+export function PermissionsInspector({ data }: { data: WorkspaceData }) {
   if (data.manifest === null) return <Tombstone />;
   return <PermissionRows manifest={data.manifest} />;
 }
 
+export function LifecycleInspector({
+  data,
+  now,
+  onExpireNow,
+}: {
+  data: WorkspaceData;
+  now?: number;
+  onExpireNow?: (id: string) => void;
+}) {
+  const { summary, manifest } = data;
+  const t = now ?? Date.now();
+  const remaining =
+    summary.expiresAt !== null && summary.state !== "destroyed"
+      ? formatRemaining(Date.parse(summary.expiresAt) - t)
+      : null;
+  if (manifest === null) return <Tombstone />;
+  return (
+    <div className="flex flex-col gap-4">
+      <Card title="schedule">
+        <Fact label="lifetime" value={manifest.lifecycle.lifetime} />
+        <Fact label="on expiry" value={manifest.lifecycle.onExpiry} />
+        {summary.expiresAt !== null && (
+          <Fact label="expires" value={new Date(summary.expiresAt).toLocaleString()} />
+        )}
+        {remaining !== null && <Fact label="remaining" value={remaining} />}
+        {summary.expiresAt !== null && summary.state !== "destroying" && onExpireNow !== undefined && (
+          <Button variant="secondary" size="sm" className="self-start" onClick={() => onExpireNow(summary.id)}>
+            expire now
+          </Button>
+        )}
+      </Card>
+      <p className="text-[13px] text-mute leading-relaxed">
+        when the deadline passes, a running identity gets a 60 second grace notice in its companion,
+        then the browser is halted and the expiry action runs. an expiry missed while the runtime
+        was stopped is honored at next startup and logged as expired_late.
+      </p>
+    </div>
+  );
+}
+
+export function ReceiptInspector({ data }: { data: WorkspaceData }) {
+  const report = destructionReportFrom(data.events);
+  if (report === null) {
+    return (
+      <div
+        className="border border-dashed border-line px-5 py-4 text-[13px] text-mute"
+        data-testid="no-receipt"
+      >
+        no receipt. this identity has not been destroyed.
+      </div>
+    );
+  }
+  return <DestructionReportView report={report} />;
+}
+
 /* ---------------------------------------------------------------- */
-/* lifecycle tab: state machine + destruction progress               */
+/* lifecycle state machine (centre pane)                             */
 /* ---------------------------------------------------------------- */
 
-const LIFECYCLE_EVENTS = new Set([
-  "created",
-  "expiry_scheduled",
-  "expiring",
-  "expired_late",
-  "suspended",
-  "resumed",
-  "archived",
-  "destroy_started",
-  "destroy_step",
-  "destroyed",
-]);
-
-/** the happy path through the machine, adjusted for the identity's expiry action */
 function statePath(onExpiry: IdentitySummary["onExpiry"]): IdentitySummary["state"][] {
   const tail: IdentitySummary["state"][] =
     onExpiry === "archive" ? ["archived"] : onExpiry === "suspend" ? ["suspended"] : ["destroying", "destroyed"];
@@ -343,15 +336,9 @@ export function StateMachine({ summary }: { summary: IdentitySummary }) {
           return (
             <span key={state} className="flex items-center">
               <span
-                className={`font-mono text-[12px] px-3 py-1.5 border rounded-sm ${
-                  current ? "font-medium" : ""
-                }`}
+                className={`font-mono text-[12.5px] px-3 py-1.5 border rounded-sm ${current ? "font-medium" : ""}`}
                 style={{
-                  color: current
-                    ? "var(--ink-app)"
-                    : reached
-                      ? "var(--mute-app)"
-                      : "var(--faint-app)",
+                  color: current ? "var(--ink-app)" : reached ? "var(--mute-app)" : "var(--faint-app)",
                   borderColor: current ? "var(--accent)" : "var(--line-1)",
                   background: current ? "var(--surface-3)" : reached ? "var(--surface-2)" : "transparent",
                 }}
@@ -375,7 +362,7 @@ export function StateMachine({ summary }: { summary: IdentitySummary }) {
         })}
       </div>
       {offPath && (
-        <p className="text-[12.5px] text-mute">
+        <p className="text-[13px] text-mute">
           currently <span className="font-mono">{MACHINE_LABEL[summary.state] ?? summary.state}</span> — a
           branch off the scheduled path (suspend and resume are always available before expiry).
         </p>
@@ -384,134 +371,241 @@ export function StateMachine({ summary }: { summary: IdentitySummary }) {
   );
 }
 
-export function LifecycleTab({
+/* ---------------------------------------------------------------- */
+/* centre pane: identity operations                                  */
+/* ---------------------------------------------------------------- */
+
+function DestructionProgress({ events }: { events: ActivityEvent[] }) {
+  const steps = events
+    .filter((e) => e.event === "destroy_step")
+    .map((e) => ({ step: String(e.detail?.step ?? ""), ok: e.detail?.ok === true }));
+  if (steps.length === 0) return null;
+  return (
+    <Card title="destruction progress">
+      <div className="flex items-center flex-wrap gap-2">
+        {(["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"] as const).map((step) => {
+          const done = steps.find((s) => s.step === step);
+          return (
+            <span
+              key={step}
+              className="font-mono text-[12.5px] px-2.5 py-1 border rounded-sm"
+              style={{
+                color:
+                  done === undefined ? "var(--faint-app)" : done.ok ? "var(--state-active)" : "var(--danger)",
+                borderColor: done === undefined ? "var(--line-1)" : "var(--line-2)",
+                background: done === undefined ? "transparent" : "var(--surface-2)",
+              }}
+            >
+              {step} {done === undefined ? "" : done.ok ? "✓" : "✗"}
+            </span>
+          );
+        })}
+      </div>
+      <p className="text-[12.5px] text-faint">full report: the receipt tab in the inspector.</p>
+    </Card>
+  );
+}
+
+function OperationsPane({
   data,
-  now,
-  onExpireNow,
+  blueprints,
+  onLaunch,
+  onSuspend,
+  onResume,
+  onDestroy,
 }: {
   data: WorkspaceData;
-  now?: number;
-  onExpireNow?: (id: string) => void;
+  blueprints: BlueprintSummary[];
+  onLaunch: (id: string) => void;
+  onSuspend: (id: string) => void;
+  onResume: (id: string) => void;
+  onDestroy: (id: string) => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
   const { summary, manifest } = data;
-  const t = now ?? Date.now();
+  const destroyed = summary.state === "destroyed";
   const remaining =
-    summary.expiresAt !== null && summary.state !== "destroyed"
-      ? formatRemaining(Date.parse(summary.expiresAt) - t)
+    summary.expiresAt !== null && !destroyed
+      ? formatRemaining(Date.parse(summary.expiresAt) - Date.now())
       : null;
-  const lifecycleEvents = data.events.filter((e) => LIFECYCLE_EVENTS.has(e.event));
-  const destroySteps = data.events
-    .filter((e) => e.event === "destroy_step")
-    .map((e) => ({
-      step: String(e.detail?.step ?? ""),
-      ok: e.detail?.ok === true,
-    }));
-
-  return (
-    <div className="flex flex-col gap-4 max-w-4xl">
-      <Card title="state machine">
-        <StateMachine summary={summary} />
-      </Card>
-
-      {manifest !== null && (
-        <Card title="schedule">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-            <Fact label="lifetime" value={manifest.lifecycle.lifetime} />
-            <Fact label="on expiry" value={manifest.lifecycle.onExpiry} />
-            {summary.expiresAt !== null && (
-              <Fact label="expires" value={new Date(summary.expiresAt).toLocaleString()} />
-            )}
-            {remaining !== null && <Fact label="remaining" value={remaining} />}
-          </div>
-          <p className="text-[12.5px] text-mute leading-relaxed">
-            when the deadline passes, a running identity gets a 60 second grace notice in its
-            companion, then the browser is halted and the expiry action runs. an expiry missed
-            while the runtime was stopped is honored at next startup and logged as expired_late.
-          </p>
-          {summary.expiresAt !== null &&
-            summary.state !== "destroying" &&
-            onExpireNow !== undefined && (
-              <button
-                className="border border-line px-3.5 py-1.5 text-[12.5px] self-start hover:bg-panel-3 transition-colors"
-                onClick={() => onExpireNow(summary.id)}
-              >
-                expire now
-              </button>
-            )}
-        </Card>
-      )}
-
-      {destroySteps.length > 0 && (
-        <Card title="destruction progress">
-          <div className="flex items-center flex-wrap gap-2">
-            {(["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7"] as const).map((step) => {
-              const done = destroySteps.find((s) => s.step === step);
-              return (
-                <span
-                  key={step}
-                  className="font-mono text-[12px] px-2.5 py-1 border rounded-sm"
-                  style={{
-                    color:
-                      done === undefined
-                        ? "var(--faint-app)"
-                        : done.ok
-                          ? "var(--state-active)"
-                          : "var(--danger)",
-                    borderColor: done === undefined ? "var(--line-1)" : "var(--line-2)",
-                    background: done === undefined ? "transparent" : "var(--surface-2)",
-                  }}
-                >
-                  {step} {done === undefined ? "" : done.ok ? "✓" : "✗"}
-                </span>
-              );
-            })}
-          </div>
-          <p className="text-[12px] text-faint">
-            the full report with what each step removed: the destruction receipt tab.
-          </p>
-        </Card>
-      )}
-
-      {manifest === null && destroySteps.length === 0 && <Tombstone />}
-
-      <Card title="lifecycle events">
-        <ActivityLog events={lifecycleEvents} />
-      </Card>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------- */
-/* receipt tab                                                       */
-/* ---------------------------------------------------------------- */
-
-export function ReceiptTab({ data }: { data: WorkspaceData }) {
+  const blueprint =
+    summary.blueprint !== null
+      ? (blueprints.find((b) => b.source === summary.blueprint?.source) ?? null)
+      : null;
   const report = destructionReportFrom(data.events);
-  if (report === null) {
-    return (
-      <div
-        className="border border-dashed border-line px-5 py-4 max-w-lg text-[13px] text-mute"
-        data-testid="no-receipt"
-      >
-        no receipt. this identity has not been destroyed.
-      </div>
-    );
-  }
+  const failures = data.events.filter(
+    (e) => e.event === "error" || (e.event === "destroy_step" && e.detail?.ok === false)
+  );
+
   return (
-    <div className="max-w-4xl">
-      <DestructionReportView report={report} />
+    <div className="flex-1 min-w-0 flex flex-col overflow-auto">
+      {/* header */}
+      <header className="relative border-b border-line bg-panel pl-7 pr-6 py-5 flex items-center gap-6 shrink-0">
+        <div
+          aria-hidden
+          className="absolute left-0 top-0 bottom-0 w-[3px]"
+          style={{ background: summary.color }}
+        />
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-[22px] font-medium leading-tight truncate">{summary.name}</h1>
+            <StatePill state={summary.state} />
+          </div>
+          <div className="flex items-center gap-3 text-[12.5px] text-mute flex-wrap">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-faint">
+              {spaceLabel(summary.spaceNumber)}
+            </span>
+            <span className="font-mono text-[11px] text-faint">{shortId(summary.id)}</span>
+            <span>{browserStatusLine(summary.state)}</span>
+            {summary.blueprint !== null && (
+              <span>
+                from {summary.blueprint.source} v{summary.blueprint.version}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-5 shrink-0">
+          {remaining !== null && (
+            <div className="flex flex-col items-end">
+              <span className="font-mono tabular-nums text-[18px]">{remaining}</span>
+              <span className="text-[11.5px] text-faint">until {summary.onExpiry}</span>
+            </div>
+          )}
+          {!destroyed && (
+            <div className="flex gap-2">
+              {(summary.state === "created" || summary.state === "ready") && (
+                <Button variant="primary" size="lg" onClick={() => onLaunch(summary.id)}>
+                  launch
+                </Button>
+              )}
+              {summary.state === "suspended" && (
+                <Button variant="primary" size="lg" onClick={() => onResume(summary.id)}>
+                  resume
+                </Button>
+              )}
+              {summary.state === "running" && (
+                <Button variant="secondary" size="lg" onClick={() => onSuspend(summary.id)}>
+                  suspend
+                </Button>
+              )}
+              <Button variant="danger" size="lg" onClick={() => setConfirming(true)}>
+                destroy
+              </Button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {confirming && (
+        <div className="border-b border-danger/40 bg-panel-2 px-7 py-3.5 text-[13.5px] flex items-center gap-4 shrink-0">
+          <span className="text-mute">
+            destroy this identity and its data on this machine? this cannot be undone.
+          </span>
+          <Button
+            variant="danger"
+            onClick={() => {
+              setConfirming(false);
+              onDestroy(summary.id);
+            }}
+          >
+            destroy
+          </Button>
+          <Button variant="secondary" onClick={() => setConfirming(false)}>
+            keep
+          </Button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4 px-7 py-5">
+        {/* destroyed: the receipt IS the narrative */}
+        {destroyed && report !== null ? (
+          <>
+            <DestructionProgress events={data.events} />
+            <DestructionReportView report={report} />
+          </>
+        ) : (
+          <>
+            {/* purpose */}
+            <Card title="purpose">
+              {blueprint !== null ? (
+                <p className="text-[14px] leading-relaxed">{blueprint.description}</p>
+              ) : manifest !== null && manifest.ai.systemInstructions ? (
+                <p className="text-[13.5px] text-mute leading-relaxed line-clamp-3">
+                  {manifest.ai.systemInstructions}
+                </p>
+              ) : (
+                <p className="text-[13.5px] text-mute">
+                  created by hand — no blueprint. its purpose lives with you, not the runtime.
+                </p>
+              )}
+            </Card>
+
+            {/* lifecycle progress */}
+            <Card title="lifecycle">
+              <StateMachine summary={summary} />
+            </Card>
+
+            <DestructionProgress events={data.events} />
+
+            {failures.length > 0 && (
+              <section className="border border-danger/40 bg-panel px-5 py-4 flex flex-col gap-2 rounded-[2px]">
+                <h3 className="text-[11px] tracking-[0.16em] uppercase" style={{ color: "var(--danger)" }}>
+                  needs attention
+                </h3>
+                {failures.slice(0, 4).map((e) => (
+                  <span key={e.id} className="text-[13px] text-danger">
+                    {e.event === "error"
+                      ? String(e.detail?.message ?? "error")
+                      : `destroy step ${String(e.detail?.step ?? "")} failed`}
+                  </span>
+                ))}
+              </section>
+            )}
+
+            {/* notes / identity context: honest */}
+            {manifest !== null && (
+              <Card title="notes & context">
+                <p className="text-[13px] text-mute leading-relaxed">
+                  notes, ai conversations and downloads live inside this identity and are served
+                  only to its own companion — the manager does not read them. what the runtime
+                  enforces about them is in the memory and files inspectors.
+                </p>
+              </Card>
+            )}
+
+            {/* activity timeline */}
+            <Card title="activity">
+              <ActivityLog events={data.events} />
+            </Card>
+
+            {manifest !== null && (
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setShowRaw((v) => !v)}>
+                  {showRaw ? "hide" : "show"} manifest json
+                </Button>
+              </div>
+            )}
+            {showRaw && manifest !== null && (
+              <pre className="font-mono text-[11.5px] text-mute border border-line bg-panel p-3 overflow-auto max-h-80">
+                {JSON.stringify(manifest, null, 2)}
+              </pre>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------------- */
-/* the workspace shell: strong header + tabs                         */
+/* the three-pane workspace: centre operations + right inspector     */
 /* ---------------------------------------------------------------- */
 
 export function IdentityWorkspace({
   data,
   status,
-  onBack,
+  blueprints = [],
   onLaunch,
   onSuspend,
   onResume,
@@ -520,155 +614,54 @@ export function IdentityWorkspace({
 }: {
   data: WorkspaceData;
   status: RuntimeStatus | null;
-  onBack: () => void;
+  blueprints?: BlueprintSummary[];
+  onBack?: () => void;
   onLaunch: (id: string) => void;
   onSuspend: (id: string) => void;
   onResume: (id: string) => void;
   onExpireNow: (id: string) => void;
   onDestroy: (id: string) => void;
 }) {
-  const [tab, setTab] = useState<WorkspaceTab>("overview");
-  const [confirming, setConfirming] = useState(false);
-  const { summary } = data;
-  const destroyed = summary.state === "destroyed";
-  const remaining =
-    summary.expiresAt !== null && !destroyed
-      ? formatRemaining(Date.parse(summary.expiresAt) - Date.now())
-      : null;
+  const destroyed = data.summary.state === "destroyed";
+  const [tab, setTab] = useState<InspectorTab>(destroyed ? "receipt" : "browser");
 
   return (
-    <div className="flex flex-col h-full">
-      <button
-        className="self-start text-[12.5px] text-mute hover:text-ink transition-colors mb-4"
-        onClick={onBack}
-      >
-        ← identities
-      </button>
+    <div className="flex-1 min-w-0 flex">
+      <OperationsPane
+        data={data}
+        blueprints={blueprints}
+        onLaunch={onLaunch}
+        onSuspend={onSuspend}
+        onResume={onResume}
+        onDestroy={onDestroy}
+      />
 
-      {/* selected-identity header */}
-      <header className="border border-line bg-panel relative pl-6 pr-5 py-5 flex items-center gap-6">
-        <div
-          aria-hidden
-          className="absolute left-0 top-0 bottom-0 w-[3px]"
-          style={{ background: summary.color }}
-        />
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-[20px] font-medium leading-tight truncate">{summary.name}</h1>
-            <StatePill state={summary.state} />
-          </div>
-          <div className="flex items-center gap-3 text-[12px] text-mute">
-            <span className="font-mono uppercase tracking-wider text-faint">
-              {spaceLabel(summary.spaceNumber)}
-            </span>
-            <span>{browserStatusLine(summary.state)}</span>
-            {summary.blueprint !== null && (
-              <span className="hidden lg:inline">
-                from {summary.blueprint.source} v{summary.blueprint.version}
-              </span>
-            )}
-          </div>
+      {/* contextual inspector */}
+      <aside className="w-[400px] shrink-0 border-l border-line bg-panel-2 flex flex-col">
+        <div role="tablist" aria-label="inspector" className="flex flex-wrap border-b border-line px-2 pt-1 shrink-0">
+          {INSPECTOR_TABS.map((t) => (
+            <button
+              key={t.tab}
+              role="tab"
+              aria-selected={tab === t.tab}
+              className={`px-3 py-2 text-[12.5px] border-b-2 -mb-px outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60 ${
+                tab === t.tab ? "border-accent text-ink" : "border-transparent text-mute hover:text-ink"
+              }`}
+              onClick={() => setTab(t.tab)}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-
-        <div className="ml-auto flex items-center gap-5 shrink-0">
-          {remaining !== null && (
-            <div className="flex flex-col items-end">
-              <span className="font-mono tabular-nums text-[17px]">{remaining}</span>
-              <span className="text-[11px] text-faint">until {summary.onExpiry}</span>
-            </div>
-          )}
-          {!destroyed && (
-            <div className="flex gap-2">
-              {(summary.state === "created" ||
-                summary.state === "ready") && (
-                <button
-                  className="bg-accent/10 border border-accent/40 text-accent px-4 py-2 text-[13px] font-medium hover:bg-accent/15 transition-colors"
-                  onClick={() => onLaunch(summary.id)}
-                >
-                  launch
-                </button>
-              )}
-              {summary.state === "suspended" && (
-                <button
-                  className="bg-accent/10 border border-accent/40 text-accent px-4 py-2 text-[13px] font-medium hover:bg-accent/15 transition-colors"
-                  onClick={() => onResume(summary.id)}
-                >
-                  resume
-                </button>
-              )}
-              {summary.state === "running" && (
-                <button
-                  className="border border-line px-4 py-2 text-[13px] hover:bg-panel-3 transition-colors"
-                  onClick={() => onSuspend(summary.id)}
-                >
-                  suspend
-                </button>
-              )}
-              <button
-                className="border border-line px-4 py-2 text-[13px] text-mute hover:text-danger hover:border-danger/40 transition-colors"
-                onClick={() => setConfirming(true)}
-              >
-                destroy
-              </button>
-            </div>
-          )}
+        <div className="flex-1 overflow-auto px-4 py-4">
+          {tab === "browser" && <BrowserInspector data={data} status={status} />}
+          {tab === "files" && <FilesInspector data={data} status={status} />}
+          {tab === "memory" && <MemoryInspector data={data} />}
+          {tab === "permissions" && <PermissionsInspector data={data} />}
+          {tab === "lifecycle" && <LifecycleInspector data={data} onExpireNow={onExpireNow} />}
+          {tab === "receipt" && <ReceiptInspector data={data} />}
         </div>
-      </header>
-
-      {confirming && (
-        <div className="border border-danger/40 border-t-0 bg-panel-2 px-5 py-3.5 text-[13px] flex items-center gap-4">
-          <span className="text-mute">
-            destroy this identity and its data on this machine? this cannot be undone.
-          </span>
-          <button
-            className="border border-danger text-danger px-3 py-1.5 hover:bg-danger/10 transition-colors"
-            onClick={() => {
-              setConfirming(false);
-              onDestroy(summary.id);
-            }}
-          >
-            destroy
-          </button>
-          <button
-            className="border border-line px-3 py-1.5 hover:bg-panel-3 transition-colors"
-            onClick={() => setConfirming(false)}
-          >
-            keep
-          </button>
-        </div>
-      )}
-
-      <div role="tablist" aria-label="identity workspace" className="flex gap-1 border-b border-line mt-5">
-        {TABS.map((t) => (
-          <button
-            key={t.tab}
-            role="tab"
-            aria-selected={tab === t.tab}
-            className={`px-3.5 py-2.5 text-[13px] border-b-2 -mb-px transition-colors ${
-              tab === t.tab
-                ? "border-accent text-ink"
-                : "border-transparent text-mute hover:text-ink"
-            }`}
-            onClick={() => setTab(t.tab)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-auto pt-5 pr-1">
-        {tab === "overview" && <OverviewTab data={data} status={status} />}
-        {tab === "activity" && (
-          <div className="max-w-3xl">
-            <ActivityLog events={data.events} />
-          </div>
-        )}
-        {tab === "files" && <FilesTab data={data} status={status} />}
-        {tab === "memory" && <MemoryTab data={data} />}
-        {tab === "permissions" && <PermissionsTab data={data} />}
-        {tab === "lifecycle" && <LifecycleTab data={data} onExpireNow={onExpireNow} />}
-        {tab === "receipt" && <ReceiptTab data={data} />}
-      </div>
+      </aside>
     </div>
   );
 }

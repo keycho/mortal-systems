@@ -11,7 +11,7 @@ import {
 import { EnforcementBadge } from "../src/components/EnforcementBadge.js";
 import { PermissionRows } from "../src/components/PermissionRows.js";
 import { ActivityLog } from "../src/components/ActivityLog.js";
-import { PermissionsTab } from "../src/views/IdentityWorkspace.js";
+import { PermissionsInspector } from "../src/views/IdentityWorkspace.js";
 
 afterEach(cleanup);
 
@@ -73,7 +73,7 @@ describe("permission rows (workspace permissions tab)", () => {
 
   it("renders a tombstone message for destroyed identities", () => {
     render(
-      <PermissionsTab
+      <PermissionsInspector
         data={{ summary: { ...summary, state: "destroyed" }, manifest: null, events: [] }}
       />
     );

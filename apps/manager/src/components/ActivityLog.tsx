@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ActivityEvent, DestructionReport } from "@mortal/schema";
 
 /* ------------------------------------------------------------------ */
@@ -178,23 +179,33 @@ export function DestructionReportView({ report }: { report: DestructionReport })
     report.completedAt !== null && report.startedAt !== null
       ? Math.max(0, Date.parse(report.completedAt) - Date.parse(report.startedAt))
       : null;
+  const receiptId = `rcpt_${report.identityId.replace(/^idn_/, "").slice(0, 8)}${
+    report.completedAt !== null ? `-${Math.floor(Date.parse(report.completedAt) / 1000)}` : ""
+  }`;
+  const okStep = (step: string) => report.steps.find((s) => s.step === step)?.ok === true;
+  const summary: Array<[string, boolean]> = [
+    ["processes stopped", okStep("D2")],
+    ["profile removed", okStep("D3")],
+    ["managed files removed", okStep("D4")],
+    ["notes / messages / bookmarks removed", okStep("D5")],
+    ["tombstone recorded", okStep("D6")],
+    ["journal finalized", okStep("D7")],
+  ];
+  const json = JSON.stringify(report, null, 2);
 
   return (
-    <div
-      className="border border-line bg-panel-2 flex flex-col"
-      data-testid="destruction-report"
-    >
+    <div className="border border-line bg-panel-2 flex flex-col" data-testid="destruction-report">
       {/* final status header */}
       <div className="px-6 py-5 border-b border-line flex items-center gap-4">
         <span
           aria-hidden
-          className="w-9 h-9 rounded-full border flex items-center justify-center shrink-0"
+          className="w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0"
           style={{
             borderColor: allOk ? "var(--state-active)" : "var(--danger)",
             color: allOk ? "var(--state-active)" : "var(--danger)",
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16">
+          <svg width="18" height="18" viewBox="0 0 16 16">
             {allOk ? (
               <path d="M3.5 8.5l3 3 6-7" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
             ) : (
@@ -202,22 +213,23 @@ export function DestructionReportView({ report }: { report: DestructionReport })
             )}
           </svg>
         </span>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[16px] font-medium">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-[17px] font-medium">
             {allOk ? "destruction complete" : "destruction incomplete"}
           </span>
-          <span className="text-[12.5px] text-mute">
-            all local data for this identity was removed by the destruction contract
+          <span className="text-[13px] text-mute">
+            all managed local data for this identity was removed by the destruction contract
             {report.resumed && (
               <span style={{ color: "var(--warn)" }}> · resumed after interruption</span>
             )}
           </span>
+          <span className="font-mono text-[11px] text-faint">
+            {receiptId} · {shortIdentityId(report.identityId)}
+          </span>
         </div>
-        <div className="ml-auto flex flex-col items-end gap-0.5 text-[12px]">
+        <div className="ml-auto flex flex-col items-end gap-0.5 text-[12px] shrink-0">
           {report.completedAt !== null && (
-            <span className="font-mono text-mute">
-              {new Date(report.completedAt).toLocaleString()}
-            </span>
+            <span className="font-mono text-mute">{new Date(report.completedAt).toLocaleString()}</span>
           )}
           {duration !== null && (
             <span className="font-mono text-faint">{(duration / 1000).toFixed(1)}s total</span>
@@ -225,7 +237,19 @@ export function DestructionReportView({ report }: { report: DestructionReport })
         </div>
       </div>
 
-      {/* D0–D7 stepper */}
+      {/* outcome summary */}
+      <div className="px-6 py-4 border-b border-line grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5">
+        {summary.map(([label, ok]) => (
+          <span key={label} className="flex items-center gap-2 text-[13px]">
+            <span aria-hidden style={{ color: ok ? "var(--state-active)" : "var(--danger)" }}>
+              {ok ? "✓" : "✗"}
+            </span>
+            <span className={ok ? "text-ink" : "text-danger"}>{label}</span>
+          </span>
+        ))}
+      </div>
+
+      {/* D0–D7 vertical timeline */}
       <ol className="px-6 py-5 flex flex-col">
         {report.steps.map((step, i) => {
           const meta = DESTROY_STEP_META[step.step] ?? { name: step.step, means: "" };
@@ -254,21 +278,26 @@ export function DestructionReportView({ report }: { report: DestructionReport })
                 </span>
                 {!last && <span aria-hidden className="w-px flex-1 min-h-3 bg-line" />}
               </div>
-              <div className={`flex flex-col gap-0.5 pb-4 min-w-0 ${last ? "pb-0" : ""}`}>
+              <div className={`flex flex-col gap-0.5 min-w-0 ${last ? "pb-0" : "pb-4"}`}>
                 <div className="flex items-baseline gap-2.5">
                   <span className="font-mono text-[12px] text-faint w-6">{step.step}</span>
-                  <span className="text-[13.5px] font-medium">{meta.name}</span>
+                  <span className="text-[14px] font-medium">{meta.name}</span>
                   {!step.ok && (
                     <span className="text-[12px]" style={{ color: "var(--danger)" }}>
                       failed
                     </span>
                   )}
                 </div>
-                <span className="text-[12.5px] text-mute pl-[34px]">{meta.means}</span>
+                <span className="text-[13px] text-mute pl-[34px]">{meta.means}</span>
                 {step.detail !== undefined && step.detail !== null && (
-                  <span className="font-mono text-[11.5px] text-faint pl-[34px] break-all">
-                    {step.detail}
-                  </span>
+                  <details className="pl-[34px]">
+                    <summary className="cursor-pointer text-[11.5px] text-faint hover:text-mute select-none">
+                      technical evidence
+                    </summary>
+                    <span className="font-mono text-[11.5px] text-mute break-all block pt-1">
+                      {step.detail}
+                    </span>
+                  </details>
                 )}
               </div>
             </li>
@@ -278,17 +307,63 @@ export function DestructionReportView({ report }: { report: DestructionReport })
 
       {/* caveats: what destroyed cannot remove */}
       <div className="px-6 py-5 border-t border-line flex flex-col gap-2.5 bg-panel">
-        <span className="text-[11px] tracking-[0.18em] uppercase text-mute">
+        <span className="text-[11px] tracking-[0.16em] uppercase text-mute">
           what destroyed cannot remove
         </span>
         {report.caveats.map((caveat) => (
-          <span key={caveat} className="text-[12.5px] text-mute flex gap-2.5" data-testid="caveat">
+          <span key={caveat} className="text-[13px] text-mute flex gap-2.5" data-testid="caveat">
             <span aria-hidden className="text-faint shrink-0">·</span>
             {caveat}
           </span>
         ))}
       </div>
+
+      {/* receipt actions */}
+      <div className="px-6 py-4 border-t border-line flex gap-2">
+        <CopyReceiptButton json={json} />
+        <ExportReceiptButton json={json} receiptId={receiptId} />
+      </div>
     </div>
+  );
+}
+
+function shortIdentityId(id: string): string {
+  return id.length > 14 ? `${id.slice(0, 12)}…` : id;
+}
+
+function CopyReceiptButton({ json }: { json: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="border border-line-strong bg-panel-2 hover:bg-panel-3 px-3.5 py-1.5 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-accent/60 transition-colors"
+      onClick={() => {
+        void navigator.clipboard?.writeText(json).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+    >
+      {copied ? "copied" : "copy receipt"}
+    </button>
+  );
+}
+
+function ExportReceiptButton({ json, receiptId }: { json: string; receiptId: string }) {
+  return (
+    <button
+      className="border border-line-strong bg-panel-2 hover:bg-panel-3 px-3.5 py-1.5 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-accent/60 transition-colors"
+      onClick={() => {
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${receiptId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }}
+    >
+      export json
+    </button>
   );
 }
 

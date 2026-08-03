@@ -9,11 +9,11 @@ import {
   type IdentitySummary,
   type RuntimeStatus,
 } from "@mortal/schema";
-import { Sidebar } from "../src/components/Sidebar.js";
+import { IdentityNavigator } from "../src/components/IdentityNavigator.js";
 import {
-  FilesTab,
+  FilesInspector,
   IdentityWorkspace,
-  ReceiptTab,
+  ReceiptInspector,
   type WorkspaceData,
 } from "../src/views/IdentityWorkspace.js";
 
@@ -56,25 +56,30 @@ const status: RuntimeStatus = {
 
 const noop = () => {};
 
-describe("identity workspace", () => {
-  it("switches tabs and keeps every tab honest about unreadable data", () => {
-    render(
-      <IdentityWorkspace
-        data={data}
-        status={status}
-        onBack={noop}
-        onLaunch={noop}
-        onSuspend={noop}
-        onResume={noop}
-        onExpireNow={noop}
-        onDestroy={noop}
-      />
-    );
-    // overview is the default tab
-    expect(screen.getByText("show manifest json")).toBeTruthy();
+function renderWorkspace(d: WorkspaceData, onDestroy: (id: string) => void = noop) {
+  return render(
+    <IdentityWorkspace
+      data={d}
+      status={status}
+      onLaunch={noop}
+      onSuspend={noop}
+      onResume={noop}
+      onExpireNow={noop}
+      onDestroy={onDestroy}
+    />
+  );
+}
+
+describe("identity workspace (three-pane)", () => {
+  it("defaults the inspector to the browser tab and stays honest about what rpc cannot show", () => {
+    renderWorkspace(data);
+    // browser inspector: honest about unavailable url/title/screenshot
+    expect(screen.getByText(/active url, page title and screenshots are not exposed/)).toBeTruthy();
+    // focus action exists but is disabled, never fake
+    const focus = screen.getByRole("button", { name: "focus browser window" });
+    expect((focus as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(screen.getByRole("tab", { name: "files" }));
-    expect(screen.getByText(`${status.root}/profiles/${summary.id}`)).toBeTruthy();
     expect(screen.getByTestId("cannot-read").textContent).toContain(
       "no rpc method exposes their contents"
     );
@@ -82,26 +87,15 @@ describe("identity workspace", () => {
     fireEvent.click(screen.getByRole("tab", { name: "memory" }));
     expect(screen.getByTestId("cannot-read").textContent).toContain("notes or ai messages");
 
-    fireEvent.click(screen.getByRole("tab", { name: "destruction receipt" }));
+    fireEvent.click(screen.getByRole("tab", { name: "receipt" }));
     expect(screen.getByTestId("no-receipt").textContent).toContain("has not been destroyed");
   });
 
   it("requires an explicit confirm before destroy fires", () => {
     let destroyed: string | null = null;
-    render(
-      <IdentityWorkspace
-        data={data}
-        status={status}
-        onBack={noop}
-        onLaunch={noop}
-        onSuspend={noop}
-        onResume={noop}
-        onExpireNow={noop}
-        onDestroy={(id) => {
-          destroyed = id;
-        }}
-      />
-    );
+    renderWorkspace(data, (id) => {
+      destroyed = id;
+    });
     fireEvent.click(screen.getByRole("button", { name: "destroy" }));
     expect(destroyed).toBeNull();
     expect(screen.getByText(/this cannot be undone/)).toBeTruthy();
@@ -110,17 +104,18 @@ describe("identity workspace", () => {
   });
 });
 
-describe("files tab", () => {
-  it("renders the partition paths from the real runtime root", () => {
-    render(<FilesTab data={data} status={status} />);
-    expect(screen.getByText(`${status.root}/files/${summary.id}`)).toBeTruthy();
-    expect(screen.getByText(`${status.root}/companion-instances/${summary.id}`)).toBeTruthy();
+describe("files inspector", () => {
+  it("shows the managed partition boundary from the real runtime root", () => {
+    render(<FilesInspector data={data} status={status} />);
     expect(screen.getByText("4096 bytes on disk")).toBeTruthy();
+    // paths are abbreviated by default; the full path is preserved for copy/title
+    expect(screen.getByTitle(`${status.root}/files/${summary.id}`)).toBeTruthy();
+    expect(screen.getByTitle(`${status.root}/companion-instances/${summary.id}`)).toBeTruthy();
   });
 });
 
-describe("receipt tab", () => {
-  it("renders the destruction report when the identity was destroyed", () => {
+describe("receipt inspector", () => {
+  it("renders the receipt with summary, steps, caveats and export actions", () => {
     const report: DestructionReport = {
       identityId: summary.id,
       startedAt: "2026-08-03T12:00:00.000Z",
@@ -143,24 +138,64 @@ describe("receipt tab", () => {
       },
     ];
     render(
-      <ReceiptTab data={{ summary: { ...summary, state: "destroyed" }, manifest: null, events }} />
+      <ReceiptInspector
+        data={{ summary: { ...summary, state: "destroyed" }, manifest: null, events }}
+      />
     );
     expect(screen.getByTestId("destruction-report")).toBeTruthy();
     expect(screen.getAllByTestId("caveat")).toHaveLength(DESTRUCTION_CAVEATS.length);
+    expect(screen.getByText("processes stopped")).toBeTruthy();
+    expect(screen.getByText("journal finalized")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "copy receipt" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "export json" })).toBeTruthy();
   });
 });
 
-describe("sidebar", () => {
-  it("navigates between views and marks the current one", () => {
-    let current = "overview";
-    const { rerender } = render(
-      <Sidebar view="overview" status={status} onNavigate={(v) => (current = v)} />
+describe("identity navigator", () => {
+  const identities: IdentitySummary[] = [
+    { ...summary, id: "idn_run111111111111111111", name: "onchain investigator", state: "running", lifetime: "45m", expiresAt: "2026-08-03T13:00:00.000Z", onExpiry: "destroy" },
+    summary,
+    { ...summary, id: "idn_ded111111111111111111", name: "old research", state: "destroyed" },
+  ];
+
+  it("groups identities and marks running browsers", () => {
+    render(
+      <IdentityNavigator
+        identities={identities}
+        status={status}
+        view="identities"
+        selectedId={null}
+        onSelect={noop}
+        onNavigate={noop}
+        onNewIdentity={noop}
+      />
     );
-    fireEvent.click(screen.getByRole("button", { name: "identities" }));
-    expect(current).toBe("identities");
-    rerender(<Sidebar view="identities" status={status} onNavigate={noop} />);
-    expect(
-      screen.getByRole("button", { name: "identities" }).getAttribute("aria-current")
-    ).toBe("page");
+    expect(screen.getByText("running")).toBeTruthy();
+    expect(screen.getByText("persistent")).toBeTruthy();
+    expect(screen.getByText("destroyed · receipts")).toBeTruthy();
+    expect(screen.getByLabelText("browser running")).toBeTruthy();
+  });
+
+  it("filters by search and reports selection", () => {
+    let selected: string | null = null;
+    render(
+      <IdentityNavigator
+        identities={identities}
+        status={status}
+        view="identities"
+        selectedId={null}
+        onSelect={(id) => {
+          selected = id;
+        }}
+        onNavigate={noop}
+        onNewIdentity={noop}
+      />
+    );
+    fireEvent.change(screen.getByLabelText("search identities"), {
+      target: { value: "onchain" },
+    });
+    expect(screen.queryByText("client acme")).toBeNull();
+    fireEvent.click(screen.getByText("onchain investigator"));
+    expect(selected).toBe("idn_run111111111111111111");
   });
 });

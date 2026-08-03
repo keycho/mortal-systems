@@ -7,9 +7,10 @@ import type {
   RuntimeStatus,
 } from "@mortal/schema";
 import { rpc, RpcClientError } from "./lib/client.js";
-import { Sidebar, type View } from "./components/Sidebar.js";
+import { IdentityNavigator, type View } from "./components/IdentityNavigator.js";
+import { Button } from "./components/ui.js";
+import { CreateIdentityForm } from "./components/CreateIdentityForm.js";
 import { OverviewView } from "./views/OverviewView.js";
-import { IdentitiesView } from "./views/IdentitiesView.js";
 import { IdentityWorkspace, type WorkspaceData } from "./views/IdentityWorkspace.js";
 import {
   ActivityView,
@@ -27,6 +28,7 @@ export default function App() {
   const [status, setStatus] = useState<RuntimeStatus | null>(null);
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkspaceData | null>(null);
   const [creating, setCreating] = useState(false);
@@ -45,9 +47,8 @@ export default function App() {
 
       // merged recent feed for the dashboard: real activity.read data,
       // bounded to the 8 most recently touched identities
-      const feedOf = list.slice(0, 8);
       const feeds = await Promise.all(
-        feedOf.map(async (summary) => {
+        list.slice(0, 8).map(async (summary) => {
           const events = await rpc("activity.read", { identityId: summary.id, limit: 6 });
           return events.map((e) => ({ ...e, identityName: summary.name }));
         })
@@ -61,6 +62,8 @@ export default function App() {
     } catch (err) {
       setStatus(null);
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoaded(true);
     }
   }, []);
 
@@ -106,6 +109,7 @@ export default function App() {
 
   function openIdentity(id: string) {
     setView("identities");
+    setCreating(false);
     setSelectedId(id);
   }
 
@@ -115,18 +119,16 @@ export default function App() {
     setCreating(true);
   }
 
-  const identityHandlers = {
-    onLaunch: (id: string) => void act(() => rpc("identity.launch", { id })),
-    onSuspend: (id: string) => void act(() => rpc("identity.suspend", { id })),
-    onDestroy: (id: string) => void act(() => rpc("identity.destroy", { id })),
-  };
+  const workspace = selectedId !== null && detail !== null ? detail : null;
 
   return (
     <div className="h-full flex">
-      <Sidebar
-        view={view}
-        status={status}
+      <IdentityNavigator
         identities={identities}
+        status={status}
+        view={view}
+        selectedId={selectedId}
+        onSelect={openIdentity}
         onNewIdentity={newIdentity}
         onNavigate={(v) => {
           setView(v);
@@ -134,14 +136,81 @@ export default function App() {
           setCreating(false);
         }}
       />
-      <main className="flex-1 overflow-auto px-8 py-7">
+
+      <div className="flex-1 min-w-0 flex flex-col">
         {error !== null && (
-          <div className="mb-5 border border-danger/40 bg-panel text-danger px-4 py-2.5 text-[12.5px]">
-            {error}
+          <div className="border-b border-danger/40 bg-panel text-danger px-6 py-2.5 text-[13px] flex items-center gap-4 shrink-0">
+            <span className="truncate">{error}</span>
+            <Button variant="secondary" size="sm" className="ml-auto shrink-0" onClick={() => void refresh()}>
+              retry
+            </Button>
           </div>
         )}
 
-        {view === "overview" && (
+        {!loaded ? (
+          <div className="flex-1 flex items-center justify-center text-[14px] text-mute">
+            connecting to the runtime…
+          </div>
+        ) : creating ? (
+          <div className="flex-1 overflow-auto px-8 py-6">
+            <div className="max-w-md flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <h1 className="text-[20px] font-medium">new identity</h1>
+                <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setCreating(false)}>
+                  cancel
+                </Button>
+              </div>
+              <CreateIdentityForm
+                onCreate={async (manifest: IdentityManifest) => {
+                  await act(() => rpc("identity.create", { manifest }));
+                  setCreating(false);
+                }}
+              />
+            </div>
+          </div>
+        ) : workspace !== null ? (
+          <IdentityWorkspace
+            key={workspace.summary.id}
+            data={workspace}
+            status={status}
+            blueprints={blueprints}
+            onLaunch={(id) => void act(() => rpc("identity.launch", { id }))}
+            onSuspend={(id) => void act(() => rpc("identity.suspend", { id }))}
+            onResume={(id) => void act(() => rpc("identity.resume", { id }))}
+            onExpireNow={(id) => void act(() => rpc("identity.expire", { id }))}
+            onDestroy={(id) => void act(() => rpc("identity.destroy", { id }))}
+          />
+        ) : view === "blueprints" ? (
+          <div className="flex-1 overflow-auto px-8 py-6">
+            <BlueprintsView
+              blueprints={blueprints}
+              onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
+              onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
+                act(() =>
+                  rpc("identity.createFromBlueprint", {
+                    blueprintId,
+                    overrides: {
+                      ...(lifetime ? { lifetime } : {}),
+                      ...(consentedExtensionIds.length > 0 ? { consentedExtensionIds } : {}),
+                    },
+                  })
+                )
+              }
+            />
+          </div>
+        ) : view === "activity" ? (
+          <div className="flex-1 overflow-auto px-8 py-6">
+            <ActivityView />
+          </div>
+        ) : view === "guarantees" ? (
+          <div className="flex-1 overflow-auto px-8 py-6">
+            <GuaranteesView />
+          </div>
+        ) : view === "settings" ? (
+          <div className="flex-1 overflow-auto px-8 py-6">
+            <SettingsView status={status} />
+          </div>
+        ) : (
           <OverviewView
             identities={identities}
             status={status}
@@ -151,54 +220,7 @@ export default function App() {
             onGoBlueprints={() => setView("blueprints")}
           />
         )}
-
-        {view === "identities" &&
-          (selectedId !== null && detail !== null ? (
-            <IdentityWorkspace
-              data={detail}
-              status={status}
-              onBack={() => setSelectedId(null)}
-              onLaunch={identityHandlers.onLaunch}
-              onSuspend={identityHandlers.onSuspend}
-              onResume={(id) => void act(() => rpc("identity.resume", { id }))}
-              onExpireNow={(id) => void act(() => rpc("identity.expire", { id }))}
-              onDestroy={identityHandlers.onDestroy}
-            />
-          ) : (
-            <IdentitiesView
-              identities={identities}
-              creating={creating}
-              onCreatingChange={setCreating}
-              onOpen={(id) => setSelectedId(id)}
-              onCreate={(manifest: IdentityManifest) =>
-                act(() => rpc("identity.create", { manifest }))
-              }
-              {...identityHandlers}
-            />
-          ))}
-
-        {view === "blueprints" && (
-          <BlueprintsView
-            blueprints={blueprints}
-            onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
-            onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
-              act(() =>
-                rpc("identity.createFromBlueprint", {
-                  blueprintId,
-                  overrides: {
-                    ...(lifetime ? { lifetime } : {}),
-                    ...(consentedExtensionIds.length > 0 ? { consentedExtensionIds } : {}),
-                  },
-                })
-              )
-            }
-          />
-        )}
-
-        {view === "activity" && <ActivityView />}
-        {view === "guarantees" && <GuaranteesView />}
-        {view === "settings" && <SettingsView status={status} />}
-      </main>
+      </div>
     </div>
   );
 }
