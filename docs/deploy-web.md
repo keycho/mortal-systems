@@ -9,8 +9,8 @@ site never claims otherwise; any on-site demonstration is labeled a preview.
 
 - **root directory:** `apps/web`
 - **framework preset:** next.js
-- **install command:** `pnpm install --filter web...` (also in apps/web/vercel.json)
-- **build command:** `pnpm run build`
+- **install command:** `pnpm install --filter mortal-systems --filter web...` (root project included so the turbo binary installs)
+- **build command:** `cd ../.. && pnpm turbo run build --filter=web` (turbo builds @mortal/schema first; a filtered install alone brings schema source but nothing would build its dist)
 
 `apps/web` has zero native dependencies: no rust, tauri, chromium, or
 better-sqlite3 anywhere in its graph. it imports `@mortal/schema` only

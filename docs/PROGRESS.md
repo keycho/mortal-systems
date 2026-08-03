@@ -192,3 +192,19 @@ pnpm lint: clean · pnpm typecheck: green · check:guarantees: OK · pnpm build:
 
 definition-of-done deltas, stated plainly: R1 and R2 are recorded NOT RUN — by the spec's own rule the poc is not "done" until they pass on a windowed machine; everything automatable is green (149 tests), pnpm check passes end to end, build:web carries zero native deps, and the site never claims it can launch identities. remaining founder actions: run R1/R2 on macos, rename the github repo, point vercel at apps/web.
 - 2026-08-03 fix/dev-freshness+ci: root dev:* now goes through turbo (deps build before persistent tasks), schema+blueprints gained a development export condition and runtime dev runs tsx --conditions=development (verified resolving from source with dist deleted); new pnpm check:cli boots the built dist/cli.js on a clean root (health, authed rpc, 3 seeded blueprints, clean shutdown) and is wired into pnpm check plus a new github actions workflow running build -> tests -> check on ubuntu
+- 2026-08-03 fix/vercel-build: web deploys now build through turbo (`cd ../.. && pnpm turbo run build --filter=web`; install includes the root project for the turbo binary) — verified with a full clean + filtered install exactly as vercel runs it; the "nothing resolves a workspace package without turbo guaranteeing its build" rule recorded in DECISIONS.md
+
+---
+
+# acceptance report — STAMPED (2026-08-03)
+
+founder verification on the renamed (mortal systems) build closed every open item:
+- migration verified: ~/.liminal -> ~/.mortal move performed by the runtime; existing spaces 001/002 survived intact
+- R1 google sign-in: PASS (founder-run, macos) — recorded in docs/manual-checks.md
+- R2 wallet extension operates in the crypto identity: PASS (founder-run, macos) — recorded in docs/manual-checks.md
+- expiry witnessed live and recorded: countdown -> grace notice -> browser close -> destruction report in the activity log
+- github repository renamed for the brand; web deployed (vercel build fixed to route through turbo)
+
+**all 15 acceptance criteria now PASS.** criteria 1 and 6 (manager create flow; unmistakable name/color/countdown per window) are confirmed by the founder's windowed sessions on top of the component/api coverage; 5 and 13 are the R2/R1 records above; the remaining eleven were already green under the automated suites (149 tests, guarantees gate, cli boot gate, ci workflow).
+
+per the spec's definition of done, the proof of concept is **done**: an identity can be created from a blueprint, launched as an isolated real chromium environment, operated, expired, and destroyed without affecting another identity — every enforced label maps to a passing test, every deviation is in DECISIONS.md, and the non-guarantees are printed where users can see them.

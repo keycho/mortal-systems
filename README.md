@@ -4,7 +4,7 @@ launch private identities that disappear when their work is done.
 
 a programmable privacy and identity runtime for humans and autonomous agents. every identity is a manifest-defined runtime object with its own real chromium instance, notes, ai context, files, permissions, and a finite lifecycle. the user-facing environment is a **space**; the canonical term in all code, schemas, and apis is `identity`.
 
-****github note:** the repository rename (keycho/liminal.id -> the mortal-systems name) happens in github settings, a founder action; github redirects the old name.
+**github note:** the repository was renamed for the mortal systems brand; github redirects the old name.
 
 build status is tracked honestly** in [docs/PROGRESS.md](docs/PROGRESS.md) (per-day gates with pasted test output) and [docs/DECISIONS.md](docs/DECISIONS.md) (every deviation from the poc spec). days 1–4 of the poc are built and gated; the lifecycle scheduler, blueprint pipeline, browser-level isolation suite, and public site are not built yet.
 
