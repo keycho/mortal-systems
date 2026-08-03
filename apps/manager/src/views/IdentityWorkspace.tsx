@@ -331,8 +331,12 @@ export function StateMachine({ summary }: { summary: IdentitySummary }) {
         return (
           <span key={state} className="flex items-center">
             <span
-              className={current ? "px-3 py-1 rounded-full bg-surface-hover text-ink font-medium" : ""}
-              style={current ? undefined : { color: reached ? "var(--text-secondary)" : "var(--text-muted)" }}
+              className={current ? "px-3.5 py-1 rounded-full text-ink font-medium" : ""}
+              style={
+                current
+                  ? { background: "rgba(201,100,66,0.18)", color: "var(--text-primary)" }
+                  : { color: reached ? "var(--text-secondary)" : "var(--text-muted)" }
+              }
               aria-current={current ? "step" : undefined}
             >
               {STATE_LABEL[state]}
@@ -467,11 +471,11 @@ export function IdentityWorkspace({
 
   return (
     <div className="flex-1 min-w-0 overflow-auto">
-      <div className="max-w-[880px] mx-auto px-10 py-9 flex flex-col gap-7">
+      <div className="max-w-[960px] mx-auto px-10 py-10 flex flex-col gap-7">
         {/* header */}
         <header className="flex flex-col gap-2.5">
           <div className="flex items-center gap-4">
-            <h1 className="text-[25px] font-medium leading-tight truncate">{summary.name}</h1>
+            <h1 className="text-[28px] font-semibold leading-tight truncate tracking-[-0.01em]">{summary.name}</h1>
             <div className="ml-auto flex items-center gap-2.5 shrink-0">
               {!destroyed && (
                 <>
@@ -511,40 +515,49 @@ export function IdentityWorkspace({
             </div>
           </div>
           {blueprint !== null && (
-            <p className="text-[14.5px] text-sec leading-relaxed max-w-xl">{blueprint.description}</p>
+            <p className="text-[15px] text-sec leading-relaxed max-w-2xl">{blueprint.description}</p>
           )}
-          <div className="flex items-center gap-2.5 text-[13.5px] text-mute flex-wrap">
-            <span>{STATE_LABEL[summary.state]}</span>
-            <span aria-hidden>·</span>
+          <div className="flex items-center gap-2.5 text-[14px] text-sec flex-wrap">
+            <span className="text-ink">{STATE_LABEL[summary.state]}</span>
+            <span aria-hidden className="text-mute">·</span>
             <span>browser {browserStatusLine(summary.state)}</span>
             {remaining !== null && (
               <>
-                <span aria-hidden>·</span>
-                <span className="font-mono tabular-nums text-sec">
+                <span aria-hidden className="text-mute">·</span>
+                <span className="font-mono tabular-nums font-medium" style={{ color: "var(--app-brand)" }}>
                   {remaining} until {summary.onExpiry}
                 </span>
               </>
             )}
-            <span aria-hidden>·</span>
-            <span className="font-mono text-[12.5px]" title={summary.id}>
+            <span aria-hidden className="text-mute">·</span>
+            <span className="font-mono text-[12.5px] text-mute" title={summary.id}>
               {shortId(summary.id)}
             </span>
           </div>
         </header>
 
         {/* quiet tabs */}
-        <div role="tablist" aria-label="identity workspace" className="flex gap-1 flex-wrap -mx-1">
+        <div role="tablist" aria-label="identity workspace" className="flex gap-1.5 flex-wrap -mx-1 border-b border-line pb-px">
           {TABS.map((t) => (
             <button
               key={t}
               role="tab"
               aria-selected={tab === t}
-              className={`px-3.5 h-9 rounded-lg text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
-                tab === t ? "bg-surface text-ink" : "text-mute hover:text-ink"
+              className={`relative px-4 h-10 rounded-t-lg text-[14.5px] outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+                tab === t
+                  ? "text-ink font-medium"
+                  : "text-sec hover:text-ink hover:bg-surface"
               }`}
               onClick={() => setTab(t)}
             >
               {t}
+              {tab === t && (
+                <span
+                  aria-hidden
+                  className="absolute left-3 right-3 -bottom-px h-[2px] rounded-full"
+                  style={{ background: "var(--app-brand)" }}
+                />
+              )}
             </button>
           ))}
         </div>
@@ -562,23 +575,33 @@ export function IdentityWorkspace({
 
       {confirming && (
         <Modal title="destroy this identity?" onClose={() => setConfirming(false)}>
-          <p className="text-[14px] text-sec leading-relaxed">
-            {summary.name} and all of its managed data on this machine — browser profile, files,
-            notes and ai context — will be removed by the destruction contract. a receipt is kept.
-            this cannot be undone.
-          </p>
-          <div className="flex justify-end gap-2.5 pt-1">
-            <Button variant="secondary" onClick={() => setConfirming(false)}>
-              keep
+          <div className="flex flex-col gap-2">
+            <p className="text-[15px] leading-relaxed">
+              <span className="font-medium">{summary.name}</span> will be removed from this machine
+              by the destruction contract:
+            </p>
+            <ul className="text-[14px] text-sec leading-relaxed list-none flex flex-col gap-1">
+              <li>· browser profile and logins</li>
+              <li>· managed files and downloads</li>
+              <li>· notes and ai context</li>
+            </ul>
+            <p className="text-[13.5px] text-mute leading-relaxed pt-1">
+              a receipt is kept. this cannot be undone.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="secondary" size="lg" onClick={() => setConfirming(false)}>
+              cancel
             </Button>
             <Button
               variant="danger"
+              size="lg"
               onClick={() => {
                 setConfirming(false);
                 onDestroy(summary.id);
               }}
             >
-              destroy
+              destroy identity
             </Button>
           </div>
         </Modal>

@@ -100,7 +100,12 @@ describe("identity workspace", () => {
     expect(destroyed).toBeNull();
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(screen.getByText(/this cannot be undone/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "destroy" }));
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
+    expect(destroyed).toBeNull();
+    // reopen and confirm with the explicit "destroy identity" action
+    fireEvent.click(screen.getByRole("button", { name: "more actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "destroy identity…" }));
+    fireEvent.click(screen.getByRole("button", { name: "destroy identity" }));
     expect(destroyed).toBe(summary.id);
   });
 });

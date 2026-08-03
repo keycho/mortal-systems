@@ -125,9 +125,9 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="bg-elevated border border-line-strong rounded-2xl shadow-2xl shadow-black/50 w-full max-w-md p-6 flex flex-col gap-4"
+        className="bg-elevated border border-line-strong rounded-2xl shadow-2xl shadow-black/50 w-full max-w-md p-8 flex flex-col gap-5"
       >
-        <h2 className="text-[17px] font-medium">{title}</h2>
+        <h2 className="text-[19px] font-semibold">{title}</h2>
         {children}
       </div>
     </div>

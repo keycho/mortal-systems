@@ -188,9 +188,45 @@ export function DestructionReportView({ report }: { report: DestructionReport })
     ["journal finalized", okStep("D7")],
   ];
   const json = JSON.stringify(report, null, 2);
+  // resource counts from the real step evidence (regex over recorded detail; omitted when absent)
+  const d5 = report.steps.find((st) => st.step === "D5")?.detail ?? "";
+  const rows = /([0-9]+) notes, ([0-9]+) ai messages, ([0-9]+) bookmarks/.exec(d5);
+  const d0 = report.steps.find((st) => st.step === "D0")?.detail ?? "";
+  const paths = /captured ([0-9]+) paths/.exec(d0);
+  const failedSteps = report.steps.filter((st) => !st.ok);
 
   return (
-    <div className="rounded-2xl bg-surface flex flex-col overflow-hidden" data-testid="destruction-report">
+    <div className="relative rounded-2xl bg-surface flex flex-col overflow-hidden" data-testid="destruction-report">
+      {/* subtle mortal seal */}
+      <svg
+        aria-hidden
+        className="absolute top-6 right-6 pointer-events-none"
+        width="76"
+        height="76"
+        viewBox="0 0 76 76"
+        style={{ opacity: 0.35 }}
+      >
+        <circle cx="38" cy="38" r="35" fill="none" stroke="var(--app-brand)" strokeWidth="1" />
+        <circle cx="38" cy="38" r="28" fill="none" stroke="var(--app-brand)" strokeWidth="0.6" strokeDasharray="2 3" />
+        <text
+          x="38"
+          y="42"
+          textAnchor="middle"
+          fill="var(--app-brand)"
+          style={{ font: "500 13px var(--type-sans)", letterSpacing: "0.08em" }}
+        >
+          mortal
+        </text>
+        <text
+          x="38"
+          y="54"
+          textAnchor="middle"
+          fill="var(--app-brand)"
+          style={{ font: "400 6.5px var(--type-mono)", letterSpacing: "0.18em" }}
+        >
+          DESTROYED
+        </text>
+      </svg>
       {/* final status header */}
       <div className="px-7 pt-7 pb-6 flex items-start gap-5">
         <span
@@ -217,19 +253,19 @@ export function DestructionReportView({ report }: { report: DestructionReport })
               <span style={{ color: "var(--app-warning)" }}> · resumed after interruption</span>
             )}
           </span>
-          <span className="font-mono text-[12px] text-mute pt-0.5">{receiptId}</span>
-          <span className="text-[13.5px] text-sec pt-1 leading-relaxed">
+          <span className="pt-0.5 flex items-baseline gap-3 flex-wrap">
+            <span className="font-mono text-[12.5px]" style={{ color: "var(--app-brand)" }}>{receiptId}</span>
+            {report.completedAt !== null && (
+              <span className="font-mono text-[12px] text-mute">
+                completed {new Date(report.completedAt).toLocaleString()}
+                {duration !== null ? ` · ${(duration / 1000).toFixed(1)}s total` : ""}
+              </span>
+            )}
+          </span>
+          <span className="text-[13.5px] text-sec pt-1 leading-relaxed max-w-xl">
             the browser was closed, the profile and managed files were deleted, and local memory
             was erased. what remains is this receipt and a tombstone entry.
           </span>
-        </div>
-        <div className="flex flex-col items-end gap-0.5 text-[12.5px] shrink-0 pt-1">
-          {report.completedAt !== null && (
-            <span className="font-mono text-sec">{new Date(report.completedAt).toLocaleString()}</span>
-          )}
-          {duration !== null && (
-            <span className="font-mono text-mute">{(duration / 1000).toFixed(1)}s total</span>
-          )}
         </div>
       </div>
 
@@ -246,6 +282,25 @@ export function DestructionReportView({ report }: { report: DestructionReport })
           </span>
         ))}
       </div>
+
+      {(rows !== null || paths !== null || report.resumed || failedSteps.length > 0) && (
+        <div className="px-7 pb-5 flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[13px] text-sec">
+          {paths !== null && <span><span className="font-mono text-ink">{paths[1]}</span> paths removed</span>}
+          {rows !== null && (
+            <>
+              <span><span className="font-mono text-ink">{rows[1]}</span> notes</span>
+              <span><span className="font-mono text-ink">{rows[2]}</span> ai messages</span>
+              <span><span className="font-mono text-ink">{rows[3]}</span> bookmarks</span>
+            </>
+          )}
+          {report.resumed && (
+            <span style={{ color: "var(--app-warning)" }}>resumed after interruption</span>
+          )}
+          {failedSteps.length > 0 && (
+            <span className="text-danger">{failedSteps.length} step(s) failed</span>
+          )}
+        </div>
+      )}
 
       {/* D0–D7 lives behind the technical timeline; the first view stays plain-language */}
       <details className="px-7 pb-6" data-testid="technical-timeline">

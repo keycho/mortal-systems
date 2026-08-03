@@ -26,11 +26,12 @@
   --bg-input: #2b2b2b;
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-strong: rgba(255, 255, 255, 0.11);
-  --text-primary: #f2f2f2;
-  --text-secondary: #b7b7b7;
-  --text-muted: #808080;
-  /* the one restrained brand accent inside the app (wordmark, rare highlights) */
-  --app-brand: #f59e0b;
+  --text-primary: #f7f7f7;
+  --text-secondary: #c4c4c4;
+  --text-muted: #8f8f8f;
+  /* the one restrained brand accent inside the app: mortal burnt orange —
+     wordmark, selected states, lifecycle-critical moments. never decorative. */
+  --app-brand: #c96442;
   --app-active: #a8dc66;
   --app-warning: #d7a84a;
   --app-danger: #d86a5d;

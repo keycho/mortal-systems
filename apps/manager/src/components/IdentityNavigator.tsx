@@ -67,7 +67,7 @@ function NavIdentity({
       data-testid={`nav-identity-${summary.id}`}
       title={`${summary.name} · ${summary.id}`}
       className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
-        selected ? "bg-surface-hover text-ink" : "hover:bg-surface text-ink"
+        selected ? "bg-surface-hover text-ink shadow-[inset_2px_0_0_0_var(--app-brand)]" : "hover:bg-surface text-ink"
       } ${destroyed ? "opacity-55" : ""}`}
       aria-current={selected ? "true" : undefined}
       onClick={() => onSelect(summary.id)}
