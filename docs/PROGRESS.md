@@ -160,3 +160,34 @@ pnpm lint: clean · pnpm typecheck: green
 
 full pnpm check now passes end to end: every "enforced" label maps to at least one existing, passing test.
 - 2026-08-03 rename: liminal -> mortal systems executed as one atomic commit — packages, imports, companion + stamped config, env vars (MORTAL_* with deprecated LIMINAL_* fallback), ~/.liminal -> ~/.mortal migration with db + config renames, legacy manifest upgrade at read time, ui strings, domain refs; 3 migration tests added; github-side repo rename is a founder action (no tool here)
+- 2026-08-03 day7: blueprint install preview + consent screen in the manager (full render: badges, unsigned marker, punycode warnings, consent checkboxes, lifetime override, explicit confirm; 2 tests) — closes the day-5 gap; apps/web under the mortal systems brand (landing with approved copy, guarantees page generated from the enforcement table, blueprint previews labeled preview, honest coming-soon download page, vercel config with root dir apps/web); docs: guarantees.md, deletion-contract.md (incl. windows r6 caveat), deploy-web.md
+
+## day-7 / final gate — PASS (2026-08-03)
+
+```
+@mortal/schema 41 · @mortal/blueprints 4 · @mortal/runtime 73 · companion 6 · manager 11 · mortal-tests 14
+Tasks: 10 successful, 10 total          (149 tests)
+pnpm lint: clean · pnpm typecheck: green · check:guarantees: OK · pnpm build:web: green (zero native deps)
+```
+
+---
+
+# acceptance criteria — honest final status (2026-08-03)
+
+1. manager opens; create persistent "client acme" — VERIFIED at api + component level; windowed end-to-end run is a founder action on macos
+2. investigator blueprint installs with preview + consent; launches < 10s — PASS (pipeline + preview ui tested; real launches complete in ~1-2s on linux chromium and macos brave)
+3. both identities run real chrome, separate user-data dirs, simultaneously — PASS (launcher smoke + isolation suite)
+4. same site, two accounts at once — PASS (G7, self-hosted login fixture)
+5. metamask or phantom operates inside the crypto identity — NOT RUN (R2 manual, needs a windowed browser; steps in docs/manual-checks.md)
+6. each window shows unmistakable name, color, countdown — logic tested (badge text, corner badge, sse countdown); visual confirmation partially covered by the founder's macos/brave session, full windowed check open
+7. separate notes and ai instructions per identity — PASS (G9 token scoping)
+8. investigator runs with a 5-minute demo lifetime visibly counting down — PASS (5m override + sse ticks + warnings tested)
+9. permission ui distinguishes enforced / advisory / roadmap — PASS (BADGE-1 in manager, companion, and install preview)
+10. expiry fires automatically; deletion contract completes — PASS (G10, G12)
+11. client identity unaffected — PASS (G13)
+12. activity log shows the full lifecycle incl. destruction report — PASS (api + component tests)
+13. google sign-in works inside an identity — NOT RUN (R1 manual; steps in docs/manual-checks.md)
+14. malformed/banned blueprints rejected with clear errors — PASS (G17 corpus)
+15. runtime killed mid-destroy resumes and completes on restart — PASS (G14, real process kill)
+
+definition-of-done deltas, stated plainly: R1 and R2 are recorded NOT RUN — by the spec's own rule the poc is not "done" until they pass on a windowed machine; everything automatable is green (149 tests), pnpm check passes end to end, build:web carries zero native deps, and the site never claims it can launch identities. remaining founder actions: run R1/R2 on macos, rename the github repo, point vercel at apps/web.

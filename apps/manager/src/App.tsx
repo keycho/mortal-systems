@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
   ActivityEvent,
+  BlueprintSummary,
   IdentityManifest,
   IdentitySummary,
   RuntimeStatus,
@@ -11,6 +12,7 @@ import { CreateIdentityForm } from "./components/CreateIdentityForm.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { ManifestView } from "./components/ManifestView.js";
 import { ActivityLog } from "./components/ActivityLog.js";
+import { BlueprintsPanel } from "./components/BlueprintsPanel.js";
 
 interface Detail {
   summary: IdentitySummary;
@@ -20,6 +22,7 @@ interface Detail {
 
 export default function App() {
   const [identities, setIdentities] = useState<IdentitySummary[]>([]);
+  const [blueprints, setBlueprints] = useState<BlueprintSummary[]>([]);
   const [status, setStatus] = useState<RuntimeStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDestroy, setConfirmDestroy] = useState<string | null>(null);
@@ -28,9 +31,14 @@ export default function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [list, st] = await Promise.all([rpc("identity.list", {}), rpc("runtime.status", {})]);
+      const [list, st, bps] = await Promise.all([
+        rpc("identity.list", {}),
+        rpc("runtime.status", {}),
+        rpc("blueprint.list", {}),
+      ]);
       setIdentities(list);
       setStatus(st);
+      setBlueprints(bps);
       setError(null);
     } catch (err) {
       setStatus(null);
@@ -120,6 +128,21 @@ export default function App() {
               </div>
             ))}
             <CreateIdentityForm onCreate={(manifest) => act(() => rpc("identity.create", { manifest }))} />
+            <BlueprintsPanel
+              blueprints={blueprints}
+              onLoadManifest={async (id) => (await rpc("blueprint.get", { id })).manifest}
+              onCreate={({ blueprintId, lifetime, consentedExtensionIds }) =>
+                act(() =>
+                  rpc("identity.createFromBlueprint", {
+                    blueprintId,
+                    overrides: {
+                      ...(lifetime ? { lifetime } : {}),
+                      ...(consentedExtensionIds.length > 0 ? { consentedExtensionIds } : {}),
+                    },
+                  })
+                )
+              }
+            />
           </div>
           {error !== null && (
             <div className="mt-4 border border-[#3a2326] bg-[#1a1214] text-[#FF9B9B] px-3 py-2 text-[11px]">
