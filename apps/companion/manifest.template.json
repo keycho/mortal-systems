@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "liminal companion",
+  "version": "0.1.0",
+  "description": "identity badge, countdown, notes and ai context for this liminal space. talks only to the local liminal runtime; collects nothing from pages.",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "liminal companion"
+  },
+  "permissions": ["storage", "sidePanel", "alarms"],
+  "host_permissions": ["http://127.0.0.1/*", "https://api.anthropic.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

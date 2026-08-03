@@ -5,6 +5,7 @@ import { errors, RuntimeError } from "../errors.js";
 import { log } from "../util/log.js";
 import { RUNTIME_VERSION } from "../version.js";
 import { dispatchRpc } from "./rpc.js";
+import { handleSelfRequest } from "./self.js";
 import type { LiminalRuntime } from "../runtime.js";
 
 /** admin rpc bodies may carry a 256kb blueprint plus envelope */
@@ -110,6 +111,14 @@ export function createApiServer(runtime: LiminalRuntime, adminToken: string): Ap
 
       if (req.method === "GET" && url.pathname === "/v1/health") {
         sendJson(res, 200, { ok: true, service: "liminal-runtime", version: RUNTIME_VERSION });
+        return;
+      }
+
+      const auth0 = req.headers.authorization ?? "";
+      const bearer = auth0.startsWith("Bearer ") ? auth0.slice("Bearer ".length) : "";
+
+      // identity-scoped companion surface (per-identity tokens, never admin)
+      if (await handleSelfRequest(runtime, req, res, url, bearer)) {
         return;
       }
 

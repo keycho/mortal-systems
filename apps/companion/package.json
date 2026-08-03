@@ -1,0 +1,18 @@
+{
+  "name": "companion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "liminal companion — the mv3 extension provisioned into each identity's chromium instance. badge, countdown, notes, ai context, permission display. collects nothing from pages.",
+  "scripts": {
+    "build": "node build.mjs && tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.326",
+    "esbuild": "^0.25.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,176 @@
+:root {
+  --void: #0b0c0e;
+  --panel: #121417;
+  --panel-2: #16191d;
+  --line: #1f2328;
+  --ink: #e6e7e9;
+  --mute: #8a8f98;
+  --accent: #8a8f98;
+  --danger: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  background: var(--void);
+  color: var(--ink);
+  font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  min-height: 100vh;
+}
+
+.idle {
+  color: var(--mute);
+  padding: 24px 6px;
+}
+
+header {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  background: var(--panel);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.space-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+#space-number {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+#state-pill {
+  border: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 10px;
+  padding: 1px 7px;
+}
+
+h1 {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.countdown {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+#countdown-value {
+  font-size: 20px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.mute {
+  color: var(--mute);
+}
+
+.warning {
+  border: 1px solid #4a3510;
+  background: #1a1408;
+  color: #f59e0b;
+  padding: 7px 9px;
+  font-size: 11px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel h2 {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+  font-weight: 500;
+}
+
+footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 7px 10px;
+  cursor: pointer;
+  text-align: center;
+}
+
+button:hover {
+  background: var(--panel-2);
+}
+
+.danger-outline {
+  border-color: #3a2326;
+  color: var(--danger);
+}
+
+.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+#expire-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid #3a2326;
+  padding: 9px;
+}
+
+/* enforcement badges: solid = enforced, outlined = advisory, dashed = roadmap */
+.badge {
+  font-size: 10px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.badge-enforced {
+  background: var(--ink);
+  color: var(--void);
+  border: 1px solid var(--ink);
+}
+
+.badge-advisory {
+  background: none;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+.badge-roadmap {
+  background: none;
+  color: var(--mute);
+  border: 1px dashed var(--mute);
+}

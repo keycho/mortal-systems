@@ -5,6 +5,9 @@ export { LiminalRuntime, registerLauncher, type LauncherApi, type RuntimeOptions
 export { Launcher } from "./launcher/launch.js";
 export { discoverBrowsers, discoveryWarnings, majorVersion } from "./launcher/discover.js";
 export { provisionIdentity, scrubHistory, hexToSkColor } from "./launcher/provision.js";
+export { computeUnpackedExtensionId } from "./launcher/extension-id.js";
+export { tokenForIdentity, getOrCreateTokenSecret, findIdentityByToken } from "./api/tokens.js";
+export { EventBus, type SelfEvent } from "./api/events.js";
 export { RuntimeError, errors } from "./errors.js";
 export { openDb } from "./store/db.js";
 export { migrate, MIGRATIONS, type Migration } from "./store/migrations.js";

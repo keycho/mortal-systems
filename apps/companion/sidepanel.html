@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>liminal</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div class="idle" id="idle" hidden>
+        this companion copy is not stamped to an identity.<br />
+        launch a space from liminal manager.
+      </div>
+
+      <header id="header" hidden>
+        <div class="space-line">
+          <span id="space-number" class="mute"></span>
+          <span id="state-pill"></span>
+        </div>
+        <h1 id="identity-name"></h1>
+        <div id="countdown" class="countdown" hidden>
+          <span id="countdown-value" class="tabular"></span>
+          <span class="mute">remaining</span>
+        </div>
+        <div id="persistent-line" class="mute" hidden>persistent space</div>
+        <div id="warning" class="warning" hidden></div>
+      </header>
+
+      <section id="panel-notes" class="panel" hidden></section>
+      <section id="panel-ai" class="panel" hidden></section>
+      <section id="panel-permissions" class="panel" hidden></section>
+
+      <footer id="footer" hidden>
+        <button id="expire-button" class="danger-outline">close this space early</button>
+        <div id="expire-confirm" hidden>
+          <span class="mute">run this space's end-of-life action now?</span>
+          <button id="expire-yes" class="danger">yes, close it</button>
+          <button id="expire-no">keep working</button>
+        </div>
+      </footer>
+    </div>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

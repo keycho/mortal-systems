@@ -42,3 +42,27 @@ launcher smoke suite (real chromium 141, headless, bundled at /opt/pw-browsers/c
 ```
 
 environment caveats, stated honestly: verified with headless chromium 141 on linux (real chromium: same profile/storage/process semantics). macos windowed behavior (window title, theme color, visible ui) untested here; windows process/paths written but untested. proceeding to day 3.
+- 2026-08-03 day3/step1: per-identity token auth — hmac-derived companion tokens (no token table, secret in settings, plaintext only in stamped configs), /v1/self surface (self, notes crud, ai context/messages, in-memory ai key, permissions with enforcement labels, expire, sse events with tick + t-10m/t-1m warnings), per-token rate limit, chrome-extension origin pinning via computed unpacked-extension id
+- 2026-08-03 day3/step2: companion template (mv3, esbuild) — background badge (identity color + remaining), content-script corner badge + title suffix (collects nothing), side panel with live sse countdown + expire confirm, day-4 panels stubbed honestly; launcher stamps template per identity and rewrites config every launch (random port per start)
+
+## day-3 gate — PASS (2026-08-03)
+
+```
+@liminal/schema:test:   Test Files  4 passed (4)   Tests  41 passed (41)
+@liminal/runtime:test:  Test Files  6 passed (6)   Tests  47 passed (47)
+companion:test:         Test Files  1 passed (1)   Tests   2 passed (2)
+manager:test:           Test Files  1 passed (1)   Tests   4 passed (4)
+Tasks: 6 successful, 6 total
+
+day-3 specifics inside the runtime suite:
+ self-api (G18 shape, no browser): distinct per-identity tokens · all self routes 401 without/with garbage tokens ·
+   A's note invisible/immutable/undeletable via B's token (404 everywhere) · ai context+messages+keys scoped per token ·
+   ai key never persisted (db scan) · permissions carry enforced/advisory/roadmap labels · origin pinning: foreign
+   Origin and foreign chrome-extension origin -> 403 · sse tick stream live · POST /v1/self/expire destroys (onExpiry)
+   and the dead identity's token stops resolving; neighbor untouched
+ companion smoke (real chromium 141): one stamped instance per identity (own token, current port) · chromium assigns
+   exactly the runtime-computed unpacked extension id per identity (sha256-path algorithm verified against the real
+   browser) · A's companion absent from B and vice versa · stamped token + pinned origin authenticate end to end
+```
+
+caveat, stated honestly: G18 here is the runtime-level token-scoping test; the full in-browser companion-to-companion variant belongs to the day-6 isolation suite (waiting on user go-ahead). visual badge/side-panel rendering not asserted headlessly. proceeding to day 4.

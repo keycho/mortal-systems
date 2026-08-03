@@ -21,6 +21,8 @@ import { resolveRoot } from "./util/paths.js";
 import { log } from "./util/log.js";
 import { RUNTIME_VERSION } from "./version.js";
 import { createApiServer, type ApiServer } from "./api/server.js";
+import { EventBus } from "./api/events.js";
+import { findIdentityByToken, getOrCreateTokenSecret, tokenForIdentity } from "./api/tokens.js";
 
 /**
  * the contract the day-2 chromium launcher fulfills. kept as an interface so
@@ -64,24 +66,40 @@ export class LiminalRuntime {
   readonly repo: Repo;
   readonly identities: IdentityService;
   readonly destroyer: Destroyer;
+  readonly events: EventBus;
   readonly adminToken: string;
   readonly startedAt: string;
   /** wired by the day-2 launcher; null means launch/suspend/resume are unavailable */
   launcher: LauncherApi | null = null;
   port = 0;
   private api: ApiServer | null = null;
+  private readonly tokenSecret: string;
 
   private constructor(root: string, repo: Repo, adminToken: string) {
     this.root = root;
     this.repo = repo;
     this.adminToken = adminToken;
     this.startedAt = new Date().toISOString();
-    this.identities = new IdentityService(repo);
+    this.events = new EventBus(repo);
+    this.tokenSecret = getOrCreateTokenSecret(repo);
+    this.identities = new IdentityService(repo, undefined, (id, state) =>
+      this.events.pushState(id, state)
+    );
     this.destroyer = new Destroyer({
       repo,
       root,
       halt: async () => ({ halted: false, detail: "no process (launcher not attached)" }),
     });
+  }
+
+  /** the per-identity companion bearer token (stamped into the instance config) */
+  companionTokenFor(identityId: string): string {
+    return tokenForIdentity(this.tokenSecret, identityId);
+  }
+
+  /** resolve a companion bearer token to its identity, or null */
+  identityForCompanionToken(token: string): string | null {
+    return findIdentityByToken(this.repo, this.tokenSecret, token);
   }
 
   static async start(opts: RuntimeOptions = {}): Promise<LiminalRuntime> {
@@ -112,6 +130,7 @@ export class LiminalRuntime {
     if (!opts.noServer) {
       runtime.api = createApiServer(runtime, runtime.adminToken);
       runtime.port = await runtime.api.listen(opts.port ?? 0);
+      runtime.events.startTicking();
       writeJson(path.join(root, "runtime.json"), {
         port: runtime.port,
         pid: process.pid,
@@ -130,6 +149,7 @@ export class LiminalRuntime {
 
   async stop(): Promise<void> {
     if (this.launcher) await this.launcher.stopAll("runtime shutdown");
+    this.events.stop();
     if (this.api) await this.api.close();
     this.repo.db.close();
   }

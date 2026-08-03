@@ -61,7 +61,8 @@ export function summaryFromRow(row: IdentityRow): IdentitySummary {
 export class IdentityService {
   constructor(
     private readonly repo: Repo,
-    private readonly now: () => string = () => new Date().toISOString()
+    private readonly now: () => string = () => new Date().toISOString(),
+    private readonly onTransition?: (id: string, state: IdentityState) => void
   ) {}
 
   /**
@@ -153,6 +154,7 @@ export class IdentityService {
           .prepare("UPDATE identities SET manifest_json = ? WHERE id = ?")
           .run(JSON.stringify(manifest), id);
       }
+      this.onTransition?.(id, to);
     }
     return this.mustGetRow(id);
   }

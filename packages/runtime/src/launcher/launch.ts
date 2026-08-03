@@ -143,7 +143,6 @@ export class Launcher implements LauncherApi {
       this.runtime.identities.transition(id, "provisioning");
       try {
         provisionIdentity(this.runtime.root, this.runtime.repo, manifest);
-        this.stampCompanion(id, manifest);
         this.runtime.repo.appendActivity(id, "provisioned", null, new Date().toISOString());
         this.runtime.identities.transition(id, "ready");
       } catch (err) {
@@ -151,6 +150,10 @@ export class Launcher implements LauncherApi {
         throw err;
       }
     }
+
+    // stamp or refresh the companion instance on every launch — the runtime
+    // port is random per start, so the stamped config must be rewritten
+    this.stampCompanion(id, manifest);
 
     const profileDir = insideRoot(this.runtime.root, manifest.surfaces.browser.profilePath);
     const portFile = path.join(profileDir, "DevToolsActivePort");
@@ -343,17 +346,58 @@ export class Launcher implements LauncherApi {
     } catch {}
   }
 
-  // ---- companion stamping (day-3 scope; wired as a no-op until the template exists) ----
+  // ---- companion stamping: one identity, one instance, one token ----
 
   private companionInstanceDir(id: string): string | null {
     const dir = path.join(this.runtime.root, "companion-instances", id);
-    return fs.existsSync(path.join(dir, "manifest.json")) ? dir : null;
+    return fs.existsSync(path.join(dir, "manifest.json")) ? fs.realpathSync(dir) : null;
   }
 
-  private stampCompanion(_id: string, _manifest: IdentityManifest): void {
-    // day 3: copy the built companion template into companion-instances/<id>/
-    // and write liminal.identity.json = { identityId, runtimePort, token }.
-    // until the template exists this is intentionally a no-op, and launch()
-    // omits --load-extension.
+  /** locate the built companion template: env override, then the monorepo build output */
+  private companionTemplateDir(): string | null {
+    const override = process.env.LIMINAL_COMPANION_TEMPLATE;
+    if (override && fs.existsSync(path.join(override, "manifest.json"))) return override;
+    const monorepo = path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../../../../apps/companion/dist"
+    );
+    if (fs.existsSync(path.join(monorepo, "manifest.json"))) return monorepo;
+    return null;
+  }
+
+  /**
+   * copy the template into companion-instances/<id>/ (first launch) and
+   * (re)write the stamped config. the config is rewritten on every launch
+   * because the runtime port is random per start. missing template is honest:
+   * the identity launches without a companion and status carries a warning.
+   */
+  private stampCompanion(id: string, manifest: IdentityManifest): void {
+    const template = this.companionTemplateDir();
+    const instanceDir = path.join(this.runtime.root, "companion-instances", id);
+    if (template === null) {
+      if (!this.warnings.some((w) => w.includes("companion template"))) {
+        this.warnings.push(
+          "companion template not built; identities launch without the liminal companion (run: pnpm --filter companion build)"
+        );
+      }
+      return;
+    }
+    if (!fs.existsSync(path.join(instanceDir, "manifest.json"))) {
+      fs.cpSync(template, instanceDir, { recursive: true });
+    }
+    fs.writeFileSync(
+      path.join(instanceDir, "liminal.identity.json"),
+      JSON.stringify(
+        {
+          identityId: id,
+          runtimePort: this.runtime.port,
+          token: this.runtime.companionTokenFor(id),
+          name: manifest.name,
+          color: manifest.color,
+        },
+        null,
+        2
+      )
+    );
   }
 }
