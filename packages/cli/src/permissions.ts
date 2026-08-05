@@ -24,7 +24,14 @@ export function effectivePermissions(bp: BlueprintManifest): IdentityPermissions
     memoryScope: { value: "identity-only", enforcement: "enforced" },
     wallet: bp.permissions?.wallet ?? { value: "none", enforcement: "advisory" },
     email: bp.permissions?.email ?? { value: "none", enforcement: "roadmap" },
-    network: bp.permissions?.network ?? { value: "standard", enforcement: "advisory" },
+    // tool scoping (G20) exists only on identities created with a toolScope;
+    // blueprints do not declare it
+    tools: { value: "open", enforcement: "advisory", scope: null },
+    // blueprints declare network only as standard/advisory; a routed+enforced
+    // network (G19) exists solely on identities created with a networkRoute
+    network: bp.permissions?.network
+      ? { ...bp.permissions.network, route: null }
+      : { value: "standard", enforcement: "advisory", route: null },
   };
 }
 
@@ -51,7 +58,19 @@ export function permissionRows(
     row("memory scope", permissions.memoryScope.value, permissions.memoryScope.enforcement),
     row("wallet", permissions.wallet.value, permissions.wallet.enforcement),
     row("email", permissions.email.value, permissions.email.enforcement),
-    row("network", permissions.network.value, permissions.network.enforcement),
+    row(
+      "network",
+      permissions.network.value +
+        (permissions.network.route !== null
+          ? ` via ${permissions.network.route.label ?? permissions.network.route.proxy}`
+          : ""),
+      permissions.network.enforcement
+    ),
+    row(
+      "tools",
+      permissions.tools.value + (permissions.tools.scope !== null ? " (scoped)" : ""),
+      permissions.tools.enforcement
+    ),
     row("retain history", privacy.retainHistory.value, privacy.retainHistory.enforcement),
     row("redaction", privacy.redaction.value, privacy.redaction.enforcement),
   ];
