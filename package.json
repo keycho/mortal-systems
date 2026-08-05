@@ -23,7 +23,8 @@
     "check:guarantees": "tsx scripts/check-guarantees.ts",
     "check:cli": "turbo run build --filter=@mortal/runtime && node scripts/smoke-cli.mjs",
     "check:mortal-cli": "turbo run build --filter=@mortal/runtime --filter=@mortal/cli && node scripts/smoke-mortal-cli.mjs",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "demo:agent": "node scripts/demo-agent.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",
