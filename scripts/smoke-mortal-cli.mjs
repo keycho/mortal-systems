@@ -26,7 +26,8 @@ for (const built of [runtimeCli, mortalCli, schemaDist]) {
   if (!fs.existsSync(built)) fail(`built artifact missing at ${built} (run turbo build first)`);
 }
 // the caveat list asserted below is the schema's own, not a copy
-const { DESTRUCTION_CAVEATS } = await import(schemaDist);
+const { DESTRUCTION_CAVEATS, ENFORCED_FIELDS, ADVISORY_FIELDS, ROADMAP_FIELDS, RESERVED_METHODS } =
+  await import(schemaDist);
 
 const env = { ...process.env, MORTAL_ROOT: root, MORTAL_HEADLESS: "1" };
 const bundledChromium = "/opt/pw-browsers/chromium";
@@ -216,18 +217,25 @@ try {
   if (piped.stderr.includes("EPIPE")) fail(`piping to head crashed with EPIPE:\n${piped.stderr}`);
 
   // -- capabilities: the honesty surface ------------------------------------
+  // asserted against the schema's own derived lists, not a pinned snapshot:
+  // capability drift from the schema fails; legitimate schema evolution
+  // (e.g. an enforcement flip with its test) does not.
   const caps = json(mortal(["capabilities", "--json"]), "capabilities --json");
-  for (const [group, field] of [
-    ["enforceable", "surfaces.browser.isolation"],
-    ["enforceable", "lifecycle.destruction"],
-    ["advisory", "permissions.wallet"],
-    ["advisory", "permissions.network"],
-    ["roadmap", "permissions.email"],
-  ]) {
-    if (!caps[group]?.includes(field)) fail(`capabilities.${group} lost "${field}"`);
+  const sameSet = (a, b) => JSON.stringify([...(a ?? [])].sort()) === JSON.stringify([...b].sort());
+  if (!sameSet(caps.enforceable, ENFORCED_FIELDS)) {
+    fail(`capabilities.enforceable drifted from the schema: ${JSON.stringify(caps.enforceable)}`);
   }
-  if (!caps.reservedMethods?.includes("identity.attachNetworkRoute")) {
-    fail("capabilities lost the reserved-method list");
+  if (!sameSet(caps.advisory, ADVISORY_FIELDS)) {
+    fail(`capabilities.advisory drifted from the schema: ${JSON.stringify(caps.advisory)}`);
+  }
+  if (!sameSet(caps.roadmap, ROADMAP_FIELDS)) {
+    fail(`capabilities.roadmap drifted from the schema: ${JSON.stringify(caps.roadmap)}`);
+  }
+  if (!sameSet(caps.reservedMethods, RESERVED_METHODS)) {
+    fail(`capabilities.reservedMethods drifted from the schema: ${JSON.stringify(caps.reservedMethods)}`);
+  }
+  if (!caps.enforceable.includes("surfaces.browser.isolation")) {
+    fail("browser isolation must always be enforceable — structural sanity");
   }
 
   // -- clean shutdown of the fixture ----------------------------------------
