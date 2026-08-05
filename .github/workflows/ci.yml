@@ -30,3 +30,40 @@ jobs:
       - run: pnpm check
         env:
           MORTAL_HEADLESS: "1"
+
+  # the true clean-clone path, on every push. four fresh-clone resolution
+  # failures reached a dev machine that warm checkouts could never reproduce
+  # (stale schema dist in dev, schema dist on vercel's filtered install, empty
+  # packages/mcp/node_modules, the mortal bin-link gap): this job is the
+  # manual wipe-install-build-check verification made permanent. deliberately
+  # cache-free — nothing restored, nothing warm — and it exercises the
+  # DOCUMENTED entry points (pnpm exec mortal), which is where the bin-link
+  # class lives and which the smoke's direct `node dist/cli.js` cannot see.
+  clean-clone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # no pnpm cache on purpose: the point of this job is coldness
+      - run: git clean -dxf
+      - run: pnpm install --frozen-lockfile
+      # the committed bin shim must be linked at install time — before any
+      # dist exists — and must refuse honestly rather than ERR_MODULE_NOT_FOUND
+      - name: bin linked and honest before build
+        run: |
+          set +e
+          out=$(pnpm exec mortal 2>&1); code=$?
+          set -e
+          echo "$out"
+          test "$code" -ne 0
+          echo "$out" | grep -q "not built yet"
+      - run: pnpm build
+      - name: documented entry point works after build
+        run: pnpm exec mortal --version
+      - run: pnpm check
+        env:
+          MORTAL_HEADLESS: "1"
