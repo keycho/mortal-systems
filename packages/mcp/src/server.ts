@@ -41,7 +41,7 @@ export function buildServer(client: MortalClient): McpServer {
     "identity_create",
     {
       description:
-        "create a scoped, disposable identity — its own browser profile, files, memory and permissions with a finite lifetime. pass blueprintId (see blueprint_list) or a name for a hand-made identity. lifetime is '30m' / '12h' / '7d' style or 'persistent'. pass networkRoute to bind this identity's browser to its own route (proxy like http://host:port or socks5://host:port): with a route the identity's network permission is enforced — every non-local request goes through it with no direct fallback; without one it shares the machine's ip and path (advisory). returns the identity with every permission's enforcement level; never trust a control that is not 'enforced'.",
+        "create a scoped, disposable identity — its own browser profile, files, memory and permissions with a finite lifetime. pass blueprintId (see blueprint_list) or a name for a hand-made identity. lifetime is '30m' / '12h' / '7d' style or 'persistent'. pass networkRoute to bind this identity's browser to its own route (proxy like http://host:port or socks5://host:port): with a route the identity's network permission is enforced — every non-local request goes through it with no direct fallback; without one it shares the machine's ip and path (advisory). mortal enforces the route you attach; it does not provide routing — bring your own proxy. returns the identity with every permission's enforcement level; never trust a control that is not 'enforced'.",
       inputSchema: {
         blueprintId: z.string().optional(),
         name: z.string().optional(),

@@ -4,12 +4,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   composeManifest,
   DESTRUCTION_CAVEATS,
+  ENFORCEMENT_TABLE,
   type ActivityEvent,
   type DestructionReport,
   type IdentitySummary,
 } from "@mortal/schema";
 import { EnforcementBadge } from "../src/components/EnforcementBadge.js";
-import { PermissionRows } from "../src/components/PermissionRows.js";
+import { NETWORK_POSITION, PermissionRows } from "../src/components/PermissionRows.js";
 import { ActivityLog } from "../src/components/ActivityLog.js";
 import { PermissionsTab } from "../src/views/IdentityWorkspace.js";
 
@@ -95,6 +96,24 @@ describe("permission rows (workspace permissions tab)", () => {
     });
     render(<PermissionRows manifest={routed} />);
     expect(screen.getByTestId("perm-permissions.network").textContent).toContain("enforced");
+  });
+
+  // we enforce routes, we don't sell egress — the position is stated on the
+  // network row itself, routed or not, so nobody reads "enforced" as "included".
+  it("states the bring-your-own-proxy position on the network row", () => {
+    const manifest = composeManifest({
+      id: summary.id,
+      name: summary.name,
+      createdAt: "2026-08-05T12:00:00.000Z",
+      color: "#FFB000",
+    });
+    render(<PermissionRows manifest={manifest} />);
+    expect(screen.getByTestId("perm-permissions.network").textContent).toContain(NETWORK_POSITION);
+    expect(NETWORK_POSITION).toContain("bring your own proxy");
+    // and the same sentence rides the shared enforcement table, so every
+    // generated surface (site grid, mcp capabilities) inherits it from one source
+    const row = ENFORCEMENT_TABLE.find((r) => r.field === "permissions.network")!;
+    expect(row.description).toContain("bring your own proxy");
   });
 
   it("renders a tombstone message for destroyed identities", () => {

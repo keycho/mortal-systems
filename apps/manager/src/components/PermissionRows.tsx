@@ -4,6 +4,13 @@ import { EnforcementBadge } from "./EnforcementBadge.js";
 
 const table = new Map(ENFORCEMENT_TABLE.map((r) => [r.field, r]));
 
+/**
+ * mortal's position on network routes, stated wherever the network guarantee
+ * appears: we enforce routes, we do not sell egress.
+ */
+export const NETWORK_POSITION =
+  "mortal enforces the route you attach; it does not provide routing. bring your own proxy.";
+
 /** one policy: title, plain-language line, enforcement — technical depth behind the group's disclosure */
 export function PermissionRow({
   field,
@@ -11,12 +18,15 @@ export function PermissionRow({
   plain,
   enforcement,
   extra,
+  note,
 }: {
   field: string;
   title: string;
   plain: string;
   enforcement: Enforcement;
   extra?: string;
+  /** a neutral clarification — scope of the control, not a warning about it */
+  note?: string;
 }) {
   return (
     <div className="flex flex-col gap-0.5" data-testid={`perm-${field}`}>
@@ -32,6 +42,7 @@ export function PermissionRow({
           {extra}
         </p>
       )}
+      {note !== undefined && <p className="text-[13px] text-mute max-w-xl">{note}</p>}
     </div>
   );
 }
@@ -127,6 +138,7 @@ export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
               : "this identity currently shares your normal ip address and network path."
           }
           enforcement={manifest.permissions.network.enforcement}
+          note={NETWORK_POSITION}
         />
         <PermissionRow
           field="permissions.wallet"

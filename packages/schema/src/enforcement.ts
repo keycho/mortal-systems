@@ -106,7 +106,7 @@ export const ENFORCEMENT_TABLE: readonly EnforcementRow[] = [
     value: "standard | routed",
     enforcement: "enforced",
     description:
-      "an identity with a network route attached is bound to it: chromium is launched on that route, every non-local request goes through it, and there is no direct fallback if the route is down. an identity with no route stays 'standard' and shares your ip address and network path — the schema cannot express enforcement without an attached route, so the badge only reads enforced when the control is real.",
+      "an identity with a network route attached is bound to it: chromium is launched on that route, every non-local request goes through it, and there is no direct fallback if the route is down. an identity with no route stays 'standard' and shares your ip address and network path — the schema cannot express enforcement without an attached route, so the badge only reads enforced when the control is real. mortal enforces the route you attach; it does not provide routing. bring your own proxy.",
     plannedTests: ["G19"],
     conditional:
       "enforced only for identities with a network route attached; routeless identities remain advisory",
@@ -187,6 +187,7 @@ export const DESTROYED_MEANS =
 /** printed on the site and in the manager. mortal separates state; it does not anonymize in v1. */
 export const NON_GUARANTEES: readonly string[] = [
   "identities without a network route attached share your ip address",
+  "mortal does not provide routing or egress — it enforces the route you attach; bring your own proxy",
   "identities on the same machine share your device fingerprint",
   "websites can correlate identities via behavior, reused accounts, or reused wallets",
   "clipboard contents you carry between identities are not separated",
