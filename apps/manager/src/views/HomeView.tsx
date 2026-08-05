@@ -38,7 +38,7 @@ function IdentityLine({
       : null;
   return (
     <button
-      className="w-full text-left rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+      className="w-full text-left rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
       onClick={() => onOpen(summary.id)}
     >
       <span className="text-[15px] truncate">{summary.name}</span>
@@ -99,7 +99,7 @@ export function HomeView({
             what needs its own identity?
           </h1>
           <div className="w-full">
-            <div className="flex items-center gap-2 rounded-2xl bg-surface px-5 py-2 shadow-lg shadow-black/10 focus-within:ring-2 focus-within:ring-white/20">
+            <div className="flex items-center gap-2 rounded-2xl bg-surface px-5 py-2 shadow-lg shadow-black/10 focus-within:ring-2 focus-within:ring-brand/40">
               <input
                 aria-label="what needs its own identity"
                 className="flex-1 bg-transparent h-12 text-[15.5px] placeholder:text-mute outline-none"
@@ -113,7 +113,8 @@ export function HomeView({
               <button
                 aria-label="create identity"
                 disabled={text.trim().length === 0}
-                className="w-9 h-9 rounded-full bg-ink text-app flex items-center justify-center disabled:opacity-35 hover:bg-white outline-none focus-visible:ring-2 focus-visible:ring-white/40 shrink-0"
+                className="w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-35 hover:brightness-110 active:brightness-95 outline-none focus-visible:ring-2 focus-visible:ring-brand/60 shrink-0"
+                style={{ background: "var(--app-brand)", color: "#231512" }}
                 onClick={submit}
               >
                 <ArrowUp size={17} strokeWidth={2} />
@@ -123,7 +124,7 @@ export function HomeView({
               {chips.map((chip) => (
                 <button
                   key={chip.label}
-                  className="h-9 px-4 rounded-full bg-transparent border border-line-strong text-[13.5px] text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                  className="h-9 px-4 rounded-full bg-transparent border border-line-strong text-[13.5px] text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
                   onClick={chip.onPick}
                 >
                   {chip.label}

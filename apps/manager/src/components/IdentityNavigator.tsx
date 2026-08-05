@@ -66,7 +66,7 @@ function NavIdentity({
     <button
       data-testid={`nav-identity-${summary.id}`}
       title={`${summary.name} · ${summary.id}`}
-      className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+      className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${
         selected ? "bg-surface-hover text-ink shadow-[inset_2px_0_0_0_var(--app-brand)]" : "hover:bg-surface text-ink"
       } ${destroyed ? "opacity-55" : ""}`}
       aria-current={selected ? "true" : undefined}
@@ -130,7 +130,7 @@ export function IdentityNavigator({
     return (
       <nav aria-label="identities" className="w-14 shrink-0 bg-sidebar flex flex-col items-center py-4 gap-2">
         <button
-          className="p-2 rounded-lg text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          className="p-2 rounded-lg text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
           aria-label="expand sidebar"
           title="expand sidebar"
           onClick={() => setCollapsed(false)}
@@ -138,7 +138,7 @@ export function IdentityNavigator({
           <PanelLeftOpen size={17} strokeWidth={1.75} />
         </button>
         <button
-          className="p-2 rounded-lg text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          className="p-2 rounded-lg text-sec hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
           aria-label="new identity"
           title="new identity"
           onClick={onNewIdentity}
@@ -148,7 +148,7 @@ export function IdentityNavigator({
         {links.map((l) => (
           <button
             key={l.view}
-            className={`p-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+            className={`p-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${
               view === l.view && selectedId === null
                 ? "bg-surface-hover text-ink"
                 : "text-sec hover:text-ink hover:bg-surface"
@@ -175,7 +175,7 @@ export function IdentityNavigator({
           title={status !== null ? `runtime ${status.version}` : "runtime unreachable"}
         />
         <button
-          className="ml-auto p-1.5 rounded-lg text-mute hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          className="ml-auto p-1.5 rounded-lg text-mute hover:text-ink hover:bg-surface outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
           aria-label="collapse sidebar"
           title="collapse sidebar"
           onClick={() => setCollapsed(true)}
@@ -186,7 +186,7 @@ export function IdentityNavigator({
 
       <div className="px-3 pb-3 flex flex-col gap-2">
         <button
-          className="h-9 rounded-lg bg-surface border border-line text-[13.5px] text-ink flex items-center gap-2 px-3 hover:bg-surface-hover outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          className="h-9 rounded-lg bg-surface border border-line text-[13.5px] text-ink flex items-center gap-2 px-3 hover:bg-surface-hover outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
           onClick={onNewIdentity}
         >
           <Plus size={15} strokeWidth={2} />
@@ -202,7 +202,7 @@ export function IdentityNavigator({
             type="search"
             aria-label="search identities"
             placeholder="search"
-            className="w-full h-9 bg-input rounded-lg pl-8.5 pr-3 text-[13.5px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-white/25"
+            className="w-full h-9 bg-input rounded-lg pl-8.5 pr-3 text-[13.5px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-brand/50"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -235,7 +235,7 @@ export function IdentityNavigator({
         {links.map((l) => (
           <button
             key={l.view}
-            className={`w-full text-left px-3 py-2 rounded-lg text-[14px] flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+            className={`w-full text-left px-3 py-2 rounded-lg text-[14px] flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${
               view === l.view && selectedId === null
                 ? "bg-surface-hover text-ink"
                 : "text-sec hover:text-ink hover:bg-surface"

@@ -8,13 +8,17 @@ import { useEffect, useRef, useState } from "react";
  */
 const BASE =
   "inline-flex items-center justify-center gap-2 rounded-lg outline-none select-none " +
-  "focus-visible:ring-2 focus-visible:ring-white/40 disabled:opacity-45 disabled:cursor-not-allowed";
+  "focus-visible:ring-2 focus-visible:ring-brand/60 disabled:opacity-45 disabled:cursor-not-allowed";
 
 const VARIANTS = {
-  primary: "bg-ink text-app font-medium hover:bg-white",
-  secondary: "bg-elevated border border-line text-ink hover:bg-surface-hover",
-  ghost: "text-sec hover:text-ink hover:bg-surface-hover",
-  danger: "bg-danger/15 border border-danger/40 text-danger hover:bg-danger/25",
+  // one brand accent: the primary action wears it; everything else stays neutral
+  primary:
+    "bg-brand text-[#231512] font-medium hover:brightness-110 active:brightness-95",
+  secondary:
+    "bg-elevated border border-line text-ink hover:bg-surface-hover active:bg-surface",
+  ghost: "text-sec hover:text-ink hover:bg-surface-hover active:bg-surface",
+  danger:
+    "bg-danger/15 border border-danger/40 text-danger hover:bg-danger/25 active:bg-danger/15",
 } as const;
 
 export function Button({
@@ -191,14 +195,14 @@ export function PathValue({ path, label }: { path: string; label?: string }) {
         {full ? path : abbrevPath(path)}
       </span>
       <button
-        className="text-mute hover:text-ink text-[12px] shrink-0 outline-none rounded focus-visible:ring-2 focus-visible:ring-white/40"
+        className="text-mute hover:text-ink text-[12px] shrink-0 outline-none rounded focus-visible:ring-2 focus-visible:ring-brand/60"
         title={full ? "abbreviate" : "show full path"}
         onClick={() => setFull((v) => !v)}
       >
         {full ? "less" : "more"}
       </button>
       <button
-        className="text-mute hover:text-ink text-[12px] shrink-0 outline-none rounded focus-visible:ring-2 focus-visible:ring-white/40"
+        className="text-mute hover:text-ink text-[12px] shrink-0 outline-none rounded focus-visible:ring-2 focus-visible:ring-brand/60"
         title="copy path"
         onClick={() => {
           void navigator.clipboard?.writeText(path).then(() => {

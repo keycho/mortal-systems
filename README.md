@@ -52,3 +52,13 @@ the runtime writes `runtime.json` and `admin.token` into its root at startup; th
 ## honesty rules
 
 every permission and privacy control carries an enforcement label — `enforced`, `advisory`, or `roadmap` — and the schema constrains which labels each field may carry, so an over-claiming manifest is unrepresentable. every `enforced` field must map to a passing automated test or the build fails (`pnpm check:guarantees`). mortal separates browser state, files, and context; it does not make identities anonymous in version one.
+
+## screenshot pipeline
+
+`pnpm screenshots` boots the real runtime + manager dev stack against a dedicated throwaway fixture root (created by the script, destroyed on exit — never `~/.mortal`), provisions the showcase state through the public rpc surface — persistent client operations; an onchain investigation running with ~18m remaining of a 45m lifetime; one destroyed investigator with its complete destruction receipt — and captures real app renders with playwright at 1600×1000 (consistent theme, reduced motion, no caret). output lands in `artifacts/screenshots/` under stable filenames:
+
+```
+home.png  identity-overview.png  permissions.png  lifecycle.png  receipt.png
+```
+
+these are the images the marketing site embeds. they are real renders of the real app against a real runtime — regenerate them whenever the manager ui changes and commit the results. the ~18m countdown is staged by moving the identity's actual deadline rows (the same technique the scheduler tests use); the runtime then honors that deadline for real.

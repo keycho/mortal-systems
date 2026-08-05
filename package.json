@@ -22,7 +22,8 @@
     "check": "pnpm lint && turbo run typecheck && pnpm check:guarantees && pnpm check:cli && pnpm check:mortal-cli",
     "check:guarantees": "tsx scripts/check-guarantees.ts",
     "check:cli": "turbo run build --filter=@mortal/runtime && node scripts/smoke-cli.mjs",
-    "check:mortal-cli": "turbo run build --filter=@mortal/runtime --filter=@mortal/cli && node scripts/smoke-mortal-cli.mjs"
+    "check:mortal-cli": "turbo run build --filter=@mortal/runtime --filter=@mortal/cli && node scripts/smoke-mortal-cli.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",

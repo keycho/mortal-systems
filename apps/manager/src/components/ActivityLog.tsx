@@ -197,7 +197,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
 
   return (
     <div
-      className="relative rounded-2xl bg-surface flex flex-col overflow-hidden max-w-[860px] border border-line"
+      className="relative rounded-2xl bg-surface flex flex-col overflow-hidden max-w-[860px] border border-line-strong shadow-lg shadow-black/30"
       style={{ boxShadow: "inset 0 2px 0 0 var(--app-brand)" }}
       data-testid="destruction-report"
     >
@@ -232,7 +232,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
         </text>
       </svg>
       {/* final status header */}
-      <div className="px-7 pt-7 pb-6 flex items-start gap-5">
+      <div className="px-6 pt-6 pb-5 flex items-start gap-5">
         <span
           aria-hidden
           className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
@@ -274,7 +274,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
               </span>
             )}
           </span>
-          <span className="text-[14px] text-sec pt-1 leading-relaxed max-w-xl">
+          <span className="text-[14px] text-ink/90 pt-1 leading-relaxed max-w-xl">
             the browser was closed, the profile and managed files were deleted, and local memory
             was erased. what remains is this receipt and a tombstone entry.
           </span>
@@ -282,11 +282,11 @@ export function DestructionReportView({ report }: { report: DestructionReport })
       </div>
 
       {/* verified outcomes: elevated inset surface */}
-      <div className="mx-7 mb-5 rounded-xl bg-elevated border border-line-strong px-6 py-5 flex flex-col gap-3">
+      <div className="mx-6 mb-4 rounded-xl bg-elevated border border-line-strong px-6 py-4 flex flex-col gap-3 shadow-sm shadow-black/20">
         <span className="text-[17px] font-semibold">verified outcomes</span>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-2.5">
           {summary.map(([label, ok]) => (
-            <span key={label} className="flex items-center gap-2.5 text-[15px]">
+            <span key={label} className="grid grid-cols-[22px_1fr] items-center gap-1 text-[15px]">
               {ok ? (
                 <CircleCheck size={17} strokeWidth={1.9} aria-hidden style={{ color: "var(--app-active)" }} />
               ) : (
@@ -299,7 +299,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
       </div>
 
       {(rows !== null || paths !== null || failedSteps.length > 0) && (
-        <div className="px-7 pb-6 flex flex-wrap gap-3">
+        <div className="px-6 pb-5 flex flex-wrap gap-2.5">
           {(
             [
               ...(paths !== null ? [[paths[1], "paths removed"]] : []),
@@ -313,13 +313,13 @@ export function DestructionReportView({ report }: { report: DestructionReport })
             ] as Array<[string, string]>
           ).map(([n, label]) => (
             <div key={label} className="rounded-lg bg-elevated px-4 py-2.5 flex flex-col min-w-[7.5rem]">
-              <span className="text-[18px] font-semibold leading-tight">{n}</span>
+              <span className="text-[18px] font-semibold leading-tight tabular-nums">{n}</span>
               <span className="text-[12.5px] text-sec">{label}</span>
             </div>
           ))}
           {failedSteps.length > 0 && (
             <div className="rounded-lg bg-elevated px-4 py-2.5 flex flex-col min-w-[7.5rem]">
-              <span className="text-[18px] font-semibold leading-tight text-danger">{failedSteps.length}</span>
+              <span className="text-[18px] font-semibold leading-tight text-danger tabular-nums">{failedSteps.length}</span>
               <span className="text-[12.5px] text-danger">steps failed</span>
             </div>
           )}
@@ -327,7 +327,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
       )}
 
       {/* D0–D7 lives behind the technical timeline; the first view stays plain-language */}
-      <details className="px-7 pb-6" data-testid="technical-timeline">
+      <details className="px-6 pb-5" data-testid="technical-timeline">
         <summary className="cursor-pointer select-none text-[14px] text-sec hover:text-ink pb-2">
           technical timeline · D0–D7
         </summary>
@@ -376,7 +376,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
       </details>
 
       {/* one honest caveat stays visible; the full list lives in the disclosure */}
-      <div className="px-7 py-5 bg-elevated/50 flex flex-col gap-2">
+      <div className="px-6 py-4 bg-elevated/50 flex flex-col gap-2 border-t border-line">
         <span className="text-[14px] text-sec leading-relaxed">
           destroyed means removed from this machine — not from servers this identity was logged
           into.
@@ -397,7 +397,7 @@ export function DestructionReportView({ report }: { report: DestructionReport })
       </div>
 
       {/* receipt actions */}
-      <div className="px-7 py-5 flex gap-2.5">
+      <div className="px-6 py-4 flex gap-2.5">
         <CopyReceiptButton json={json} />
         <ExportReceiptButton json={json} receiptId={receiptId} />
       </div>
@@ -487,7 +487,7 @@ function DestructionItem({
           {item.report !== null ? " · receipt recorded" : ""}
         </span>
         <button
-          className="self-start text-[12.5px] text-mute hover:text-sec outline-none rounded focus-visible:ring-2 focus-visible:ring-white/40"
+          className="self-start text-[12.5px] text-mute hover:text-sec outline-none rounded focus-visible:ring-2 focus-visible:ring-brand/60"
           onClick={() => setOpen((v) => !v)}
         >
           {open ? "hide steps" : "show steps"}

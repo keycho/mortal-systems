@@ -64,7 +64,7 @@ export function CreateIdentityForm({ onCreate, initialName, initialLifetime }: C
         <span className="text-[13px] text-sec">name</span>
         <input
           aria-label="identity name"
-          className="h-10 bg-input rounded-lg px-3.5 text-[14px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-white/25"
+          className="h-10 bg-input rounded-lg px-3.5 text-[14px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-brand/50"
           placeholder="e.g. client acme"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -78,7 +78,7 @@ export function CreateIdentityForm({ onCreate, initialName, initialLifetime }: C
             <button
               key={c}
               aria-label={`color ${c}`}
-              className="w-6 h-6 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              className="w-6 h-6 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
               style={{
                 background: c,
                 boxShadow: c === color ? "0 0 0 2px var(--bg-elevated), 0 0 0 3.5px #fff" : "none",
@@ -95,7 +95,7 @@ export function CreateIdentityForm({ onCreate, initialName, initialLifetime }: C
           {LIFETIME_PRESETS.map((preset) => (
             <button
               key={preset}
-              className={`h-9 px-3.5 rounded-lg text-[13.5px] outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              className={`h-9 px-3.5 rounded-lg text-[13.5px] outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${
                 lifetime === preset && custom.trim() === ""
                   ? "bg-elevated text-ink"
                   : "bg-input text-sec hover:text-ink"
@@ -110,7 +110,7 @@ export function CreateIdentityForm({ onCreate, initialName, initialLifetime }: C
           ))}
           <input
             aria-label="custom lifetime"
-            className="h-9 w-24 bg-input rounded-lg px-3 font-mono text-[13px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-white/25"
+            className="h-9 w-24 bg-input rounded-lg px-3 font-mono text-[13px] placeholder:text-mute outline-none border border-transparent focus:border-line-strong focus-visible:ring-2 focus-visible:ring-brand/50"
             placeholder="custom"
             value={custom}
             onChange={(e) => setCustom(e.target.value)}

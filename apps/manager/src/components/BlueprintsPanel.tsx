@@ -62,7 +62,7 @@ export function BlueprintsPanel({ initialPreviewId = null, blueprints, onLoadMan
             </span>
           )}
           <button
-            className="ml-auto h-8 px-3 rounded-lg bg-elevated border border-line text-[12.5px] hover:bg-surface-hover outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="ml-auto h-8 px-3 rounded-lg bg-elevated border border-line text-[12.5px] hover:bg-surface-hover outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
             onClick={() => setPreviewId(b.id)}
           >
             preview + install
@@ -174,7 +174,7 @@ export function BlueprintsPanel({ initialPreviewId = null, blueprints, onLoadMan
 
           <div className="flex gap-2 pt-1">
             <button
-              className="h-9 px-4 rounded-lg bg-ink text-app font-medium text-[13.5px] hover:bg-white disabled:opacity-45 outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              className="h-9 px-4 rounded-lg bg-ink text-app font-medium text-[13.5px] hover:bg-white disabled:opacity-45 outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
               disabled={busy}
               onClick={() => {
                 setBusy(true);
@@ -190,7 +190,7 @@ export function BlueprintsPanel({ initialPreviewId = null, blueprints, onLoadMan
             >
               {busy ? "creating…" : "confirm: create this space"}
             </button>
-            <button className="h-9 px-4 rounded-lg text-sec hover:text-ink hover:bg-surface-hover text-[13.5px] outline-none focus-visible:ring-2 focus-visible:ring-white/40" onClick={() => setPreviewId(null)}>
+            <button className="h-9 px-4 rounded-lg text-sec hover:text-ink hover:bg-surface-hover text-[13.5px] outline-none focus-visible:ring-2 focus-visible:ring-brand/60" onClick={() => setPreviewId(null)}>
               cancel
             </button>
           </div>

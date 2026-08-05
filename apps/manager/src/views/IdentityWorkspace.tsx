@@ -54,7 +54,7 @@ export function destructionReportFrom(events: ActivityEvent[]): DestructionRepor
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-2.5">
       <h2 className="text-[16px] font-medium">{title}</h2>
       {children}
     </section>
@@ -99,7 +99,7 @@ function lifetimeLine(summary: IdentitySummary): string {
 /** what the manager can honestly say about data it cannot read */
 function CannotRead({ what, deletedAt }: { what: string; deletedAt: string }) {
   return (
-    <p className="text-[14px] text-sec leading-relaxed" data-testid="cannot-read">
+    <p className="text-[14px] text-ink/85 leading-relaxed" data-testid="cannot-read">
       the manager does not read {what} — no rpc method exposes their contents. they belong to the
       identity and are served only to its own companion. on destroy they are removed at {deletedAt}{" "}
       of the destruction contract.
@@ -124,7 +124,7 @@ export function TechnicalDetails({
     (e) => e.event === "launched" && typeof e.detail?.pid === "number"
   )?.detail?.pid;
   return (
-    <details className="rounded-2xl bg-surface" data-testid="technical-details">
+    <details className="rounded-2xl bg-surface border border-line" data-testid="technical-details">
       <summary className="cursor-pointer select-none px-5 py-3.5 text-[14px] text-sec hover:text-ink">
         technical details
       </summary>
@@ -201,12 +201,12 @@ export function OverviewTab({
     );
   }
   return (
-    <div className="flex flex-col gap-9">
+    <div className="flex flex-col gap-7">
       {/* the header already carries a blueprint purpose; this section only
           speaks for hand-made identities so nothing is said twice */}
       {purpose === null && (
         <Section title="purpose">
-          <p className="text-[15px] text-sec leading-relaxed max-w-xl">
+          <p className="text-[15px] text-ink/90 leading-relaxed max-w-xl">
             created by hand — its purpose lives with you, not the runtime.
           </p>
         </Section>
@@ -257,7 +257,7 @@ export function FilesTab({ data, status }: { data: WorkspaceData; status: Runtim
   const { manifest } = data;
   if (manifest === null) return <Tombstone />;
   return (
-    <div className="flex flex-col gap-9">
+    <div className="flex flex-col gap-7">
       <Section title="managed files">
         <p className="text-[15px] text-sec leading-relaxed max-w-xl">
           downloads and files land inside this identity's own partition — enforced by the runtime —
@@ -277,7 +277,7 @@ export function MemoryTab({ data, status }: { data: WorkspaceData; status: Runti
   const { manifest } = data;
   if (manifest === null) return <Tombstone />;
   return (
-    <div className="flex flex-col gap-9">
+    <div className="flex flex-col gap-7">
       <Section title="memory">
         <p className="text-[15px] text-sec leading-relaxed max-w-xl">
           notes and ai context are scoped to this identity only — readable and writable solely with
@@ -290,7 +290,7 @@ export function MemoryTab({ data, status }: { data: WorkspaceData; status: Runti
         </div>
       </Section>
       {manifest.ai.systemInstructions && (
-        <details className="rounded-2xl bg-surface">
+        <details className="rounded-2xl bg-surface border border-line">
           <summary className="cursor-pointer select-none px-5 py-3.5 text-[14px] text-sec hover:text-ink">
             ai instructions
           </summary>
@@ -370,7 +370,7 @@ export function LifecycleTab({
       ? formatRemaining(Date.parse(summary.expiresAt) - Date.now())
       : null;
   return (
-    <div className="flex flex-col gap-9">
+    <div className="flex flex-col gap-7">
       <Section title="lifecycle">
         <StateMachine summary={summary} />
       </Section>
@@ -405,7 +405,7 @@ export function LifecycleTab({
         </Section>
       )}
 
-      <details className="rounded-2xl bg-surface">
+      <details className="rounded-2xl bg-surface border border-line">
         <summary className="cursor-pointer select-none px-5 py-3.5 text-[14px] text-sec hover:text-ink">
           how expiry works
         </summary>
@@ -471,7 +471,7 @@ export function IdentityWorkspace({
 
   return (
     <div className="flex-1 min-w-0 overflow-auto">
-      <div className="max-w-[924px] mx-auto px-8 py-10 flex flex-col gap-6">
+      <div className="max-w-[924px] mx-auto px-8 py-8 flex flex-col gap-5">
         {/* header: [glyph] title + metadata as one unit */}
         <header className="flex flex-col gap-2.5 max-w-[860px] mb-1">
           <div className="flex items-start gap-4">
@@ -563,7 +563,7 @@ export function IdentityWorkspace({
               key={t}
               role="tab"
               aria-selected={tab === t}
-              className={`relative px-4 h-10 rounded-t-lg text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+              className={`relative px-4 h-10 rounded-t-lg text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-brand/60 ${
                 tab === t
                   ? "text-[#f7f7f7]"
                   : "text-sec hover:text-ink hover:bg-surface"
