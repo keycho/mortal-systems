@@ -33,9 +33,22 @@ jobs:
           pnpm --filter mortal-tests exec playwright-core install --with-deps chromium
           BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
           test -x "$BROWSER"
-          # boot-proof: if this chromium cannot start here, fail NOW with its
-          # own stderr in the log, not later as an opaque cdp timeout
-          timeout 60 "$BROWSER" --headless=new --disable-gpu --no-first-run --user-data-dir="$RUNNER_TEMP/chromium-boot-proof" --dump-dom about:blank > /dev/null
+          # boot-proof the exact readiness signal the launcher waits for — the
+          # DevToolsActivePort file, written at startup regardless of page ui.
+          # (--dump-dom is stricter than the suites need and can hang on
+          # first-run ui.) flags mirror the launcher's; on failure chromium's
+          # own stderr is in this log.
+          PROFILE="$RUNNER_TEMP/chromium-boot-proof"
+          rm -rf "$PROFILE" && mkdir -p "$PROFILE"
+          EXTRA=""; [ "$(id -u)" = "0" ] && EXTRA="--no-sandbox --disable-setuid-sandbox"
+          "$BROWSER" $EXTRA --headless=new --disable-gpu --disable-dev-shm-usage --user-data-dir="$PROFILE" --no-first-run --no-default-browser-check --remote-debugging-port=0 --password-store=basic --disable-background-networking --disable-component-update about:blank &
+          BOOT_PID=$!
+          for _ in $(seq 1 60); do [ -s "$PROFILE/DevToolsActivePort" ] && break; sleep 0.5; done
+          kill "$BOOT_PID" 2>/dev/null || true
+          if [ ! -s "$PROFILE/DevToolsActivePort" ]; then
+            echo "chromium started but never wrote DevToolsActivePort — see its stderr above"
+            exit 1
+          fi
           echo "MORTAL_BROWSER_PATH=$BROWSER" >> "$GITHUB_ENV"
       - run: pnpm build
       # full suites, including real-chromium isolation/lifecycle, headless
@@ -79,7 +92,17 @@ jobs:
           pnpm --filter mortal-tests exec playwright-core install --with-deps chromium
           BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
           test -x "$BROWSER"
-          timeout 60 "$BROWSER" --headless=new --disable-gpu --no-first-run --user-data-dir="$RUNNER_TEMP/chromium-boot-proof" --dump-dom about:blank > /dev/null
+          PROFILE="$RUNNER_TEMP/chromium-boot-proof"
+          rm -rf "$PROFILE" && mkdir -p "$PROFILE"
+          EXTRA=""; [ "$(id -u)" = "0" ] && EXTRA="--no-sandbox --disable-setuid-sandbox"
+          "$BROWSER" $EXTRA --headless=new --disable-gpu --disable-dev-shm-usage --user-data-dir="$PROFILE" --no-first-run --no-default-browser-check --remote-debugging-port=0 --password-store=basic --disable-background-networking --disable-component-update about:blank &
+          BOOT_PID=$!
+          for _ in $(seq 1 60); do [ -s "$PROFILE/DevToolsActivePort" ] && break; sleep 0.5; done
+          kill "$BOOT_PID" 2>/dev/null || true
+          if [ ! -s "$PROFILE/DevToolsActivePort" ]; then
+            echo "chromium started but never wrote DevToolsActivePort — see its stderr above"
+            exit 1
+          fi
           echo "MORTAL_BROWSER_PATH=$BROWSER" >> "$GITHUB_ENV"
       # the committed bin shim must be linked at install time — before any
       # dist exists — and must refuse honestly rather than ERR_MODULE_NOT_FOUND
