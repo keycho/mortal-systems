@@ -1,20 +1,25 @@
 import type { CommandContext } from "../context.js";
 import { elapsed, formatTable, toJson } from "../output.js";
 import { parseCommandArgs } from "../usage.js";
+import { cmdShow } from "./show.js";
 
-export const STATUS_HELP = `usage: mortal status [--json] [--root <dir>]
+export const STATUS_HELP = `usage: mortal status [<id|name>] [--json] [--root <dir>]
 
-runtime health: version, detected browser, identities running.
+runtime health: version, detected browser, identities running. with an
+identity id or name, that identity's detail instead (same as "mortal show").
 
   --json   emit the runtime's RuntimeStatus object
   --root   runtime root to look in (default ~/.mortal, or MORTAL_ROOT)
 `;
 
 export async function cmdStatus(ctx: CommandContext): Promise<number> {
-  const { values } = parseCommandArgs(ctx.argv, {}, { max: 0 });
+  const { values, positionals } = parseCommandArgs(ctx.argv, {}, { max: 1, label: "<id|name>" });
   if (values.help) {
     ctx.out(STATUS_HELP);
     return 0;
+  }
+  if (positionals.length === 1) {
+    return cmdShow(ctx);
   }
 
   const client = await ctx.connect({ root: values.root });

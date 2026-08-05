@@ -122,6 +122,19 @@ export function elapsed(fromIso: string, now: Date): string {
   return formatRemaining(Math.max(0, now.getTime() - Date.parse(fromIso)));
 }
 
+export function bytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB", "TB"] as const;
+  let value = n;
+  let unit = "B";
+  for (const u of units) {
+    if (value < 1024) break;
+    value /= 1024;
+    unit = u;
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${unit}`;
+}
+
 export function stateCell(c: Colors, state: IdentityState): string {
   switch (state) {
     case "running":

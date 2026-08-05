@@ -5,6 +5,10 @@ import type { Command, CommandContext } from "./context.js";
 import { colorsEnabled, makeColors, toJsonErrorLine } from "./output.js";
 import { UsageError } from "./usage.js";
 import { CLI_VERSION } from "./version.js";
+import { cmdBlueprints } from "./commands/blueprints.js";
+import { cmdCapabilities } from "./commands/capabilities.js";
+import { cmdList } from "./commands/list.js";
+import { cmdShow } from "./commands/show.js";
 import { cmdStatus } from "./commands/status.js";
 
 const GLOBAL_HELP = `mortal — drive the local mortal identity runtime from the shell
@@ -34,20 +38,14 @@ examples:
 
 const COMMANDS: Record<string, Command> = {
   status: cmdStatus,
+  list: cmdList,
+  blueprints: cmdBlueprints,
+  show: cmdShow,
+  capabilities: cmdCapabilities,
 };
 
 /** commands wired in later stages still get listed in help; fail honestly */
-const PLANNED = [
-  "list",
-  "blueprints",
-  "create",
-  "launch",
-  "show",
-  "suspend",
-  "resume",
-  "destroy",
-  "capabilities",
-];
+const PLANNED = ["create", "launch", "suspend", "resume", "destroy"];
 
 function reportError(err: unknown, jsonMode: boolean, errW: (s: string) => void): number {
   if (err instanceof UsageError) {
