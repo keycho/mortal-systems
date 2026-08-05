@@ -19,6 +19,7 @@ const TOKEN = "mortal-mcp-test";
 const TEST_TIMEOUT = 120_000;
 
 let root: string;
+let noteFile: string;
 let runtime: ChildProcess;
 let sdk: MortalClient;
 
@@ -36,6 +37,23 @@ async function waitForRuntime(): Promise<void> {
 
 beforeAll(async () => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), "mortal-mcp-"));
+  // the operator's registry, written before the runtime starts. the fixture
+  // server is real and its tools really work (see tests/isolation/tools.test.ts).
+  noteFile = path.join(root, "note.txt");
+  fs.writeFileSync(noteFile, "brokered note");
+  fs.writeFileSync(
+    path.join(root, "tool-servers.json"),
+    JSON.stringify({
+      servers: [
+        {
+          name: "notes",
+          command: process.execPath,
+          args: [path.join(repo, "tests", "fixtures", "tool-servers", "notes-server.mjs")],
+          env: { NOTES_FILE: noteFile },
+        },
+      ],
+    })
+  );
   runtime = spawn(
     "node",
     [CLI, "serve", "--root", root, "--port", String(PORT), "--admin-token", TOKEN, "--seed-first-party"],
@@ -85,11 +103,16 @@ describe("the mortal mcp server (real runtime)", () => {
       expect(names).toEqual([
         "blueprint_list",
         "capabilities",
+        "identity_call_tool",
         "identity_create",
         "identity_destroy",
         "identity_launch",
         "identity_status",
+        "identity_tools",
       ]);
+      // the tool surface brokers calls; it never registers a server. an agent
+      // that could add one could name it into its own scope.
+      expect(names.some((n) => /register|mount|server_add/.test(n))).toBe(false);
       // lifetime is the runtime's to enforce: nothing here can lengthen it,
       // and nothing here can reach a browser mortal did not launch.
       for (const banned of ["extend", "attach", "expire", "browser", "session"]) {
@@ -170,6 +193,77 @@ describe("the mortal mcp server (real runtime)", () => {
       expect(routed.manifest.permissions.network.route.proxy).toBe("http://127.0.0.1:8899");
       expect(routed.manifest.permissions.network.route.label).toBe("egress-a");
       await client.callTool({ name: "identity_destroy", arguments: { id: routed.summary.id } });
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    "an agent that declares a tool scope is held to it, through the mcp surface",
+    async () => {
+      const client = await mcpClient();
+      const scoped = parse(
+        await client.callTool({
+          name: "identity_create",
+          arguments: {
+            name: "scoped tool agent",
+            lifetime: "30m",
+            toolScope: { servers: [{ server: "notes", tools: ["read_note"] }] },
+          },
+        })
+      );
+      expect(scoped.manifest.permissions.tools.value).toBe("scoped");
+      expect(scoped.manifest.permissions.tools.enforcement).toBe("enforced");
+      const id = scoped.summary.id as string;
+
+      // it sees only what it may call, though the server exposes two tools
+      const listed = parse(await client.callTool({ name: "identity_tools", arguments: { id } }));
+      expect(listed.map((t: any) => t.name)).toEqual(["read_note"]);
+
+      // the in-scope call really works
+      const ok = parse(
+        await client.callTool({
+          name: "identity_call_tool",
+          arguments: { id, server: "notes", tool: "read_note" },
+        })
+      );
+      expect(JSON.stringify(ok.content)).toContain("brokered note");
+
+      // write_note is live — an unscoped identity uses it and the file changes
+      const unscoped = parse(
+        await client.callTool({
+          name: "identity_create",
+          arguments: { name: "unscoped tool agent", lifetime: "30m" },
+        })
+      );
+      await client.callTool({
+        name: "identity_call_tool",
+        arguments: {
+          id: unscoped.summary.id,
+          server: "notes",
+          tool: "write_note",
+          arguments: { text: "written by the unscoped identity" },
+        },
+      });
+      expect(fs.readFileSync(noteFile, "utf8")).toBe("written by the unscoped identity");
+
+      // …and the scoped identity is still refused it
+      const refused = await client.callTool({
+        name: "identity_call_tool",
+        arguments: {
+          id,
+          server: "notes",
+          tool: "write_note",
+          arguments: { text: "should-never-be-written" },
+        },
+      });
+      expect(refused.isError).toBe(true);
+      expect(fs.readFileSync(noteFile, "utf8")).toBe("written by the unscoped identity");
+
+      await client.callTool({ name: "identity_destroy", arguments: { id } });
+      await client.callTool({
+        name: "identity_destroy",
+        arguments: { id: unscoped.summary.id },
+      });
     },
     TEST_TIMEOUT
   );

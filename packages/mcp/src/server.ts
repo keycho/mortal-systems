@@ -5,9 +5,9 @@ import { MortalClient } from "./client.js";
 /**
  * the mortal mcp server: identity primitives for any mcp agent.
  *
- * v1 tool surface — exactly these six, deliberately:
+ * v1 tool surface — exactly these eight, deliberately:
  *   identity_create · identity_launch · identity_status · identity_destroy ·
- *   blueprint_list · capabilities
+ *   identity_tools · identity_call_tool · blueprint_list · capabilities
  *
  * hard safety properties (the product, not the packaging):
  * - an agent can only attach to identities mortal launched. no tool
@@ -20,6 +20,10 @@ import { MortalClient } from "./client.js";
  *   never trust an unenforced control.
  * - destruction is scoped and journaled: destroying one identity provably
  *   never touches another (guarantees G12/G13 in the isolation suite).
+ * - a tool call goes through the runtime, which checks the identity's own
+ *   declared scope before touching any upstream server (G20). nothing here
+ *   registers a server: an agent that could add one could name it into its
+ *   own scope.
  */
 
 function json(value: unknown) {
@@ -41,7 +45,7 @@ export function buildServer(client: MortalClient): McpServer {
     "identity_create",
     {
       description:
-        "create a scoped, disposable identity — its own browser profile, files, memory and permissions with a finite lifetime. pass blueprintId (see blueprint_list) or a name for a hand-made identity. lifetime is '30m' / '12h' / '7d' style or 'persistent'. pass networkRoute to bind this identity's browser to its own route (proxy like http://host:port or socks5://host:port): with a route the identity's network permission is enforced — every non-local request goes through it with no direct fallback; without one it shares the machine's ip and path (advisory). mortal enforces the route you attach; it does not provide routing — bring your own proxy. returns the identity with every permission's enforcement level; never trust a control that is not 'enforced'.",
+        "create a scoped, disposable identity — its own browser profile, files, memory and permissions with a finite lifetime. pass blueprintId (see blueprint_list) or a name for a hand-made identity. lifetime is '30m' / '12h' / '7d' style or 'persistent'. pass networkRoute to bind this identity's browser to its own route (proxy like http://host:port or socks5://host:port): with a route the identity's network permission is enforced — every non-local request goes through it with no direct fallback; without one it shares the machine's ip and path (advisory). mortal enforces the route you attach; it does not provide routing — bring your own proxy. pass toolScope to declare which brokered mcp servers/tools this identity may reach ({servers:[{server,tools}]}; tools null means every tool that server exposes): with a scope the runtime refuses every call outside it, without one the identity may reach whatever the operator registered (advisory). returns the identity with every permission's enforcement level; never trust a control that is not 'enforced'.",
       inputSchema: {
         blueprintId: z.string().optional(),
         name: z.string().optional(),
@@ -49,9 +53,16 @@ export function buildServer(client: MortalClient): McpServer {
         networkRoute: z
           .object({ proxy: z.string(), label: z.string().nullable().optional() })
           .optional(),
+        toolScope: z
+          .object({
+            servers: z.array(
+              z.object({ server: z.string(), tools: z.array(z.string()).nullable() })
+            ),
+          })
+          .optional(),
       },
     },
-    async ({ blueprintId, name, lifetime, networkRoute }) => {
+    async ({ blueprintId, name, lifetime, networkRoute, toolScope }) => {
       try {
         return json(
           await client.createIdentity({
@@ -61,6 +72,7 @@ export function buildServer(client: MortalClient): McpServer {
             ...(networkRoute !== undefined
               ? { networkRoute: { proxy: networkRoute.proxy, label: networkRoute.label ?? null } }
               : {}),
+            ...(toolScope !== undefined ? { toolScope } : {}),
           })
         );
       } catch (e) {
@@ -111,6 +123,43 @@ export function buildServer(client: MortalClient): McpServer {
     async ({ id, reason }) => {
       try {
         return json(await client.destroy(id, reason));
+      } catch (e) {
+        return err(e);
+      }
+    }
+  );
+
+  server.registerTool(
+    "identity_tools",
+    {
+      description:
+        "list the brokered tools this identity may reach — already filtered by its declared scope. an identity with a scope sees only what it is allowed to call; an identity with no scope sees everything the operator registered, and its manifest says 'open / advisory' so you know that is not a control.",
+      inputSchema: { id: z.string() },
+    },
+    async ({ id }) => {
+      try {
+        return json(await client.listTools(id));
+      } catch (e) {
+        return err(e);
+      }
+    }
+  );
+
+  server.registerTool(
+    "identity_call_tool",
+    {
+      description:
+        "call a brokered tool as this identity. the runtime checks the identity's manifest scope before touching the upstream server, so a call outside the scope is refused (FORBIDDEN) and journaled on the identity — the tool being live and reachable makes no difference. mortal scopes the calls it brokers; a connection you opened yourself is outside that boundary.",
+      inputSchema: {
+        id: z.string(),
+        server: z.string(),
+        tool: z.string(),
+        arguments: z.record(z.unknown()).optional(),
+      },
+    },
+    async ({ id, server: upstream, tool, arguments: args }) => {
+      try {
+        return json(await client.callTool(id, upstream, tool, args ?? {}));
       } catch (e) {
         return err(e);
       }

@@ -7,6 +7,7 @@ import {
   generateIdentityId,
   NON_GUARANTEES,
   type BlueprintSummary,
+  type BrokeredTool,
   type DestructionReport,
   type IdentityManifest,
   type IdentitySummary,
@@ -15,6 +16,8 @@ import {
   type RpcMethod,
   type RpcResponse,
   type RuntimeCapabilities,
+  type ToolCallResult,
+  type ToolScope,
 } from "@mortal/schema";
 
 /**
@@ -51,6 +54,13 @@ export interface CreateIdentityInput {
    * applies it — without it the identity shares the machine's path (advisory).
    */
   networkRoute?: NetworkRoute;
+  /**
+   * declare which brokered servers/tools this identity's agent may reach.
+   * when set, the manifest's tool permission becomes scoped/enforced and the
+   * runtime refuses everything outside it — without it the identity may reach
+   * whatever the operator registered (advisory).
+   */
+  toolScope?: ToolScope;
 }
 
 export interface IdentityStatus {
@@ -155,6 +165,7 @@ export class MortalClient {
         createdAt: new Date().toISOString(),
         lifetime: input.lifetime ?? "persistent",
         ...(input.networkRoute !== undefined ? { networkRoute: input.networkRoute } : {}),
+        ...(input.toolScope !== undefined ? { toolScope: input.toolScope } : {}),
       });
       summary = await this.rpc("identity.create", { manifest });
     }
@@ -181,6 +192,25 @@ export class MortalClient {
   /** run the journaled destruction contract; returns the receipt */
   async destroy(id: string, reason?: string): Promise<DestructionReport> {
     return this.rpc("identity.destroy", reason !== undefined ? { id, reason } : { id });
+  }
+
+  /** the brokered tools THIS identity may reach — already filtered by its scope */
+  async listTools(id: string): Promise<BrokeredTool[]> {
+    return this.rpc("identity.listTools", { id });
+  }
+
+  /**
+   * call a brokered tool as this identity. the runtime checks the identity's
+   * manifest scope before touching the upstream server; an out-of-scope call
+   * throws MortalRpcError("FORBIDDEN") and is journaled on the identity.
+   */
+  async callTool(
+    id: string,
+    server: string,
+    tool: string,
+    args: Record<string, unknown> = {}
+  ): Promise<ToolCallResult> {
+    return this.rpc("identity.callTool", { id, server, tool, arguments: args });
   }
 
   async listBlueprints(): Promise<BlueprintSummary[]> {
