@@ -19,9 +19,10 @@ export interface HomeProps {
 
 /** friendly labels for the first-party blueprints, matched by source */
 const BLUEPRINT_LABEL: Record<string, string> = {
-  "first-party:onchain-investigator": "onchain research",
+  // one crypto suggestion only — mortal is a general identity runtime
   "first-party:client-operations": "client work",
   "first-party:crypto-operations": "crypto operations",
+  "showcase:vendor-audit": "vendor audit",
 };
 
 function IdentityLine({

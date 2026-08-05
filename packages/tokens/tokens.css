@@ -18,17 +18,19 @@
   /* application design system (manager only — the site is editorial, the
      manager is modern software; see DECISIONS.md). layered neutral surfaces,
      soft alpha borders, no universal amber accent. */
-  --bg-app: #212121;
-  --bg-sidebar: #171717;
-  --bg-surface: #303030;
-  --bg-surface-hover: #3a3a3a;
-  --bg-elevated: #3d3d3d;
-  --bg-input: #2e2e2e;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text-primary: #fafafa;
-  --text-secondary: #d0d0d0;
-  --text-muted: #9a9a9a;
+  /* direction a — "instrument": true black-to-charcoal, hairline borders,
+     depth from 1px light, no blur (chosen 2026-08-05; see DECISIONS.md). */
+  --bg-app: #0b0b0c;
+  --bg-sidebar: #060607;
+  --bg-surface: #131315;
+  --bg-surface-hover: #1a1a1d;
+  --bg-elevated: #202024;
+  --bg-input: #101012;
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text-primary: #f5f5f4;
+  --text-secondary: #cfcfca;
+  --text-muted: #97978f;
   /* the one restrained brand accent inside the app: mortal burnt orange —
      wordmark, selected states, lifecycle-critical moments. never decorative. */
   --app-brand: #d9754f;

@@ -8,10 +8,11 @@
  * 1600x1000. these images are what the marketing site embeds — regenerate
  * whenever the manager ui changes.
  *
- * showcase state:
- *   - client operations        persistent, prepared
- *   - onchain investigation    running, ~18m remaining of a 45m lifetime
- *   - onchain investigator     destroyed, complete destruction receipt
+ * showcase state (neutral by design — mortal is a general identity runtime,
+ * not crypto tooling; these are the marketing images):
+ *   - client operations        persistent, prepared (first-party blueprint)
+ *   - vendor audit             running, ~18m remaining of a 45m lifetime
+ *   - vendor audit             destroyed, complete destruction receipt
  *
  * the ~18m remaining is staged by moving the real expires_at/fire_at rows the
  * same way the scheduler tests do — the runtime then honors that deadline for
@@ -151,12 +152,46 @@ async function main() {
     return found;
   };
   const clientOps = bySource("first-party:client-operations");
-  const investigator = bySource("first-party:onchain-investigator");
+
+  // the neutral showcase blueprint, installed through the real validation
+  // pipeline — a general research/audit identity, deliberately not crypto
+  const vendorAudit = {
+    schemaVersion: "2.0",
+    blueprintVersion: "1.0.0",
+    name: "Vendor Audit",
+    description:
+      "an isolated, time-limited environment for auditing a vendor or counterparty. expires and destroys itself when the audit is done; browsing history is not retained (enforced).",
+    category: "research",
+    recommendedLifetime: "12h",
+    theme: "#4DA3FF",
+    lifecycle: { onExpiry: "destroy" },
+    bookmarks: [
+      { title: "OpenCorporates", url: "https://opencorporates.com" },
+      { title: "SEC EDGAR", url: "https://www.sec.gov/edgar/search/" },
+      { title: "Trustpilot", url: "https://www.trustpilot.com" },
+      { title: "Wayback Machine", url: "https://web.archive.org" },
+    ],
+    ai: {
+      systemInstructions:
+        "act as a careful vendor auditor. separate documented facts from inference, cite the source page for every claim, and flag anything you could not verify.",
+    },
+    permissions: {
+      wallet: { value: "none", enforcement: "advisory" },
+      network: { value: "standard", enforcement: "advisory" },
+      email: { value: "none", enforcement: "roadmap" },
+    },
+    privacy: { retainHistory: { value: false, enforcement: "enforced" } },
+    publisher: { id: "mortal.first-party", reviewTier: "standard" },
+  };
+  const { blueprintId: vendorAuditId } = await rpc("blueprint.install", {
+    manifestJson: JSON.stringify(vendorAudit),
+    source: "showcase:vendor-audit",
+  });
 
   await rpc("identity.createFromBlueprint", { blueprintId: clientOps.id, overrides: {} });
 
   const running = await rpc("identity.createFromBlueprint", {
-    blueprintId: investigator.id,
+    blueprintId: vendorAuditId,
     overrides: { lifetime: "45m" },
   });
   // stage ~18m remaining on the 45m lifetime: move the real deadline rows the
@@ -172,7 +207,7 @@ async function main() {
   await rpc("identity.launch", { id: running.id });
 
   const doomed = await rpc("identity.createFromBlueprint", {
-    blueprintId: investigator.id,
+    blueprintId: vendorAuditId,
     overrides: { lifetime: "2h" },
   });
   await rpc("identity.launch", { id: doomed.id });
