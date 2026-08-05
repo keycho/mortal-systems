@@ -26,9 +26,16 @@ jobs:
       # playwright-core dependency.
       - name: chromium for browser suites (branded chrome cannot load the companion)
         run: |
-          pnpm --filter mortal-tests exec playwright-core install chromium
+          # ubuntu 24 restricts unprivileged user namespaces; deb chrome has a
+          # setuid sandbox helper, playwright's chromium does not — lift the
+          # restriction so its sandbox can start (no-op where already lifted)
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          pnpm --filter mortal-tests exec playwright-core install --with-deps chromium
           BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
           test -x "$BROWSER"
+          # boot-proof: if this chromium cannot start here, fail NOW with its
+          # own stderr in the log, not later as an opaque cdp timeout
+          timeout 60 "$BROWSER" --headless=new --disable-gpu --no-first-run --user-data-dir="$RUNNER_TEMP/chromium-boot-proof" --dump-dom about:blank > /dev/null
           echo "MORTAL_BROWSER_PATH=$BROWSER" >> "$GITHUB_ENV"
       - run: pnpm build
       # full suites, including real-chromium isolation/lifecycle, headless
@@ -68,9 +75,11 @@ jobs:
       # cannot load the companion (see the gate job's note)
       - name: chromium for browser suites
         run: |
-          pnpm --filter mortal-tests exec playwright-core install chromium
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          pnpm --filter mortal-tests exec playwright-core install --with-deps chromium
           BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
           test -x "$BROWSER"
+          timeout 60 "$BROWSER" --headless=new --disable-gpu --no-first-run --user-data-dir="$RUNNER_TEMP/chromium-boot-proof" --dump-dom about:blank > /dev/null
           echo "MORTAL_BROWSER_PATH=$BROWSER" >> "$GITHUB_ENV"
       # the committed bin shim must be linked at install time — before any
       # dist exists — and must refuse honestly rather than ERR_MODULE_NOT_FOUND
