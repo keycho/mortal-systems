@@ -62,6 +62,10 @@ export function provisionIdentity(
       bookmark_bar: { show_on_all_tabs: true },
       credentials_enable_service: false,
       browser: { theme: { user_color: hexToSkColor(manifest.surfaces.browser.theme) } },
+      // chrome 138+ can disable unpacked (--load-extension) extensions unless
+      // the profile has extensions developer mode on; seeded before the first
+      // open so the stamped companion is allowed to run
+      extensions: { ui: { developer_mode: true } },
     };
     fs.writeFileSync(preferencesPath, JSON.stringify(preferences));
   }

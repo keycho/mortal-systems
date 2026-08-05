@@ -76,7 +76,7 @@ jobs:
       # run — chromium explains extension problems only there
       - name: browser stderr on failure
         if: failure()
-        run: sh -c 'tail -n 40 /tmp/mortal-*/profiles/*/browser-stderr.log 2>/dev/null | head -200; true'
+        run: sh -c 'tail -n 40 /tmp/mortal-*/profiles/*/browser-stderr.log /tmp/mortal-*/*/profiles/*/browser-stderr.log 2>/dev/null | head -240; true'
 
   # the true clean-clone path, on every push. four fresh-clone resolution
   # failures reached a dev machine that warm checkouts could never reproduce

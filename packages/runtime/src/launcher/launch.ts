@@ -180,6 +180,11 @@ export class Launcher implements LauncherApi {
     const companionDir = this.companionInstanceDir(id);
     if (companionDir !== null) {
       args.push(`--load-extension=${companionDir}`);
+      // scope extension loading to exactly the companion — the standard
+      // playwright/puppeteer pairing for --load-extension, exempting it from
+      // disable paths some builds apply to free-floating command-line loads.
+      // (browser component extensions are exempt from this flag and remain.)
+      args.push(`--disable-extensions-except=${companionDir}`);
       if (browser.kind === "chrome") {
         // chrome 137-140 honor this opt-out for --load-extension; 141 removed
         // it (risk r3). kept for that shrinking window, ignored elsewhere.
@@ -429,10 +434,32 @@ export class Launcher implements LauncherApi {
           .join(" | ")
           .slice(0, 600);
       } catch {}
+      // chromium records why an extension is not running in the profile's
+      // preference files (state / disable_reasons), never on stderr — read
+      // them so a silent non-load names itself
+      const prefEntries: string[] = [];
+      for (const file of ["Preferences", "Secure Preferences"]) {
+        try {
+          const parsed = JSON.parse(
+            fs.readFileSync(path.join(this.runtime.root, "profiles", id, "Default", file), "utf8")
+          ) as {
+            extensions?: {
+              settings?: Record<string, { path?: string; state?: number; disable_reasons?: unknown }>;
+            };
+          };
+          for (const [extId, s] of Object.entries(parsed.extensions?.settings ?? {})) {
+            prefEntries.push(
+              `${extId}: state=${s.state} disable_reasons=${JSON.stringify(s.disable_reasons ?? null)} path=${s.path ?? "?"}`
+            );
+          }
+        } catch {}
+      }
       log.warn(
         `companion for ${id} never appeared in the browser's target list (extension targets seen: ${
           seen || "none"
-        }${extensionStderr ? `; browser stderr: ${extensionStderr}` : ""})`
+        }${extensionStderr ? `; browser stderr: ${extensionStderr}` : ""}; profile extension entries: ${
+          prefEntries.slice(0, 4).join(" | ").slice(0, 700) || "none"
+        })`
       );
       if (!this.warnings.includes(warning)) this.warnings.push(warning);
     })();
