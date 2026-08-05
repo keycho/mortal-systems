@@ -133,15 +133,15 @@ describe("stamped companion inside real chromium", () => {
       // the model under test: ids are path-derived and per-identity, and the
       // chooser only ever sees companion-shaped targets (a component
       // extension like hangouts on branded chrome could never satisfy this)
-      const a = await pickedCompanionId(cdpA, expectedA, 20_000);
-      const b = await pickedCompanionId(cdpB, expectedB, 20_000);
+      const a = await pickedCompanionId(cdpA, expectedA, 60_000);
+      const b = await pickedCompanionId(cdpB, expectedB, 60_000);
       expect(a.picked, "A's companion loaded and matches the computed id").toBe(expectedA);
       expect(b.picked, "B's companion loaded and matches the computed id").toBe(expectedB);
 
       // extension state isolation: A's instance is absent from B and vice versa
       const companionHosts = (targets: ObservedTarget[]) =>
         targets
-          .filter((t) => t.url.startsWith("chrome-extension://") && t.url.endsWith("/background.js"))
+          .filter((t) => t.url.startsWith("chrome-extension://") && t.url.endsWith("/mortal-companion.js"))
           .map((t) => new URL(t.url).host);
       expect(companionHosts(a.targets)).not.toContain(expectedB);
       expect(companionHosts(b.targets)).not.toContain(expectedA);

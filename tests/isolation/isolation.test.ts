@@ -5,7 +5,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { MortalRuntime } from "@mortal/runtime";
-import { computeUnpackedExtensionId, pickCompanionExtensionId } from "@mortal/runtime";
+import {
+  COMPANION_WORKER_PATH,
+  computeUnpackedExtensionId,
+  pickCompanionExtensionId,
+} from "@mortal/runtime";
 import { startFixtureServer, type FixtureServer } from "../fixtures/login-server.js";
 import {
   createIdentity,
@@ -155,24 +159,35 @@ describe("browser state isolation", () => {
       ] as const) {
         const cdp = runtime.launcher!.cdpEndpointFor(self.id)!;
         const listUrl = `http://${new URL(cdp.replace("ws://", "http://")).host}/json/list`;
-        const targets = (await (await fetch(listUrl)).json()) as Array<{ type: string; url: string }>;
         const picked = await pollUntil(
           async () => {
             const t = (await (await fetch(listUrl)).json()) as Array<{ type: string; url: string }>;
             return pickCompanionExtensionId(t, expected(self.id));
           },
           (v) => v !== null,
-          20_000
+          60_000
         );
         expect(picked, "own companion present under the computed id").toBe(expected(self.id));
+        // refetched after the pick, so late-spawning workers are represented
+        const targets = (await (await fetch(listUrl)).json()) as Array<{ type: string; url: string }>;
         const extensionHosts = targets
           .filter((t) => t.url.startsWith("chrome-extension://"))
           .map((t) => new URL(t.url).host);
         expect(extensionHosts, "neighbor's companion absent").not.toContain(expected(other.id));
-        // G16: the loaded unpacked set is exactly the manifest's companion — no
-        // other extension targets exist (bare chromium baseline is zero)
-        const unexpected = extensionHosts.filter((h) => h !== expected(self.id));
-        expect(unexpected).toEqual([]);
+        // G16: the per-identity companion set is exactly {own}. chromium ships
+        // version-dependent component extensions in every profile (hangouts;
+        // a /background.js worker since 151) — browser baseline, identical
+        // across identities, carrying no identity state. the isolation claim
+        // is about the stamped companion set, identified by its distinctive
+        // worker path.
+        const companionHosts = targets
+          .filter(
+            (t) =>
+              t.url.startsWith("chrome-extension://") &&
+              new URL(t.url).pathname === COMPANION_WORKER_PATH
+          )
+          .map((t) => new URL(t.url).host);
+        expect(companionHosts).toEqual([expected(self.id)]);
       }
     },
     T

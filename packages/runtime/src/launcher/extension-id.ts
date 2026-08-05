@@ -24,18 +24,21 @@ export interface ObservedTarget {
  * pick the companion's extension id out of a browser target list, or null if
  * no target looks like the companion.
  *
- * branded chrome ships built-in component extensions (e.g. google hangouts,
- * nkeimhogjdpnpccoofpliimaahmaaome) whose ids are key-derived and identical
- * for everyone — a target list must therefore never be treated as "the one
- * extension we loaded". the companion is identified by its background
- * service-worker url, which is exactly chrome-extension://<id>/background.js
- * in our template; component extensions expose different resource paths.
+ * chromium ships built-in component extensions whose ids are key-derived and
+ * identical for everyone — a target list must therefore never be treated as
+ * "the one extension we loaded". branded chrome always had them (google
+ * hangouts, nkeimhogjdpnpccoofpliimaahmaaome), and chromium 151 started
+ * shipping them in the open-source build too, including one whose service
+ * worker is the generic /background.js. the companion is therefore identified
+ * by its distinctively named worker, chrome-extension://<id>/mortal-companion.js
+ * — a path no component will ever use.
  *
  * selection: the computed path-derived id wins when present; otherwise a
  * single companion-shaped candidate is accepted (covers platforms where
  * chromium's path canonicalization diverges from ours); ambiguity or absence
  * returns null — never guess.
  */
+export const COMPANION_WORKER_PATH = "/mortal-companion.js";
 export function pickCompanionExtensionId(
   targets: ObservedTarget[],
   computedId: string
@@ -49,7 +52,7 @@ export function pickCompanionExtensionId(
     } catch {
       continue;
     }
-    if (url.pathname !== "/background.js") continue;
+    if (url.pathname !== COMPANION_WORKER_PATH) continue;
     candidateIds.add(url.host);
   }
   if (candidateIds.has(computedId)) return computedId;

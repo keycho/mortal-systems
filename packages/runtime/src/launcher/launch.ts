@@ -368,12 +368,16 @@ export class Launcher implements LauncherApi {
     if (!fs.existsSync(path.join(instanceDir, "manifest.json"))) return;
     const computed = computeUnpackedExtensionId(fs.realpathSync(instanceDir));
     void (async () => {
-      const deadline = Date.now() + 20_000;
+      // generous window: extension service workers can take tens of seconds
+      // to spawn on cold, loaded ci machines
+      const deadline = Date.now() + 60_000;
+      let lastTargets: ObservedTarget[] = [];
       while (Date.now() < deadline) {
         if (this.procs.get(id)?.cdpPort !== cdpPort) return; // stopped or relaunched
         try {
           const res = await fetch(`http://127.0.0.1:${cdpPort}/json/list`);
           const targets = (await res.json()) as ObservedTarget[];
+          lastTargets = targets;
           // only companion-shaped targets count; branded chrome ships
           // constant-id component extensions (hangouts et al.) that must
           // never be pinned as an identity's companion origin
@@ -395,9 +399,16 @@ export class Launcher implements LauncherApi {
       }
       // timeout without a companion-shaped target: the extension did not load.
       // on branded chrome that is the expected outcome (risk r3); say so with
-      // the one canonical caveat.
+      // the one canonical caveat. log what WAS there, so a red ci run tells
+      // us which case this is instead of hiding it.
       const warning = `companion did not load in at least one identity's browser. ${BRANDED_CHROME_COMPANION_CAVEAT}`;
-      log.warn(`companion for ${id} never appeared in the browser's target list`);
+      const seen = lastTargets
+        .filter((t) => t.url.startsWith("chrome-extension://"))
+        .map((t) => t.url)
+        .join(" · ");
+      log.warn(
+        `companion for ${id} never appeared in the browser's target list (extension targets seen: ${seen || "none"})`
+      );
       if (!this.warnings.includes(warning)) this.warnings.push(warning);
     })();
   }

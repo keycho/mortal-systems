@@ -11,7 +11,7 @@ const HANGOUTS = "nkeimhogjdpnpccoofpliimaahmaaome";
 
 const companionTarget = (id: string) => ({
   type: "service_worker",
-  url: `chrome-extension://${id}/background.js`,
+  url: `chrome-extension://${id}/mortal-companion.js`,
 });
 const hangoutsTarget = {
   type: "background_page",
@@ -53,7 +53,7 @@ describe("pickCompanionExtensionId (macos regression: constant component ids)", 
     expect(
       pickCompanionExtensionId(
         [
-          { type: "page", url: "https://example.com/background.js" },
+          { type: "page", url: "https://example.com/mortal-companion.js" },
           { type: "service_worker", url: "chrome-extension://" },
         ],
         COMPUTED

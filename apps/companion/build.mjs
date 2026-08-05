@@ -17,7 +17,10 @@ fs.mkdirSync(dist, { recursive: true });
 
 await build({
   entryPoints: {
-    background: path.join(here, "src/background/index.ts"),
+    // the worker's filename is the companion's identification mark: chromium
+    // 151+ ships component extensions whose worker is the generic
+    // /background.js, so the runtime's chooser matches this distinctive path
+    "mortal-companion": path.join(here, "src/background/index.ts"),
     sidepanel: path.join(here, "src/sidepanel/index.ts"),
     content: path.join(here, "src/content/badge.ts"),
   },

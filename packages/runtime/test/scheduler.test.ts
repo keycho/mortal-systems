@@ -153,7 +153,9 @@ describe("lifecycle scheduler", () => {
     "gives a running identity a grace notice over the event bus, then halts and destroys",
     async () => {
       const runtime = await startRuntime(tmpRoot());
-      const id = createDue(runtime, { onExpiry: "destroy", inMs: 1_200 });
+      // the fuse must outlast a cold browser boot on a slow ci runner, or the
+      // expiry destroys the identity while launch is still in flight
+      const id = createDue(runtime, { onExpiry: "destroy", inMs: 15_000 });
 
       const { pid } = await runtime.launch(id);
       expect(pid).toBeGreaterThan(0);
@@ -166,12 +168,12 @@ describe("lifecycle scheduler", () => {
 
       const grace = await Promise.race([
         graceReceived,
-        new Promise<null>((r) => setTimeout(() => r(null), 15_000)),
+        new Promise<null>((r) => setTimeout(() => r(null), 30_000)),
       ]);
       expect(grace, "grace notice arrived before termination").not.toBeNull();
       expect(grace!.message).toContain("space closing");
 
-      expect(await waitForState(runtime, id, "destroyed", 15_000)).toBe("destroyed");
+      expect(await waitForState(runtime, id, "destroyed", 30_000)).toBe("destroyed");
       expect(() => process.kill(pid, 0)).toThrow();
       expect(fs.existsSync(path.join(runtime.root, "profiles", id))).toBe(false);
     },

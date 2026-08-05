@@ -97,7 +97,7 @@ describe("companion identity under a symlinked runtime root", () => {
       const computed = computeUnpackedExtensionId(
         fs.realpathSync(path.join(runtime.root, "companion-instances", id))
       );
-      const observed = await observeCompanionId(cdp, computed, 20_000);
+      const observed = await observeCompanionId(cdp, computed, 60_000);
       expect(observed, "chromium assigned exactly the computed id").toBe(computed);
 
       // the launcher's own observation is recorded and used by the origin check

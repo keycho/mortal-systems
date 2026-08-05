@@ -6,6 +6,7 @@ export { Launcher } from "./launcher/launch.js";
 export { discoverBrowsers, discoveryWarnings, majorVersion } from "./launcher/discover.js";
 export { provisionIdentity, scrubHistory, hexToSkColor } from "./launcher/provision.js";
 export {
+  COMPANION_WORKER_PATH,
   computeUnpackedExtensionId,
   pickCompanionExtensionId,
   type ObservedTarget,
