@@ -180,6 +180,56 @@ describe("day-2 launcher against real chromium", () => {
     LAUNCH_TIMEOUT
   );
 
+  /**
+   * an identity's browser is the user's first impression of it. a launched
+   * window should open ready to work: one tab, no welcome tour, no empty
+   * bookmark bar carrying chrome's "import bookmarks now" nag.
+   */
+  it(
+    "opens a clean first-run window: one blank tab, no first-run experience, no empty bookmark bar",
+    async () => {
+      // a fresh identity, launched for the first time — this is the state a
+      // new user actually meets
+      const idFresh = generateIdentityId();
+      runtime.identities.create({
+        manifest: composeManifest({
+          id: idFresh,
+          name: "first impression",
+          createdAt: new Date().toISOString(),
+          color: "#4DA3FF",
+          lifetime: "12h",
+        }),
+      });
+      const fresh = await runtime.launch(idFresh);
+
+      // exactly one tab — the blank one the launcher asked for, not the
+      // browser's branded new-tab page plus whatever else it feels like
+      const targets = (await (
+        await fetch(`${cdpHttp(fresh.cdpEndpoint ?? "")}/json/list`)
+      ).json()) as Array<{
+        type: string;
+        url: string;
+      }>;
+      const pages = targets.filter((t) => t.type === "page");
+      expect(pages).toHaveLength(1);
+      expect(pages[0]!.url).toBe("about:blank");
+
+      // the first-run marker is in place before the browser ever opens
+      expect(fs.existsSync(path.join(root, "profiles", idFresh, "First Run"))).toBe(true);
+
+      // this identity has no bookmarks, so its bar stays hidden rather than
+      // showing empty with the import nag on it
+      const prefs = JSON.parse(
+        fs.readFileSync(path.join(root, "profiles", idFresh, "Default", "Preferences"), "utf8")
+      ) as { bookmark_bar?: { show_on_all_tabs?: boolean }; browser?: Record<string, unknown> };
+      expect(prefs.bookmark_bar?.show_on_all_tabs).toBe(false);
+      expect(prefs.browser?.has_seen_welcome_page).toBe(true);
+
+      await runtime.destroyIdentity(idFresh, { reason: "smoke" });
+    },
+    LAUNCH_TIMEOUT
+  );
+
   it(
     "destroys a running identity (real D2 halt) without touching its neighbor",
     async () => {

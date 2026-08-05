@@ -46,6 +46,21 @@ export function provisionIdentity(
   ensureDir(filesDir);
   ensureDir(downloadsDir);
 
+  const bookmarks = repo.listBookmarks(manifest.id);
+  let emptyFolders: string[] = [];
+  try {
+    const raw = repo.getSetting(`bookmark_folders:${manifest.id}`);
+    if (raw) emptyFolders = JSON.parse(raw) as string[];
+  } catch {}
+  const hasBookmarks = bookmarks.length > 0 || emptyFolders.length > 0;
+
+  // the "First Run" marker suppresses the browser's first-run experience —
+  // welcome tours, default-browser prompts, sign-in flows — more reliably than
+  // --no-first-run alone does on chrome forks. an identity's browser should
+  // open ready to work, not onboarding.
+  const firstRunMarker = path.join(profileDir, "First Run");
+  if (!fs.existsSync(firstRunMarker)) fs.writeFileSync(firstRunMarker, "");
+
   const preferencesPath = path.join(defaultDir, "Preferences");
   if (!fs.existsSync(preferencesPath)) {
     const preferences = {
@@ -59,25 +74,50 @@ export function provisionIdentity(
         directory_upgrade: true,
       },
       savefile: { default_directory: downloadsDir },
-      bookmark_bar: { show_on_all_tabs: true },
+      // show the bar only when this identity actually has bookmarks: an empty
+      // bar is where chrome parks its "import bookmarks now" nag
+      bookmark_bar: {
+        show_on_all_tabs: hasBookmarks,
+        show_apps_shortcut: false,
+        show_managed_bookmarks: false,
+      },
       credentials_enable_service: false,
-      browser: { theme: { user_color: hexToSkColor(manifest.surfaces.browser.theme) } },
+      browser: {
+        theme: { user_color: hexToSkColor(manifest.surfaces.browser.theme) },
+        has_seen_welcome_page: true,
+        show_home_button: false,
+      },
+      signin: { allowed: false },
       // chrome 138+ can disable unpacked (--load-extension) extensions unless
       // the profile has extensions developer mode on; seeded before the first
       // open so the stamped companion is allowed to run
       extensions: { ui: { developer_mode: true } },
+      // best-effort quieting of brave's first-run chrome (sponsored new-tab
+      // imagery, rewards/wallet toolbar buttons). unknown keys are ignored by
+      // other builds and by brave versions that renamed them — nothing
+      // enforcement-related depends on any of this.
+      brave: {
+        new_tab_page: {
+          show_background_image: false,
+          show_branded_background_image: false,
+          show_sponsored_images_background_image: false,
+          show_brave_news: false,
+          show_rewards: false,
+          show_stats: false,
+          show_clock: false,
+          show_together: false,
+        },
+        rewards: { show_brave_rewards_button_in_location_bar: false },
+        show_wallet_icon_on_toolbar: false,
+        stats: { reporting_enabled: false },
+        today: { should_show_toolbar_button: false },
+      },
     };
     fs.writeFileSync(preferencesPath, JSON.stringify(preferences));
   }
 
-  const bookmarks = repo.listBookmarks(manifest.id);
-  let emptyFolders: string[] = [];
-  try {
-    const raw = repo.getSetting(`bookmark_folders:${manifest.id}`);
-    if (raw) emptyFolders = JSON.parse(raw) as string[];
-  } catch {}
   const bookmarksPath = path.join(defaultDir, "Bookmarks");
-  if ((bookmarks.length > 0 || emptyFolders.length > 0) && !fs.existsSync(bookmarksPath)) {
+  if (hasBookmarks && !fs.existsSync(bookmarksPath)) {
     let nextId = 1;
     const nid = () => String(++nextId);
     type ChromeNode = {

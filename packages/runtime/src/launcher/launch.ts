@@ -174,15 +174,26 @@ export class Launcher implements LauncherApi {
       fs.rmSync(portFile, { force: true });
     } catch {}
 
+    // a clean first-run window: no welcome tour, no default-browser prompt, no
+    // search-engine choice screen, no crash-restore bubble, no cast/translate
+    // toolbar furniture. this is every user's first impression of an identity's
+    // browser, not a demo concession.
     const args = [
       `--user-data-dir=${profileDir}`,
       "--no-first-run",
       "--no-default-browser-check",
+      "--no-service-autorun",
+      "--disable-default-apps",
+      "--disable-search-engine-choice-screen",
+      "--hide-crash-restore-bubble",
       "--remote-debugging-port=0",
       "--password-store=basic",
       "--disable-background-networking",
       "--disable-component-update",
     ];
+    // chromium takes the LAST --disable-features and discards earlier ones, so
+    // every feature we suppress has to travel in one switch
+    const disabledFeatures = ["Translate", "MediaRouter", "OptimizationHints"];
     // enforcement upgrade #1: per-identity network route. when the manifest
     // declares network "routed", chromium is bound to the identity's proxy for
     // this launch — every request from this browser goes through that route and
@@ -208,9 +219,10 @@ export class Launcher implements LauncherApi {
       if (browser.kind === "chrome") {
         // chrome 137-140 honor this opt-out for --load-extension; 141 removed
         // it (risk r3). kept for that shrinking window, ignored elsewhere.
-        args.push("--disable-features=DisableLoadExtensionCommandLineSwitch");
+        disabledFeatures.push("DisableLoadExtensionCommandLineSwitch");
       }
     }
+    args.push(`--disable-features=${disabledFeatures.join(",")}`);
     const headless =
       readEnv("MORTAL_HEADLESS") === "1" ||
       (os.platform() === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY);
@@ -220,6 +232,10 @@ export class Launcher implements LauncherApi {
     if (os.platform() !== "win32" && typeof process.getuid === "function" && process.getuid() === 0) {
       args.push("--no-sandbox", "--disable-setuid-sandbox");
     }
+    // open one blank tab rather than the browser's branded new-tab page, which
+    // on brave carries sponsored imagery and rewards panels. positional url,
+    // so it must stay last.
+    args.push("about:blank");
 
     // keep the browser's stderr: chromium reports extension-load failures
     // only there, and "companion did not load" is undiagnosable without it.

@@ -49,11 +49,21 @@ function cleanup() {
 process.on("exit", cleanup);
 process.on("SIGINT", () => process.exit(130));
 
-// a local stand-in for the vendor's filings page (container has no outbound net)
+// a local stand-in for the vendor's filings page (container has no outbound
+// net). named and labeled so a viewer can never mistake it for a real company
+// or a real filing — the demo's honesty depends on the page announcing itself.
 const fixture = http.createServer((_req, res) => {
-  res.writeHead(200, { "content-type": "text/html" });
-  res.end(`<!doctype html><title>Acme Corp — Annual Filing 2025</title>
-    <h1>Acme Corp</h1><p>Revenue: $12.4M (up 18%). Litigation: none pending.</p>
+  // declare the charset: without it the browser decodes these utf-8 bytes as
+  // latin-1 and the em dash reaches the tab title (and the report) mojibaked
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  res.end(`<!doctype html><title>Example Vendor Portal — Annual Filing 2025</title>
+    <style>body{font:15px/1.6 system-ui;margin:3rem auto;max-width:38rem;color:#1c1c1c}
+    .label{display:inline-block;font:600 11px/1 ui-monospace,monospace;letter-spacing:.12em;
+    background:#1c1c1c;color:#fff;padding:6px 9px;border-radius:3px;margin-bottom:1.5rem}
+    h1{font-size:22px;margin:0 0 1rem}</style>
+    <span class="label">LOCAL DEMO FIXTURE</span>
+    <h1>Example Vendor Portal — Annual Filing 2025</h1>
+    <p>Revenue: $12.4M (up 18%). Litigation: none pending.</p>
     <p>Registered agent changed twice in 2025. Auditor: Meridian LLP.</p>`);
 });
 await new Promise((r) => fixture.listen(0, "127.0.0.1", r));
@@ -106,7 +116,9 @@ log(`   ${identity.summary.id} · lifetime 15m · cdp ${cdpEndpoint}`);
 step("3 · agent works inside its own browser");
 const browser = await chromium.connectOverCDP(cdpEndpoint);
 const context = browser.contexts()[0];
-const page = await context.newPage();
+// reuse the blank tab the launcher opened instead of adding a second one —
+// one window, one tab, on camera and everywhere else
+const page = context.pages()[0] ?? (await context.newPage());
 await page.goto(fixtureUrl, { waitUntil: "load" });
 const title = await page.title();
 const findings = await page.locator("p").allTextContents();
