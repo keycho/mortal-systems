@@ -16,6 +16,60 @@ import { PERSISTENT, lifetimeSchema } from "./duration.js";
 
 export const SCHEMA_VERSION = "2.0" as const;
 
+/**
+ * identity-manifest schema version. schema 2.1 raises exactly one ceiling over
+ * 2.0: permissions.network may reach enforcement "enforced", but ONLY when an
+ * actual route is attached (see networkPermissionSchema). every other ceiling
+ * is unchanged. we accept both versions on read and emit 2.1 for new
+ * identities — the established accept-old / emit-new / upgrade-on-read bridge.
+ * blueprints stay 2.0: a route is operator-specific infrastructure, never
+ * shareable template content.
+ */
+export const MANIFEST_VERSION = "2.1" as const;
+export const ACCEPTED_MANIFEST_VERSIONS = ["2.0", "2.1"] as const;
+
+/**
+ * a per-identity network route. the proxy is applied at launch via chromium's
+ * --proxy-server; its presence is what lets network enforcement be "enforced".
+ */
+export const networkRouteSchema = z
+  .object({
+    proxy: z
+      .string()
+      .regex(
+        /^(https?|socks5|socks4):\/\/[^\s/]+$/,
+        "proxy must be http(s)://host:port or socks5://host:port"
+      ),
+    /** operator-facing label, e.g. "residential-eu" */
+    label: z.string().max(120).nullable(),
+  })
+  .strict();
+export type NetworkRoute = z.infer<typeof networkRouteSchema>;
+
+/**
+ * network permission with a route-gated enforcement ceiling. the two shapes
+ * are the ONLY representable states, so "network enforced with no route" — an
+ * unearned claim — cannot be written:
+ *   - standard: no route, shared ip/path, enforcement advisory
+ *   - routed:   a route attached, enforcement enforced (proven at launch)
+ */
+export const networkPermissionSchema = z
+  .object({
+    value: z.enum(["standard", "routed"]),
+    enforcement: z.enum(["advisory", "enforced"]),
+    route: networkRouteSchema.nullable(),
+  })
+  .strict()
+  .refine(
+    (n) =>
+      (n.value === "standard" && n.enforcement === "advisory" && n.route === null) ||
+      (n.value === "routed" && n.enforcement === "enforced" && n.route !== null),
+    {
+      message:
+        "network: 'standard' requires no route and enforcement 'advisory'; 'routed' requires an attached route and enforcement 'enforced'",
+    }
+  );
+
 export const identityStateSchema = z.enum([
   "created",
   "provisioning",
@@ -126,9 +180,7 @@ export const permissionsSchema = z
     email: z
       .object({ value: z.enum(["none", "temporary", "dedicated"]), enforcement: z.literal("roadmap") })
       .strict(),
-    network: z
-      .object({ value: z.literal("standard"), enforcement: z.literal("advisory") })
-      .strict(),
+    network: networkPermissionSchema,
   })
   .strict();
 
@@ -168,7 +220,7 @@ export const blueprintRefSchema = z
 
 export const identityManifestSchema = z
   .object({
-    schemaVersion: z.literal(SCHEMA_VERSION),
+    schemaVersion: z.enum(ACCEPTED_MANIFEST_VERSIONS),
     id: identityIdSchema,
     name: identityNameSchema,
     color: hexColorSchema,
@@ -247,12 +299,19 @@ export function upgradeStoredManifest(parsed: unknown): unknown {
   if (parsed !== null && typeof parsed === "object") {
     const manifest = parsed as {
       surfaces?: { browser?: { extensions?: unknown[] } };
+      permissions?: { network?: { route?: unknown } };
     };
     const extensions = manifest.surfaces?.browser?.extensions;
     if (Array.isArray(extensions)) {
       manifest.surfaces!.browser!.extensions = extensions.map((entry) =>
         entry === LEGACY_COMPANION_EXTENSION_REF ? COMPANION_EXTENSION_REF : entry
       );
+    }
+    // schema 2.0 -> 2.1: a routeless network permission gains an explicit
+    // route: null. enforcement/value stay untouched (still standard/advisory).
+    const network = manifest.permissions?.network;
+    if (network !== undefined && network !== null && network.route === undefined) {
+      network.route = null;
     }
   }
   return parsed;

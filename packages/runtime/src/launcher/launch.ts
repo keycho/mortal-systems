@@ -183,6 +183,19 @@ export class Launcher implements LauncherApi {
       "--disable-background-networking",
       "--disable-component-update",
     ];
+    // enforcement upgrade #1: per-identity network route. when the manifest
+    // declares network "routed", chromium is bound to the identity's proxy for
+    // this launch — every request from this browser goes through that route and
+    // nowhere else. a routeless identity gets no --proxy-server and stays on the
+    // shared path (advisory). this is what makes network enforcement real.
+    const network = manifest.permissions.network;
+    if (network.value === "routed" && network.route !== null) {
+      args.push(`--proxy-server=${network.route.proxy}`);
+      // never let a routed identity silently bypass its proxy for direct-connect
+      // hosts; only explicit loopback stays direct (devtools).
+      args.push("--proxy-bypass-list=<-loopback>");
+    }
+
     const companionDir = this.companionInstanceDir(id);
     if (companionDir !== null) {
       args.push(`--load-extension=${companionDir}`);

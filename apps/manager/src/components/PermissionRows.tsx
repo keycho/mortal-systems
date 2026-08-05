@@ -111,7 +111,16 @@ export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
         <PermissionRow
           field="permissions.network"
           title="network route"
-          plain="this identity currently shares your normal ip address and network path."
+          plain={
+            manifest.permissions.network.value === "routed" &&
+            manifest.permissions.network.route !== null
+              ? `this identity's traffic is bound to its own route${
+                  manifest.permissions.network.route.label !== null
+                    ? ` (${manifest.permissions.network.route.label})`
+                    : ""
+                } — applied at launch and used for every request.`
+              : "this identity currently shares your normal ip address and network path."
+          }
           enforcement={manifest.permissions.network.enforcement}
         />
         <PermissionRow

@@ -3,8 +3,9 @@ import type { BlueprintManifest } from "./blueprint.js";
 import {
   COMPANION_EXTENSION_REF,
   identityManifestSchema,
-  SCHEMA_VERSION,
+  MANIFEST_VERSION,
   type IdentityManifest,
+  type NetworkRoute,
 } from "./manifest.js";
 import type { ManifestOverrides } from "./api.js";
 
@@ -28,6 +29,13 @@ export interface ComposeManifestInput {
   retainHistory?: boolean;
   wallet?: "none" | "read-intent" | "declared";
   email?: "none" | "temporary" | "dedicated";
+  /**
+   * attach a network route: when present, network becomes value "routed" /
+   * enforcement "enforced" and the launcher applies it via --proxy-server.
+   * absent → standard / advisory (shared ip). the schema makes any other
+   * combination unrepresentable.
+   */
+  networkRoute?: NetworkRoute;
   /** chrome web store ids beyond the always-present companion */
   extensions?: string[];
   blueprint?: { source: string | null; version: string | null; signature: string | null };
@@ -45,7 +53,7 @@ export function composeManifest(input: ComposeManifestInput): IdentityManifest {
   const color = input.color ?? DEFAULT_COLOR;
 
   const manifest: IdentityManifest = {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: MANIFEST_VERSION,
     id: input.id,
     name: input.name,
     color,
@@ -72,7 +80,10 @@ export function composeManifest(input: ComposeManifestInput): IdentityManifest {
       memoryScope: { value: "identity-only", enforcement: "enforced" },
       wallet: { value: input.wallet ?? "none", enforcement: "advisory" },
       email: { value: input.email ?? "none", enforcement: "roadmap" },
-      network: { value: "standard", enforcement: "advisory" },
+      network:
+        input.networkRoute !== undefined
+          ? { value: "routed", enforcement: "enforced", route: input.networkRoute }
+          : { value: "standard", enforcement: "advisory", route: null },
     },
     privacy: {
       retainHistory: { value: input.retainHistory ?? true, enforcement: "enforced" },
