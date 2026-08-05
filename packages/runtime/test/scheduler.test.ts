@@ -5,7 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { composeManifest, generateIdentityId, type SelfEvent } from "@mortal/schema";
+import { composeManifest, generateIdentityId } from "@mortal/schema";
+import type { SelfEvent } from "../src/api/events.js";
 import { MortalRuntime } from "../src/runtime.js";
 
 const BUNDLED_CHROMIUM = "/opt/pw-browsers/chromium";
