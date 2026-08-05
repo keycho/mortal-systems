@@ -36,6 +36,7 @@ export function StatePill({ state }: { state: IdentitySummary["state"] }) {
     <span
       className="text-[12.5px] px-2.5 py-0.5 rounded-full bg-elevated inline-flex items-center gap-1.5 shrink-0"
       data-testid="state-pill"
+      data-state={state}
       style={{ color }}
     >
       <span
