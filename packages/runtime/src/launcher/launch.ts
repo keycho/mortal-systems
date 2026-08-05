@@ -3,7 +3,7 @@ import { spawn, execFile, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { DetectedBrowser, IdentityManifest } from "@mortal/schema";
+import { BRANDED_CHROME_COMPANION_CAVEAT, type DetectedBrowser, type IdentityManifest } from "@mortal/schema";
 import { errors } from "../errors.js";
 import { LAUNCHABLE_STATES } from "../identity/state.js";
 import type { LauncherApi, MortalRuntime } from "../runtime.js";
@@ -181,7 +181,8 @@ export class Launcher implements LauncherApi {
     if (companionDir !== null) {
       args.push(`--load-extension=${companionDir}`);
       if (browser.kind === "chrome") {
-        // branded chrome 136+ gates --load-extension behind this feature flag
+        // chrome 137-140 honor this opt-out for --load-extension; 141 removed
+        // it (risk r3). kept for that shrinking window, ignored elsewhere.
         args.push("--disable-features=DisableLoadExtensionCommandLineSwitch");
       }
     }
@@ -393,9 +394,9 @@ export class Launcher implements LauncherApi {
         await sleep(250);
       }
       // timeout without a companion-shaped target: the extension did not load.
-      // branded chrome ignores --load-extension since 137 (risk r3); say so.
-      const warning =
-        "companion did not load in at least one identity's browser (branded chrome ignores --load-extension since 137; use chromium or brave, or set MORTAL_BROWSER_PATH). the side panel/badge are unavailable there and /v1/self has no browser client.";
+      // on branded chrome that is the expected outcome (risk r3); say so with
+      // the one canonical caveat.
+      const warning = `companion did not load in at least one identity's browser. ${BRANDED_CHROME_COMPANION_CAVEAT}`;
       log.warn(`companion for ${id} never appeared in the browser's target list`);
       if (!this.warnings.includes(warning)) this.warnings.push(warning);
     })();

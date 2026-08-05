@@ -39,11 +39,18 @@ identity and loads it with `--load-extension`. each copy gets a path-derived,
 per-identity extension id (no manifest `key` — deliberately, see
 DECISIONS.md), so the origin check distinguishes *which identity's* companion
 is calling. verified against real chromium on linux and macos (brave).
-limitation, stated honestly: branded google chrome ≥137 ignores
-`--load-extension`; there the companion does not load, the runtime says so in
-`status.warnings`, and `/v1/self` simply has no legitimate browser client —
-authentication for local token-only clients rests on the bearer token alone,
-inside the local trust boundary.
+limitation, stated honestly (r3, upgraded from "may ignore" on 2026-08-05):
+branded google chrome cannot load the companion (the --load-extension
+killswitch was removed in chrome >=141); use chromium or brave — or set
+MORTAL_BROWSER_PATH — or install the companion from the web store when it
+ships. isolation is unaffected: --user-data-dir still works on branded
+chrome, so every identity keeps its own separate profile; only the companion
+surface (side panel, badge, self api) is unavailable. where the companion is
+absent, the runtime says so in `status.warnings`, and `/v1/self` simply has
+no legitimate browser client — authentication for local token-only clients
+rests on the bearer token alone, inside the local trust boundary. this
+promotes the web store listing from optional to the distribution path for
+chrome-majority users (tracked as a human-on-ramp blocker in PROGRESS.md).
 
 **designed (not built): chrome web store distribution + pairing handshake.**
 a store-distributed companion has one constant, key-derived extension id for

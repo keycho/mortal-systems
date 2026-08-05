@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { DetectedBrowser } from "@mortal/schema";
+import { BRANDED_CHROME_COMPANION_CAVEAT, type DetectedBrowser } from "@mortal/schema";
 import { errors } from "../errors.js";
 
 const execFileP = promisify(execFile);
@@ -184,8 +184,7 @@ export function discoveryWarnings(browsers: DetectedBrowser[]): string[] {
     const major = majorVersion(def.version);
     if (major !== null && major >= 137) {
       warnings.push(
-        `chrome ${major} may ignore --load-extension in branded builds; the companion may not load. ` +
-          "fallback: install chromium or brave (risk r3, see docs)."
+        `chrome ${major}: ${BRANDED_CHROME_COMPANION_CAVEAT} (risk r3, see docs/threat-model.md)`
       );
     }
   }

@@ -134,6 +134,23 @@ export const ROADMAP_FIELDS: readonly string[] = ENFORCEMENT_TABLE.filter(
   (r) => r.enforcement === "roadmap"
 ).map((r) => r.field);
 
+/**
+ * the branded-chrome companion caveat (risk r3), single-sourced like the
+ * enforcement table: every surface that states the claim renders this string
+ * (runtime discovery warning, companion-missing launch warning, cli help),
+ * and the docs that repeat it are held to it verbatim by
+ * scripts/check-guarantees.ts, so the wording cannot drift.
+ *
+ * precision matters: isolation is NOT affected — branded chrome still honors
+ * --user-data-dir, so identities keep their separate profiles. what branded
+ * chrome cannot do is load the companion extension.
+ */
+export const BRANDED_CHROME_COMPANION_CAVEAT =
+  "branded google chrome cannot load the companion (the --load-extension killswitch was removed in chrome >=141); " +
+  "use chromium or brave — or set MORTAL_BROWSER_PATH — or install the companion from the web store when it ships. " +
+  "isolation is unaffected: --user-data-dir still works on branded chrome, so every identity keeps its own separate profile; " +
+  "only the companion surface (side panel, badge, self api) is unavailable.";
+
 /** fixed caveats attached to every destruction report. never trimmed. */
 export const DESTRUCTION_CAVEATS: readonly string[] = [
   "data websites stored server-side while this identity was logged in is not removed",

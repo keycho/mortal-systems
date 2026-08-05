@@ -100,9 +100,11 @@ running (idempotent). browser discovery: `MORTAL_BROWSER_PATH` override, then
 chrome stable, chromium, brave standard paths; no browser found is a
 `BROWSER_NOT_FOUND` (http 424) whose message already contains install
 instructions — print it verbatim. `runtime.status.warnings` carries honest
-operational warnings, notably branded chrome ≥137 possibly ignoring
-`--load-extension` (companion may not load; chromium/brave are the fallback) —
-`mortal status` must surface these, not swallow them.
+operational warnings, notably branded chrome being unable to load the
+companion (killswitch removed in chrome >=141; chromium/brave are the
+fallback, the web store listing the eventual chrome path; isolation via
+--user-data-dir is unaffected) — `mortal status` must surface these, not
+swallow them.
 
 ## destroy contract
 

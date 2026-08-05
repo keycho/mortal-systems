@@ -63,8 +63,8 @@ every command takes `--json`, `--root <dir>`, and `--help`.
 
 ### `mortal status [<id|name>]`
 runtime health: version, root, api address, detected browser, identities
-running, and any honest operational warnings (e.g. branded chrome ignoring
-`--load-extension`). with an argument it behaves as `mortal show`.
+running, and any honest operational warnings (e.g. branded chrome being
+unable to load the companion). with an argument it behaves as `mortal show`.
 `--json`: the runtime's `RuntimeStatus`.
 
 ### `mortal list [--state <state>[,<state>...]]`
@@ -179,9 +179,13 @@ the schema — the same source the guarantees page and the ci gate read:
   runtime rewrites it.
 - **"no chromium-based browser found"** — install chromium or brave (or
   google chrome), or point `MORTAL_BROWSER_PATH` at a chromium executable.
-- **companion doesn't load in branded chrome** — chrome ≥137 may ignore
-  `--load-extension`; `mortal status` surfaces the warning. chromium or
-  brave avoid it.
+- **companion on branded google chrome** — branded google chrome cannot load
+  the companion (the --load-extension killswitch was removed in chrome
+  >=141); use chromium or brave — or set MORTAL_BROWSER_PATH — or install
+  the companion from the web store when it ships. isolation is unaffected:
+  --user-data-dir still works on branded chrome, so every identity keeps its
+  own separate profile; only the companion surface (side panel, badge, self
+  api) is unavailable. `mortal status` surfaces this warning.
 
 ## development
 

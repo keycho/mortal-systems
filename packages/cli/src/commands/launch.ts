@@ -1,3 +1,4 @@
+import { BRANDED_CHROME_COMPANION_CAVEAT } from "@mortal/schema";
 import type { CommandContext } from "../context.js";
 import { SLOW_RPC_TIMEOUT_MS } from "../client.js";
 import { formatTable, remainingCell, stateCell, toJson } from "../output.js";
@@ -13,9 +14,8 @@ its endpoint.
 
   --json   emit { id, name, state, pid, cdpEndpoint, expiresAt }
 
-if the browser does not start, "mortal status" shows what was detected and any
-warnings (branded chrome can ignore --load-extension; chromium or brave avoid
-that — or set MORTAL_BROWSER_PATH).
+if the browser does not start, "mortal status" shows what was detected and
+any warnings. note: ${BRANDED_CHROME_COMPANION_CAVEAT}
 `;
 
 export const RESUME_HELP = `usage: mortal resume <id|name> [--json] [--root <dir>]

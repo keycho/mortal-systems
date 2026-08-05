@@ -10,7 +10,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ADVISORY_FIELDS, ENFORCED_FIELDS, ROADMAP_FIELDS } from "../packages/schema/src/enforcement.js";
+import {
+  ADVISORY_FIELDS,
+  BRANDED_CHROME_COMPANION_CAVEAT,
+  ENFORCED_FIELDS,
+  ROADMAP_FIELDS,
+} from "../packages/schema/src/enforcement.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const mapPath = path.resolve(here, "../tests/guarantees.map.ts");
@@ -85,10 +90,59 @@ async function main(): Promise<void> {
     }
   }
 
+  // ---- wording sync: the branded-chrome companion claim (r3) ----
+  // code surfaces render BRANDED_CHROME_COMPANION_CAVEAT directly; the docs
+  // that repeat the claim must carry the canonical sentence verbatim
+  // (whitespace-insensitive, so markdown wrapping is fine), and the old
+  // hedged claim must not reappear in any live file. dated logs
+  // (DECISIONS/PROGRESS/manual-checks) keep their history and are exempt.
+  const normalize = (s: string) => s.replace(/\s+/g, " ");
+  const repoRoot = path.resolve(here, "..");
+  for (const rel of ["packages/cli/README.md", "docs/threat-model.md"]) {
+    const content = fs.readFileSync(path.join(repoRoot, rel), "utf8");
+    if (!normalize(content).includes(normalize(BRANDED_CHROME_COMPANION_CAVEAT))) {
+      console.error(
+        `guarantees gate: ${rel} does not carry the canonical branded-chrome caveat verbatim (BRANDED_CHROME_COMPANION_CAVEAT in @mortal/schema)`
+      );
+      failed = true;
+    }
+  }
+  const bannedClaim = new RegExp(
+    ["(may|can|might) ignore ", "`?--load-extension`?"].join("") + "|companion may not load"
+  );
+  const historyExempt = new Set([
+    "docs/DECISIONS.md",
+    "docs/PROGRESS.md",
+    "docs/manual-checks.md",
+    "scripts/check-guarantees.ts",
+  ]);
+  const liveExts = new Set([".ts", ".tsx", ".md", ".mjs", ".yml", ".yaml"]);
+  const prune = new Set(["node_modules", "dist", ".git", ".turbo", ".next", "target", "test-results"]);
+  const scan = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!prune.has(entry.name)) scan(full);
+        continue;
+      }
+      if (!liveExts.has(path.extname(entry.name))) continue;
+      const rel = path.relative(repoRoot, full);
+      if (historyExempt.has(rel)) continue;
+      if (bannedClaim.test(fs.readFileSync(full, "utf8"))) {
+        console.error(
+          `guarantees gate: ${rel} still hedges the branded-chrome claim ("may ignore --load-extension") — render BRANDED_CHROME_COMPANION_CAVEAT instead`
+        );
+        failed = true;
+      }
+    }
+  };
+  scan(repoRoot);
+
   if (failed) process.exit(1);
   console.log(
     `guarantees gate: OK — ${ENFORCED_FIELDS.length} enforced fields mapped, ` +
-      `${ADVISORY_FIELDS.length + ROADMAP_FIELDS.length} advisory/roadmap fields badge-tested`
+      `${ADVISORY_FIELDS.length + ROADMAP_FIELDS.length} advisory/roadmap fields badge-tested, ` +
+      `branded-chrome claim synced from schema`
   );
 }
 
