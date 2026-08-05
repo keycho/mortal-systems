@@ -54,6 +54,11 @@ function TechnicalGuarantees({ fields }: { fields: string[] }) {
                 verified by {row!.plannedTests.join(" · ")}
               </span>
             )}
+            {/* a ceiling that only applies to identities configured for it must
+                say so here — this identity's own badge above is authoritative */}
+            {row!.conditional !== undefined && (
+              <span className="text-[12px] text-mute">conditional · {row!.conditional}</span>
+            )}
           </div>
         ))}
       </div>

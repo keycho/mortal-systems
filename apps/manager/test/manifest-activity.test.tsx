@@ -73,6 +73,30 @@ describe("permission rows (workspace permissions tab)", () => {
     expect(screen.getByText("a declaration, not a technical control")).toBeTruthy();
   });
 
+  // the flip must not flatten: the network badge follows THIS identity's
+  // manifest, not the table's ceiling.
+  it("renders network enforced only for an identity with a route attached", () => {
+    const routeless = composeManifest({
+      id: summary.id,
+      name: summary.name,
+      createdAt: "2026-08-05T12:00:00.000Z",
+      color: "#FFB000",
+    });
+    const { unmount } = render(<PermissionRows manifest={routeless} />);
+    expect(screen.getByTestId("perm-permissions.network").textContent).toContain("advisory");
+    unmount();
+
+    const routed = composeManifest({
+      id: summary.id,
+      name: summary.name,
+      createdAt: "2026-08-05T12:00:00.000Z",
+      color: "#FFB000",
+      networkRoute: { proxy: "http://127.0.0.1:8080", label: "test-route" },
+    });
+    render(<PermissionRows manifest={routed} />);
+    expect(screen.getByTestId("perm-permissions.network").textContent).toContain("enforced");
+  });
+
   it("renders a tombstone message for destroyed identities", () => {
     render(
       <PermissionsTab

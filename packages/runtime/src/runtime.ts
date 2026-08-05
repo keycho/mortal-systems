@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   ADVISORY_FIELDS,
+  CONDITIONAL_ENFORCEMENT,
   ENFORCED_FIELDS,
   generateToken,
   RESERVED_METHODS,
@@ -199,6 +200,7 @@ export class MortalRuntime {
       enforceable: [...ENFORCED_FIELDS],
       advisory: [...ADVISORY_FIELDS],
       roadmap: [...ROADMAP_FIELDS],
+      conditional: { ...CONDITIONAL_ENFORCEMENT },
       reservedMethods: [...RESERVED_METHODS],
     };
   }

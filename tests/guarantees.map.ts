@@ -9,6 +9,7 @@
  *  G9, G18 (token half)                 packages/runtime/test/self-api.test.ts
  *  G10-G14                              tests/lifecycle/*.test.ts (runtime as a real child process)
  *  G17                                  packages/runtime/test/blueprints.test.ts (+ schema purity suite)
+ *  G19 (network route)                  tests/isolation/network.test.ts (recording proxy + real chromium)
  *  BADGE-1                              apps/manager/test/manifest-activity.test.tsx and
  *                                       apps/companion/test/panels-render.test.ts
  */
@@ -20,11 +21,11 @@ export const GUARANTEES_MAP: Record<string, string[]> = {
   "privacy.retainHistory": ["G15"],
   "lifecycle.expiry": ["G10", "G11"],
   "lifecycle.destruction": ["G12", "G13", "G14"],
+  "permissions.network": ["G19"],
 };
 
 export const BADGE_TESTS: Record<string, string[]> = {
   "permissions.wallet": ["BADGE-1"],
-  "permissions.network": ["BADGE-1"],
   "permissions.email": ["BADGE-1"],
   "privacy.redaction": ["BADGE-1"],
 };

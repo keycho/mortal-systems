@@ -27,6 +27,13 @@ export interface EnforcementRow {
    * which fails the build if an enforced row is unmapped.
    */
   plannedTests: string[];
+  /**
+   * set when enforcement is conditional on per-identity configuration: the
+   * precondition, in plain language. the identity's own manifest is always
+   * authoritative — agent code must read manifest.permissions.<field>
+   * .enforcement, never assume the table's ceiling applies to its identity.
+   */
+  conditional?: string;
 }
 
 export const ENFORCEMENT_TABLE: readonly EnforcementRow[] = [
@@ -95,12 +102,14 @@ export const ENFORCEMENT_TABLE: readonly EnforcementRow[] = [
   },
   {
     field: "permissions.network",
-    label: "network",
-    value: "standard",
-    enforcement: "advisory",
+    label: "network route",
+    value: "standard | routed",
+    enforcement: "enforced",
     description:
-      "identities on this machine share your ip address and network path. per-identity routes are future work; this field cannot claim enforcement until a route is attached and tested.",
-    plannedTests: ["BADGE-1"],
+      "an identity with a network route attached is bound to it: chromium is launched on that route, every non-local request goes through it, and there is no direct fallback if the route is down. an identity with no route stays 'standard' and shares your ip address and network path — the schema cannot express enforcement without an attached route, so the badge only reads enforced when the control is real.",
+    plannedTests: ["G19"],
+    conditional:
+      "enforced only for identities with a network route attached; routeless identities remain advisory",
   },
   {
     field: "permissions.email",
@@ -151,6 +160,15 @@ export const BRANDED_CHROME_COMPANION_CAVEAT =
   "isolation is unaffected: --user-data-dir still works on branded chrome, so every identity keeps its own separate profile; " +
   "only the companion surface (side panel, badge, self api) is unavailable.";
 
+/**
+ * fields that are enforced but only for identities configured for them.
+ * field -> precondition. consumed by runtime.capabilities() so agents can
+ * feature-detect honestly instead of assuming a ceiling applies to them.
+ */
+export const CONDITIONAL_ENFORCEMENT: Readonly<Record<string, string>> = Object.fromEntries(
+  ENFORCEMENT_TABLE.filter((r) => r.conditional !== undefined).map((r) => [r.field, r.conditional!])
+);
+
 /** fixed caveats attached to every destruction report. never trimmed. */
 export const DESTRUCTION_CAVEATS: readonly string[] = [
   "data websites stored server-side while this identity was logged in is not removed",
@@ -168,7 +186,7 @@ export const DESTROYED_MEANS =
 
 /** printed on the site and in the manager. mortal separates state; it does not anonymize in v1. */
 export const NON_GUARANTEES: readonly string[] = [
-  "identities on the same machine share your ip address",
+  "identities without a network route attached share your ip address",
   "identities on the same machine share your device fingerprint",
   "websites can correlate identities via behavior, reused accounts, or reused wallets",
   "clipboard contents you carry between identities are not separated",

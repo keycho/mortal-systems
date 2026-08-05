@@ -10,6 +10,7 @@ import {
   type DestructionReport,
   type IdentityManifest,
   type IdentitySummary,
+  type NetworkRoute,
   type RpcContract,
   type RpcMethod,
   type RpcResponse,
@@ -44,6 +45,12 @@ export interface CreateIdentityInput {
   name?: string;
   /** duration grammar ("30m", "12h", "7d") or "persistent" */
   lifetime?: string;
+  /**
+   * bind this identity's browser to its own network route. when set, the
+   * manifest's network permission becomes routed/enforced and the launcher
+   * applies it — without it the identity shares the machine's path (advisory).
+   */
+  networkRoute?: NetworkRoute;
 }
 
 export interface IdentityStatus {
@@ -62,6 +69,8 @@ export interface Capabilities extends RuntimeCapabilities {
     enforcement: "enforced" | "advisory" | "roadmap";
     description: string;
     verifiedBy: string[];
+    /** set when the ceiling applies only to identities configured for it */
+    conditional?: string;
   }>;
   /** what mortal does NOT claim — agents must not assume these */
   nonGuarantees: string[];
@@ -145,6 +154,7 @@ export class MortalClient {
         name: input.name.trim(),
         createdAt: new Date().toISOString(),
         lifetime: input.lifetime ?? "persistent",
+        ...(input.networkRoute !== undefined ? { networkRoute: input.networkRoute } : {}),
       });
       summary = await this.rpc("identity.create", { manifest });
     }
@@ -192,6 +202,7 @@ export class MortalClient {
         enforcement: row.enforcement,
         description: row.description,
         verifiedBy: [...row.plannedTests],
+        ...(row.conditional !== undefined ? { conditional: row.conditional } : {}),
       })),
       nonGuarantees: [...NON_GUARANTEES],
     };

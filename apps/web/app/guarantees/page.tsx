@@ -20,7 +20,10 @@ export default function Guarantees() {
         <p className="text-mute text-[12px] max-w-2xl">
           every control carries exactly one label. enforced means a passing automated test backs
           it, and the build fails if that mapping breaks. advisory means a declaration shown in
-          the ui, not a technical control. roadmap means not built, and the product says so.
+          the ui, not a technical control. roadmap means not built, and the product says so. a
+          control marked <span className="text-ink">conditional</span> is enforced only for
+          identities configured for it — the identity&apos;s own manifest is what tells you
+          whether it applies.
         </p>
       </section>
 
@@ -46,6 +49,11 @@ export default function Guarantees() {
                   <span className={`text-[10px] px-2 py-0.5 whitespace-nowrap ${BADGE_STYLE[row.enforcement]}`}>
                     {row.enforcement}
                   </span>
+                  {row.conditional !== undefined && (
+                    <div className="text-mute text-[10px] pt-1 max-w-[13rem]">
+                      conditional · {row.conditional}
+                    </div>
+                  )}
                 </td>
                 <td className="py-3 text-mute text-[11px]">{row.plannedTests.join(" ")}</td>
               </tr>

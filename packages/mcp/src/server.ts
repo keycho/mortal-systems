@@ -41,16 +41,28 @@ export function buildServer(client: MortalClient): McpServer {
     "identity_create",
     {
       description:
-        "create a scoped, disposable identity — its own browser profile, files, memory and permissions with a finite lifetime. pass blueprintId (see blueprint_list) or a name for a hand-made identity. lifetime is '30m' / '12h' / '7d' style or 'persistent'. returns the identity with every permission's enforcement level; never trust a control that is not 'enforced'.",
+        "create a scoped, disposable identity — its own browser profile, files, memory and permissions with a finite lifetime. pass blueprintId (see blueprint_list) or a name for a hand-made identity. lifetime is '30m' / '12h' / '7d' style or 'persistent'. pass networkRoute to bind this identity's browser to its own route (proxy like http://host:port or socks5://host:port): with a route the identity's network permission is enforced — every non-local request goes through it with no direct fallback; without one it shares the machine's ip and path (advisory). returns the identity with every permission's enforcement level; never trust a control that is not 'enforced'.",
       inputSchema: {
         blueprintId: z.string().optional(),
         name: z.string().optional(),
         lifetime: z.string().optional(),
+        networkRoute: z
+          .object({ proxy: z.string(), label: z.string().nullable().optional() })
+          .optional(),
       },
     },
-    async (input) => {
+    async ({ blueprintId, name, lifetime, networkRoute }) => {
       try {
-        return json(await client.createIdentity(input));
+        return json(
+          await client.createIdentity({
+            blueprintId,
+            name,
+            lifetime,
+            ...(networkRoute !== undefined
+              ? { networkRoute: { proxy: networkRoute.proxy, label: networkRoute.label ?? null } }
+              : {}),
+          })
+        );
       } catch (e) {
         return err(e);
       }
@@ -124,7 +136,7 @@ export function buildServer(client: MortalClient): McpServer {
     "capabilities",
     {
       description:
-        "what is enforceable vs advisory vs roadmap right now, the full enforcement table with the tests behind each enforced control, and mortal's explicit non-guarantees. feature-detect against this; never assume an unenforced control.",
+        "what is enforceable vs advisory vs roadmap right now, the full enforcement table with the tests behind each enforced control, mortal's explicit non-guarantees, and `conditional`: fields that are enforced only for identities configured for them (today permissions.network, enforced only with an attached route). feature-detect against this, then read the identity's own manifest.permissions.<field>.enforcement — the identity is always authoritative.",
       inputSchema: {},
     },
     async () => {

@@ -115,8 +115,11 @@ describe("the mortal mcp server (real runtime)", () => {
       expect(created.remainingMs).toBeLessThanOrEqual(30 * 60_000);
       // every permission carries its enforcement level — feature-detectable
       expect(created.manifest.permissions.filesystem.enforcement).toBe("enforced");
-      expect(created.manifest.permissions.network.enforcement).toBe("advisory");
       expect(created.manifest.permissions.email.enforcement).toBe("roadmap");
+      // no route requested → this identity's network control is NOT enforced,
+      // whatever the global ceiling says. the identity is authoritative.
+      expect(created.manifest.permissions.network.value).toBe("standard");
+      expect(created.manifest.permissions.network.enforcement).toBe("advisory");
 
       const id = created.summary.id as string;
       const launched = parse(await client.callTool({ name: "identity_launch", arguments: { id } }));
@@ -143,6 +146,30 @@ describe("the mortal mcp server (real runtime)", () => {
       expect(receipt.steps.every((s) => s.ok)).toBe(true);
       expect(receipt.caveats.length).toBeGreaterThan(0);
       expect(fs.existsSync(path.join(root, "profiles", id))).toBe(false);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    "an agent that asks for a network route gets an identity whose network control is really enforced",
+    async () => {
+      const client = await mcpClient();
+      const routed = parse(
+        await client.callTool({
+          name: "identity_create",
+          arguments: {
+            name: "routed agent",
+            lifetime: "30m",
+            networkRoute: { proxy: "http://127.0.0.1:8899", label: "egress-a" },
+          },
+        })
+      );
+      // the schema only lets this say "enforced" because a route is attached
+      expect(routed.manifest.permissions.network.value).toBe("routed");
+      expect(routed.manifest.permissions.network.enforcement).toBe("enforced");
+      expect(routed.manifest.permissions.network.route.proxy).toBe("http://127.0.0.1:8899");
+      expect(routed.manifest.permissions.network.route.label).toBe("egress-a");
+      await client.callTool({ name: "identity_destroy", arguments: { id: routed.summary.id } });
     },
     TEST_TIMEOUT
   );
@@ -197,9 +224,18 @@ describe("the mortal mcp server (real runtime)", () => {
       expect(caps.enforceable.length).toBeGreaterThan(0);
       expect(caps.roadmap.length).toBeGreaterThan(0);
       expect(caps.reservedMethods).toContain("identity.attachAgent");
-      const network = caps.enforcementTable.find((r: any) => r.field === "permissions.network");
-      expect(network.enforcement).toBe("advisory");
       expect(caps.nonGuarantees.length).toBeGreaterThan(0);
+
+      // network is enforceable (G19 backs it) but CONDITIONALLY so: agent code
+      // that reads only the enforceable set would over-trust a routeless
+      // identity, so the precondition ships alongside it.
+      expect(caps.enforceable).toContain("permissions.network");
+      expect(caps.advisory).not.toContain("permissions.network");
+      expect(caps.conditional["permissions.network"]).toMatch(/route/);
+      const network = caps.enforcementTable.find((r: any) => r.field === "permissions.network");
+      expect(network.enforcement).toBe("enforced");
+      expect(network.verifiedBy).toContain("G19");
+      expect(network.conditional).toMatch(/route/);
 
       const blueprints = parse(await client.callTool({ name: "blueprint_list", arguments: {} }));
       expect(blueprints).toHaveLength(3);

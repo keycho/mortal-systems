@@ -127,6 +127,16 @@ export interface RuntimeCapabilities {
   enforceable: string[];
   advisory: string[];
   roadmap: string[];
+  /**
+   * fields whose enforcement is conditional on per-identity configuration:
+   * field -> the precondition, in plain language. a field listed here appears
+   * in `enforceable` because the control is real and tested, but it only
+   * applies to identities configured for it — agent code must read the
+   * identity's own manifest.permissions.<field>.enforcement to know whether
+   * THIS identity has it. (today: permissions.network, enforced only with an
+   * attached route.)
+   */
+  conditional: Record<string, string>;
   /** reserved contract methods that return NOT_IMPLEMENTED in the poc */
   reservedMethods: string[];
 }
