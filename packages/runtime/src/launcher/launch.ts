@@ -190,10 +190,11 @@ export class Launcher implements LauncherApi {
     // shared path (advisory). this is what makes network enforcement real.
     const network = manifest.permissions.network;
     if (network.value === "routed" && network.route !== null) {
+      // bind chromium to the identity's proxy for this launch: every non-local
+      // request goes through that route and nowhere else, with no direct
+      // fallback. loopback stays direct (chromium's default bypass) so the
+      // companion ↔ runtime channel is never routed through an external proxy.
       args.push(`--proxy-server=${network.route.proxy}`);
-      // never let a routed identity silently bypass its proxy for direct-connect
-      // hosts; only explicit loopback stays direct (devtools).
-      args.push("--proxy-bypass-list=<-loopback>");
     }
 
     const companionDir = this.companionInstanceDir(id);

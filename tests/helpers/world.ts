@@ -7,7 +7,12 @@ import { chromium, type Browser, type Page } from "playwright-core";
 // side-effect import wires the launcher for in-proc runtimes
 import "@mortal/runtime";
 import { MortalRuntime } from "@mortal/runtime";
-import { composeManifest, generateIdentityId, type RpcResponse } from "@mortal/schema";
+import {
+  composeManifest,
+  generateIdentityId,
+  type NetworkRoute,
+  type RpcResponse,
+} from "@mortal/schema";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(here, "../..");
@@ -38,7 +43,12 @@ export async function startInProcRuntime(root: string): Promise<MortalRuntime> {
 export function createIdentity(
   runtime: MortalRuntime,
   name: string,
-  opts: { lifetime?: string; retainHistory?: boolean; color?: string } = {}
+  opts: {
+    lifetime?: string;
+    retainHistory?: boolean;
+    color?: string;
+    networkRoute?: NetworkRoute;
+  } = {}
 ): string {
   const id = generateIdentityId();
   runtime.identities.create({
@@ -49,9 +59,15 @@ export function createIdentity(
       lifetime: opts.lifetime ?? "12h",
       retainHistory: opts.retainHistory,
       color: opts.color ?? "#4DA3FF",
+      networkRoute: opts.networkRoute,
     }),
   });
   return id;
+}
+
+/** read an identity's stored manifest (for asserting enforcement labels) */
+export function manifestOf(runtime: MortalRuntime, id: string) {
+  return runtime.identities.get(id).manifest!;
 }
 
 export interface IdentityBrowser {
