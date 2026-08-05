@@ -7,9 +7,13 @@ import { UsageError } from "./usage.js";
 import { CLI_VERSION } from "./version.js";
 import { cmdBlueprints } from "./commands/blueprints.js";
 import { cmdCapabilities } from "./commands/capabilities.js";
+import { cmdCreate } from "./commands/create.js";
+import { cmdDestroy } from "./commands/destroy.js";
+import { cmdLaunch, cmdResume } from "./commands/launch.js";
 import { cmdList } from "./commands/list.js";
 import { cmdShow } from "./commands/show.js";
 import { cmdStatus } from "./commands/status.js";
+import { cmdSuspend } from "./commands/suspend.js";
 
 const GLOBAL_HELP = `mortal — drive the local mortal identity runtime from the shell
 
@@ -42,10 +46,12 @@ const COMMANDS: Record<string, Command> = {
   blueprints: cmdBlueprints,
   show: cmdShow,
   capabilities: cmdCapabilities,
+  create: cmdCreate,
+  launch: cmdLaunch,
+  suspend: cmdSuspend,
+  resume: cmdResume,
+  destroy: cmdDestroy,
 };
-
-/** commands wired in later stages still get listed in help; fail honestly */
-const PLANNED = ["create", "launch", "suspend", "resume", "destroy"];
 
 function reportError(err: unknown, jsonMode: boolean, errW: (s: string) => void): number {
   if (err instanceof UsageError) {
@@ -103,12 +109,7 @@ async function main(): Promise<number> {
   const jsonMode = rest.includes("--json");
   const run = COMMANDS[command];
   if (run === undefined) {
-    const planned = PLANNED.includes(command);
-    err(
-      planned
-        ? `mortal: "${command}" is not implemented yet in this build\n`
-        : `mortal: unknown command "${command}"\nrun "mortal --help" for the command list.\n`
-    );
+    err(`mortal: unknown command "${command}"\nrun "mortal --help" for the command list.\n`);
     return 2;
   }
 
