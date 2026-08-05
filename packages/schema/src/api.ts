@@ -171,7 +171,7 @@ export interface RuntimeCapabilities {
    * applies to identities configured for it — agent code must read the
    * identity's own manifest.permissions.<field>.enforcement to know whether
    * THIS identity has it. (today: permissions.network, enforced only with an
-   * attached route.)
+   * attached route; permissions.tools, enforced only with a declared scope.)
    */
   conditional: Record<string, string>;
   /** reserved contract methods that return NOT_IMPLEMENTED in the poc */

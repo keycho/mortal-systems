@@ -22,8 +22,8 @@ export default function Guarantees() {
           it, and the build fails if that mapping breaks. advisory means a declaration shown in
           the ui, not a technical control. roadmap means not built, and the product says so. a
           control marked <span className="text-ink">conditional</span> is enforced only for
-          identities configured for it — the identity&apos;s own manifest is what tells you
-          whether it applies.
+          identities configured for it — a network route attached, a tool scope declared — and
+          the identity&apos;s own manifest is what tells you whether it applies.
         </p>
       </section>
 

@@ -120,8 +120,8 @@ describe("permission rows (workspace permissions tab)", () => {
     expect(row.description).toContain("bring your own proxy");
   });
 
-  // BADGE-1 (tool scope half): the tool-scope badge follows THIS identity's
-  // manifest, and names what the scope actually allows.
+  // the tool-scope flip must not flatten either: the badge follows THIS
+  // identity's manifest, and the row names what the scope actually allows.
   it("renders the tool scope: open by default, scoped when declared", () => {
     const open = composeManifest({
       id: summary.id,
@@ -145,6 +145,7 @@ describe("permission rows (workspace permissions tab)", () => {
     });
     render(<PermissionRows manifest={scoped} />);
     const scopedRow = screen.getByTestId("perm-permissions.tools").textContent!;
+    expect(scopedRow).toContain("enforced");
     expect(scopedRow).toContain("notes (read_note)");
     expect(scopedRow).toContain("every other brokered call is refused");
   });

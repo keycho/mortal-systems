@@ -331,6 +331,15 @@ describe("the mortal mcp server (real runtime)", () => {
       expect(network.verifiedBy).toContain("G19");
       expect(network.conditional).toMatch(/route/);
 
+      // tool scoping flipped the same way, behind G20, and carries the same
+      // precondition — an identity with no declared scope is open, not scoped
+      expect(caps.enforceable).toContain("permissions.tools");
+      expect(caps.advisory).not.toContain("permissions.tools");
+      expect(caps.conditional["permissions.tools"]).toMatch(/scope/);
+      const tools = caps.enforcementTable.find((r: any) => r.field === "permissions.tools");
+      expect(tools.enforcement).toBe("enforced");
+      expect(tools.verifiedBy).toContain("G20");
+
       const blueprints = parse(await client.callTool({ name: "blueprint_list", arguments: {} }));
       expect(blueprints).toHaveLength(3);
     },

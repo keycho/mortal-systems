@@ -10,6 +10,7 @@
  *  G10-G14                              tests/lifecycle/*.test.ts (runtime as a real child process)
  *  G17                                  packages/runtime/test/blueprints.test.ts (+ schema purity suite)
  *  G19 (network route)                  tests/isolation/network.test.ts (recording proxy + real chromium)
+ *  G20 (tool scope)                     tests/isolation/tools.test.ts (two real mcp servers over stdio)
  *  BADGE-1                              apps/manager/test/manifest-activity.test.tsx and
  *                                       apps/companion/test/panels-render.test.ts
  */
@@ -22,13 +23,11 @@ export const GUARANTEES_MAP: Record<string, string[]> = {
   "lifecycle.expiry": ["G10", "G11"],
   "lifecycle.destruction": ["G12", "G13", "G14"],
   "permissions.network": ["G19"],
+  "permissions.tools": ["G20"],
 };
 
 export const BADGE_TESTS: Record<string, string[]> = {
   "permissions.wallet": ["BADGE-1"],
-  // schema 2.2 raised the ceiling; the label stays advisory until G20 proves
-  // an out-of-scope call to a live tool is really refused
-  "permissions.tools": ["BADGE-1"],
   "permissions.email": ["BADGE-1"],
   "privacy.redaction": ["BADGE-1"],
 };

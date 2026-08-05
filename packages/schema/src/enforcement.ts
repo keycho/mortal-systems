@@ -112,15 +112,15 @@ export const ENFORCEMENT_TABLE: readonly EnforcementRow[] = [
       "enforced only for identities with a network route attached; routeless identities remain advisory",
   },
   {
-    // ceiling raised in schema 2.2; the LABEL stays advisory until G20 passes.
-    // no label flips to "enforced" without a passing test.
     field: "permissions.tools",
     label: "tool scope",
     value: "open | scoped",
-    enforcement: "advisory",
+    enforcement: "enforced",
     description:
-      "an identity may declare which brokered mcp servers and tools its agent can reach. the runtime is building the refusal at the broker; until the guarantee test proves an out-of-scope call to a live, reachable tool is actually refused, this stays advisory.",
-    plannedTests: ["BADGE-1"],
+      "an identity that declares a tool scope is held to it: the runtime checks that scope before it touches any upstream server, so a call to a server or tool outside the scope is refused even when that tool is live and working, and the refusal is journaled on the identity. an identity that declares no scope stays 'open' and may reach whatever the operator registered — the schema cannot express enforcement without a declared scope, so the badge only reads enforced when the control is real. mortal scopes the calls it brokers; a connection an agent opens on its own is outside this boundary.",
+    plannedTests: ["G20"],
+    conditional:
+      "enforced only for identities that declare a tool scope; identities with no declared scope are open and remain advisory",
   },
   {
     field: "permissions.email",
