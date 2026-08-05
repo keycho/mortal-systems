@@ -86,6 +86,12 @@ export class Launcher implements LauncherApi {
     try {
       this.browsers = await discoverBrowsers();
       this.warnings = discoveryWarnings(this.browsers);
+      // which binary identities actually get is operationally load-bearing
+      // (a stripped env var here cost a day of ci archaeology) — say it once
+      const def = this.browsers[0];
+      if (def) {
+        log.info(`browser: ${def.kind} ${def.version ?? "?"} via ${def.source} — ${def.path}`);
+      }
     } catch (err) {
       // no browser is a hard error for launch, not for runtime startup
       this.browsers = [];

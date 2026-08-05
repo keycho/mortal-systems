@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": ["MORTAL_*", "LIMINAL_*"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -11,7 +12,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "outputs": [],
+      "env": ["MORTAL_BROWSER_PATH", "MORTAL_HEADLESS"]
     },
     "dev": {
       "dependsOn": ["^build"],
