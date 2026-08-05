@@ -1,0 +1,26 @@
+{
+  "name": "@mortal/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "the mortal cli: a scriptable client for the local mortal runtime — create, launch, inspect, and destroy identities from the shell. a thin wrapper over the runtime api; it adds no runtime capability.",
+  "bin": {
+    "mortal": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node --input-type=module -e \"import fs from 'node:fs'; fs.chmodSync('dist/cli.js', 0o755)\"",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mortal/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

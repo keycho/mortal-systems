@@ -26,6 +26,9 @@ importers:
       '@eslint/js':
         specifier: ^9.30.0
         version: 9.39.5
+      '@mortal/cli':
+        specifier: workspace:*
+        version: link:packages/cli
       eslint:
         specifier: ^9.30.0
         version: 9.39.5(jiti@2.7.0)
@@ -144,6 +147,22 @@ importers:
         version: 5.9.3
 
   packages/blueprints-first-party:
+    dependencies:
+      '@mortal/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(tsx@4.23.5)
+
+  packages/cli:
     dependencies:
       '@mortal/schema':
         specifier: workspace:*
