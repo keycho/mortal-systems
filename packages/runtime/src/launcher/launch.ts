@@ -196,10 +196,23 @@ export class Launcher implements LauncherApi {
       args.push("--no-sandbox", "--disable-setuid-sandbox");
     }
 
+    // keep the browser's stderr: chromium reports extension-load failures
+    // only there, and "companion did not load" is undiagnosable without it.
+    // lives inside the profile, so destruction (D3) removes it with the rest.
+    const stderrLog = path.join(profileDir, "browser-stderr.log");
+    let stderrFd: number | undefined;
+    try {
+      stderrFd = fs.openSync(stderrLog, "a");
+    } catch {}
     const child = spawn(browser.path, args, {
       detached: os.platform() !== "win32",
-      stdio: "ignore",
+      stdio: ["ignore", "ignore", stderrFd ?? "ignore"],
     });
+    if (stderrFd !== undefined) {
+      try {
+        fs.closeSync(stderrFd);
+      } catch {}
+    }
     const pid = child.pid;
     if (pid === undefined) {
       throw errors.internal(`failed to spawn browser process for "${id}"`);
@@ -406,8 +419,20 @@ export class Launcher implements LauncherApi {
         .filter((t) => t.url.startsWith("chrome-extension://"))
         .map((t) => t.url)
         .join(" · ");
+      let extensionStderr = "";
+      try {
+        extensionStderr = fs
+          .readFileSync(path.join(this.runtime.root, "profiles", id, "browser-stderr.log"), "utf8")
+          .split("\n")
+          .filter((line) => /extension/i.test(line))
+          .slice(-3)
+          .join(" | ")
+          .slice(0, 600);
+      } catch {}
       log.warn(
-        `companion for ${id} never appeared in the browser's target list (extension targets seen: ${seen || "none"})`
+        `companion for ${id} never appeared in the browser's target list (extension targets seen: ${
+          seen || "none"
+        }${extensionStderr ? `; browser stderr: ${extensionStderr}` : ""})`
       );
       if (!this.warnings.includes(warning)) this.warnings.push(warning);
     })();
