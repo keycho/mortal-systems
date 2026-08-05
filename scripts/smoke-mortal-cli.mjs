@@ -34,7 +34,8 @@ if (!env.MORTAL_BROWSER_PATH && fs.existsSync(bundledChromium)) {
   env.MORTAL_BROWSER_PATH = bundledChromium;
 }
 
-const runtime = spawn(process.execPath, [runtimeCli, "serve", "--root", root], {
+// seeded so the blueprints leg gates real data, exactly as runtime smoke does
+const runtime = spawn(process.execPath, [runtimeCli, "serve", "--root", root, "--seed-first-party"], {
   stdio: ["ignore", "ignore", "pipe"],
   env,
 });
@@ -93,6 +94,18 @@ try {
     fail(`no browser detected — the launch leg of this smoke needs chromium/chrome/brave or MORTAL_BROWSER_PATH`);
   }
 
+  // -- blueprints ------------------------------------------------------------
+  mortal(["blueprints"]); // human path
+  const blueprints = json(mortal(["blueprints", "--json"]), "blueprints --json");
+  if (blueprints.length !== 3) fail(`expected the 3 seeded first-party blueprints, got ${blueprints.length}`);
+  for (const bp of blueprints) {
+    if (!bp.id?.startsWith("bpt_")) fail(`blueprint with bad id: ${bp.id}`);
+    if (bp.permissions?.wallet?.enforcement !== "advisory") fail(`${bp.name}: wallet must read advisory`);
+    if (bp.permissions?.email?.enforcement !== "roadmap") fail(`${bp.name}: email must read roadmap`);
+    if (bp.permissions?.filesystem?.enforcement !== "enforced") fail(`${bp.name}: filesystem must read enforced`);
+    if (bp.privacy?.retainHistory?.enforcement !== "enforced") fail(`${bp.name}: retainHistory must read enforced`);
+  }
+
   // -- create ----------------------------------------------------------------
   const created = json(mortal(["create", "research", "--lifetime", "15m", "--json"]), "create --json");
   const id = created.summary?.id;
@@ -104,6 +117,15 @@ try {
   // a second, persistent identity: proves destroy touches exactly one identity
   const kept = json(mortal(["create", "audit-notes", "--lifetime", "persistent", "--json"]), "create #2");
   const keptId = kept.summary?.id;
+
+  // the --blueprint path, resolved by name like a user would type it
+  const fromBp = json(
+    mortal(["create", "contract-review", "--blueprint", "Client Operations", "--json"]),
+    "create --blueprint"
+  );
+  if (!fromBp.summary?.blueprint?.source?.includes("first-party")) {
+    fail(`create --blueprint did not record the blueprint ref: ${JSON.stringify(fromBp.summary?.blueprint)}`);
+  }
 
   // invalid lifetime: usage error, exit 2, nothing on stdout
   const badLifetime = mortal(["create", "tmp", "--lifetime", "1h30m"], { expect: 2 });
@@ -129,6 +151,33 @@ try {
   if (!row || row.state !== "running") fail(`list did not show ${id} running`);
   mortal(["list"]); // human table path
 
+  // -- show ------------------------------------------------------------------
+  mortal(["show", "research"]); // human path
+  const shown = json(mortal(["show", "research", "--json"]), "show --json");
+  if (JSON.stringify(Object.keys(shown)) !== JSON.stringify(["summary", "manifest", "activity"])) {
+    fail(`show --json shape drifted: ${JSON.stringify(Object.keys(shown))}`);
+  }
+  if (shown.summary?.id !== id) fail(`show resolved the wrong identity: ${shown.summary?.id}`);
+  if (shown.manifest?.permissions?.memoryScope?.enforcement !== "enforced") {
+    fail("show manifest lost the memoryScope enforced label");
+  }
+  if (!Array.isArray(shown.activity) || shown.activity.length === 0) fail("show carried no activity");
+
+  // -- suspend / resume ------------------------------------------------------
+  const suspended = json(mortal(["suspend", "research", "--json"]), "suspend --json");
+  if (suspended.state !== "suspended") fail(`suspend left state ${suspended.state}`);
+  if (!json(mortal(["list", "--state", "suspended", "--json"]), "list --state suspended").some((s) => s.id === id)) {
+    fail("suspended identity missing from --state suspended");
+  }
+  const resumed = json(mortal(["resume", "research", "--json"]), "resume --json");
+  if (JSON.stringify(Object.keys(resumed)) !== JSON.stringify(["id", "name", "state", "pid", "cdpEndpoint", "expiresAt"])) {
+    fail(`resume --json shape drifted: ${JSON.stringify(Object.keys(resumed))}`);
+  }
+  if (resumed.state !== "running") fail(`resume left state ${resumed.state}`);
+  if (!/^ws:\/\/127\.0\.0\.1:\d+\//.test(resumed.cdpEndpoint ?? "")) {
+    fail(`resume returned a bad cdp endpoint: ${resumed.cdpEndpoint}`);
+  }
+
   // -- destroy: gate first, then the receipt --------------------------------
   const refused = mortal(["destroy", "audit-notes"], { expect: 2 });
   if (refused.stdout.length !== 0) fail("destroy refusal must not write to stdout");
@@ -153,6 +202,9 @@ try {
   if (!tombstones.some((s) => s.id === id && s.state === "destroyed")) {
     fail("tombstone missing from --state destroyed");
   }
+  // a destroyed identity shows only its tombstone: manifest gone, honestly null
+  const tomb = json(mortal(["show", id, "--json"]), "show destroyed --json");
+  if (tomb.manifest !== null) fail("destroyed identity still carried a manifest in show");
 
   // -- pipelines: closing the read end must not crash the cli ----------------
   const piped = spawnSync(
@@ -184,7 +236,7 @@ try {
   if (code !== 0) fail(`fixture runtime clean shutdown expected exit 0, got ${code}`);
 
   console.log(
-    "mortal cli smoke: OK — booted dist/cli.js against a clean fixture runtime; status, create (+grammar error), launch (real browser, stable json shape), list, destroy (gate + full receipt, caveats verbatim), capabilities; clean shutdown"
+    "mortal cli smoke: OK — booted dist/cli.js against a clean fixture runtime; every user-facing command gated: status, blueprints (enforcement honest), create (+grammar error, +--blueprint), launch (real browser, stable json shape), list, show (live + tombstone), suspend, resume, destroy (gate + full receipt, caveats verbatim), capabilities, piped output; clean shutdown"
   );
 } finally {
   cleanup();
