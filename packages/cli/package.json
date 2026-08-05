@@ -5,9 +5,10 @@
   "type": "module",
   "description": "the mortal cli: a scriptable client for the local mortal runtime — create, launch, inspect, and destroy identities from the shell. a thin wrapper over the runtime api; it adds no runtime capability.",
   "bin": {
-    "mortal": "./dist/cli.js"
+    "mortal": "./bin/mortal.mjs"
   },
   "files": [
+    "bin",
     "dist"
   ],
   "scripts": {

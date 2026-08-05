@@ -18,6 +18,7 @@ apps/
 packages/
   schema/      @mortal/schema — zod manifests, api types, constants (imported by everything)
   runtime/     @mortal/runtime — the local service: identities, lifecycle, deletion, api
+  cli/         @mortal/cli — the `mortal` command: scriptable client for the runtime
   sdk/         @mortal/sdk — stub, types only
   mcp/         @mortal/mcp — stub, empty
 docs/          PROGRESS.md · DECISIONS.md
