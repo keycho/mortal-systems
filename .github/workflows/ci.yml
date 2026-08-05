@@ -30,6 +30,16 @@ jobs:
           # setuid sandbox helper, playwright's chromium does not — lift the
           # restriction so its sandbox can start (no-op where already lifted)
           sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          # gh runner images ship managed browser policies (e.g. extension
+          # blocklists) that make chromium silently ignore --load-extension —
+          # no stderr, extension just absent. print what shipped, then remove.
+          for d in /etc/chromium/policies /etc/opt/chrome/policies; do
+            if [ -d "$d" ]; then
+              echo "runner ships browser policies in $d:"
+              sudo find "$d" -name '*.json' -exec cat {} \;
+              sudo rm -rf "$d"
+            fi
+          done
           pnpm --filter mortal-tests exec playwright-core install --with-deps chromium
           BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
           test -x "$BROWSER"
@@ -62,6 +72,11 @@ jobs:
       - run: pnpm check
         env:
           MORTAL_HEADLESS: "1"
+      # raw browser stderr from any identity profiles that survived a failed
+      # run — chromium explains extension problems only there
+      - name: browser stderr on failure
+        if: failure()
+        run: sh -c 'tail -n 40 /tmp/mortal-*/profiles/*/browser-stderr.log 2>/dev/null | head -200; true'
 
   # the true clean-clone path, on every push. four fresh-clone resolution
   # failures reached a dev machine that warm checkouts could never reproduce
@@ -89,6 +104,16 @@ jobs:
       - name: chromium for browser suites
         run: |
           sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          # gh runner images ship managed browser policies (e.g. extension
+          # blocklists) that make chromium silently ignore --load-extension —
+          # no stderr, extension just absent. print what shipped, then remove.
+          for d in /etc/chromium/policies /etc/opt/chrome/policies; do
+            if [ -d "$d" ]; then
+              echo "runner ships browser policies in $d:"
+              sudo find "$d" -name '*.json' -exec cat {} \;
+              sudo rm -rf "$d"
+            fi
+          done
           pnpm --filter mortal-tests exec playwright-core install --with-deps chromium
           BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
           test -x "$BROWSER"
