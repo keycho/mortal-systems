@@ -12,6 +12,7 @@ import {
   generateIdentityId,
   type NetworkRoute,
   type RpcResponse,
+  type ToolScope,
 } from "@mortal/schema";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +49,7 @@ export function createIdentity(
     retainHistory?: boolean;
     color?: string;
     networkRoute?: NetworkRoute;
+    toolScope?: ToolScope;
   } = {}
 ): string {
   const id = generateIdentityId();
@@ -60,6 +62,7 @@ export function createIdentity(
       retainHistory: opts.retainHistory,
       color: opts.color ?? "#4DA3FF",
       networkRoute: opts.networkRoute,
+      toolScope: opts.toolScope,
     }),
   });
   return id;

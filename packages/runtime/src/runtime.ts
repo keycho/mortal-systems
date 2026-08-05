@@ -28,6 +28,7 @@ import { EventBus } from "./api/events.js";
 import { findIdentityByToken, getOrCreateTokenSecret, tokenForIdentity } from "./api/tokens.js";
 import { Scheduler, type SchedulerOptions } from "./scheduler/scheduler.js";
 import { BlueprintService } from "./blueprints/pipeline.js";
+import { ToolBroker } from "./tools/broker.js";
 
 /**
  * the contract the day-2 chromium launcher fulfills. kept as an interface so
@@ -79,6 +80,8 @@ export class MortalRuntime {
   readonly adminToken: string;
   readonly startedAt: string;
   readonly blueprints: BlueprintService;
+  /** the mcp boundary: brokered tool calls, checked against each identity's scope */
+  readonly tools: ToolBroker;
   scheduler: Scheduler | null = null;
   /** wired by the day-2 launcher; null means launch/suspend/resume are unavailable */
   launcher: LauncherApi | null = null;
@@ -102,6 +105,7 @@ export class MortalRuntime {
       halt: async () => ({ halted: false, detail: "no process (launcher not attached)" }),
     });
     this.blueprints = new BlueprintService(this);
+    this.tools = new ToolBroker(this);
   }
 
   /** the per-identity companion bearer token (stamped into the instance config) */
@@ -172,6 +176,7 @@ export class MortalRuntime {
 
   async stop(): Promise<void> {
     this.scheduler?.stop();
+    await this.tools.stop();
     if (this.launcher) await this.launcher.stopAll("runtime shutdown");
     this.events.stop();
     if (this.api) await this.api.close();

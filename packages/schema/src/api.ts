@@ -53,6 +53,8 @@ export const ACTIVITY_EVENTS = [
   "blueprint_installed",
   "exported",
   "expiry_scheduled",
+  "tool_called",
+  "tool_refused",
   "expiring",
   "expired_late",
   "destroy_started",
@@ -86,6 +88,41 @@ export interface IdentitySummary {
   storageBytes: number;
   /** display ordinal for "space NNN" rendering, assigned at creation */
   spaceNumber: number;
+}
+
+// ---- brokered tools ----
+
+/**
+ * an mcp server the OPERATOR registered with the runtime (tool-servers.json).
+ * nothing on the agent surface can add one: an agent that could register a
+ * server could route around its own scope, so registration is not an agent
+ * capability at all.
+ */
+export interface ToolServerSummary {
+  name: string;
+  /** how the runtime reaches it — stdio only in v1 */
+  transport: "stdio";
+  command: string;
+  connected: boolean;
+  /** connection error, when the server is registered but unreachable */
+  error: string | null;
+}
+
+/** one tool as offered to an identity, already filtered by its scope */
+export interface BrokeredTool {
+  server: string;
+  name: string;
+  description: string | null;
+  inputSchema: Record<string, unknown> | null;
+}
+
+export interface ToolCallResult {
+  server: string;
+  tool: string;
+  /** the upstream mcp content blocks, passed through unmodified */
+  content: unknown;
+  /** true when the upstream server itself reported a tool error */
+  isError: boolean;
 }
 
 export interface BlueprintSummary {
@@ -217,6 +254,19 @@ export interface RpcContract {
   "identity.destroy": {
     params: { id: string; reason?: string };
     result: DestructionReport;
+  };
+  /** the operator's registered servers — not filtered by any identity's scope */
+  "tools.listServers": { params: Record<string, never>; result: ToolServerSummary[] };
+  /** the tools THIS identity may reach: the registry filtered by its scope */
+  "identity.listTools": { params: { id: string }; result: BrokeredTool[] };
+  /**
+   * broker one tool call on behalf of an identity. the runtime checks the
+   * identity's manifest scope BEFORE touching the upstream server; a call
+   * outside the scope is refused with FORBIDDEN and journaled.
+   */
+  "identity.callTool": {
+    params: { id: string; server: string; tool: string; arguments?: Record<string, unknown> };
+    result: ToolCallResult;
   };
   "blueprint.validate": {
     params: { manifestJson: string };

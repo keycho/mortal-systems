@@ -3,6 +3,7 @@ import {
   identityIdSchema,
   identityStateSchema,
   RESERVED_METHODS,
+  toolNameSchema,
   toValidationIssues,
 } from "@mortal/schema";
 import { errors, RuntimeError } from "../errors.js";
@@ -23,6 +24,14 @@ const listParams = z
   .strict();
 const activityParams = z
   .object({ identityId: identityIdSchema, limit: z.number().int().min(1).max(1000).optional() })
+  .strict();
+const callToolParams = z
+  .object({
+    id: identityIdSchema,
+    server: toolNameSchema,
+    tool: toolNameSchema,
+    arguments: z.record(z.unknown()).optional(),
+  })
   .strict();
 const blueprintIdSchema = z.string().regex(/^bpt_[A-Za-z0-9_-]{10,32}$/);
 const blueprintIdParams = z.object({ id: blueprintIdSchema }).strict();
@@ -103,6 +112,16 @@ export async function dispatchRpc(
       case "identity.createFromBlueprint": {
         const p = createFromBlueprintParams.parse(input);
         return runtime.blueprints.createIdentity(p);
+      }
+      case "tools.listServers":
+        return runtime.tools.listServers();
+      case "identity.listTools": {
+        const p = idParams.parse(input);
+        return await runtime.tools.listTools(p.id);
+      }
+      case "identity.callTool": {
+        const p = callToolParams.parse(input);
+        return await runtime.tools.callTool(p.id, p.server, p.tool, p.arguments ?? {});
       }
       case "blueprint.validate": {
         const p = blueprintValidateParams.parse(input);

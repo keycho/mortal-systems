@@ -211,6 +211,9 @@ importers:
 
   packages/runtime:
     dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.12.0
+        version: 1.30.0(zod@3.25.76)
       '@mortal/blueprints':
         specifier: workspace:*
         version: link:../blueprints-first-party
@@ -270,6 +273,9 @@ importers:
 
   tests:
     dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.12.0
+        version: 1.30.0(zod@3.25.76)
       '@mortal/blueprints':
         specifier: workspace:*
         version: link:../packages/blueprints-first-party
@@ -285,6 +291,9 @@ importers:
       playwright-core:
         specifier: ^1.53.0
         version: 1.62.1
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
