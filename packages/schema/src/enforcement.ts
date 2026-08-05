@@ -112,6 +112,17 @@ export const ENFORCEMENT_TABLE: readonly EnforcementRow[] = [
       "enforced only for identities with a network route attached; routeless identities remain advisory",
   },
   {
+    // ceiling raised in schema 2.2; the LABEL stays advisory until G20 passes.
+    // no label flips to "enforced" without a passing test.
+    field: "permissions.tools",
+    label: "tool scope",
+    value: "open | scoped",
+    enforcement: "advisory",
+    description:
+      "an identity may declare which brokered mcp servers and tools its agent can reach. the runtime is building the refusal at the broker; until the guarantee test proves an out-of-scope call to a live, reachable tool is actually refused, this stays advisory.",
+    plannedTests: ["BADGE-1"],
+  },
+  {
     field: "permissions.email",
     label: "email",
     value: "none | temporary | dedicated",
@@ -188,6 +199,7 @@ export const DESTROYED_MEANS =
 export const NON_GUARANTEES: readonly string[] = [
   "identities without a network route attached share your ip address",
   "mortal does not provide routing or egress — it enforces the route you attach; bring your own proxy",
+  "mortal scopes the tool calls it brokers — an agent holding its own connection to a server is outside that boundary",
   "identities on the same machine share your device fingerprint",
   "websites can correlate identities via behavior, reused accounts, or reused wallets",
   "clipboard contents you carry between identities are not separated",

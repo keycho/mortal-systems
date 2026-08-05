@@ -1,4 +1,4 @@
-import type { Enforcement, IdentityManifest } from "@mortal/schema";
+import type { Enforcement, IdentityManifest, ToolScope } from "@mortal/schema";
 import { ENFORCEMENT_TABLE } from "@mortal/schema";
 import { EnforcementBadge } from "./EnforcementBadge.js";
 
@@ -10,6 +10,24 @@ const table = new Map(ENFORCEMENT_TABLE.map((r) => [r.field, r]));
  */
 export const NETWORK_POSITION =
   "mortal enforces the route you attach; it does not provide routing. bring your own proxy.";
+
+/**
+ * the honest edge of tool scoping: mortal decides what it will broker. it
+ * cannot police a connection an agent opened on its own.
+ */
+export const TOOL_BOUNDARY =
+  "mortal scopes the tool calls it brokers — a connection an agent opens on its own is outside this boundary.";
+
+/** "notes (read_note) · files (all tools)" — the scope in the operator's words */
+export function describeToolScope(scope: ToolScope): string {
+  if (scope.servers.length === 0) {
+    return "this identity's agent may reach no brokered tools at all.";
+  }
+  const parts = scope.servers.map(
+    (s) => `${s.server} (${s.tools === null ? "all tools" : s.tools.join(", ")})`
+  );
+  return `this identity's agent may reach only ${parts.join(" · ")}. every other brokered call is refused.`;
+}
 
 /** one policy: title, plain-language line, enforcement — technical depth behind the group's disclosure */
 export function PermissionRow({
@@ -123,7 +141,10 @@ export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
         />
       </Group>
 
-      <Group title="connections" fields={["permissions.network", "permissions.wallet"]}>
+      <Group
+        title="connections"
+        fields={["permissions.network", "permissions.tools", "permissions.wallet"]}
+      >
         <PermissionRow
           field="permissions.network"
           title="network route"
@@ -139,6 +160,18 @@ export function PermissionRows({ manifest }: { manifest: IdentityManifest }) {
           }
           enforcement={manifest.permissions.network.enforcement}
           note={NETWORK_POSITION}
+        />
+        <PermissionRow
+          field="permissions.tools"
+          title="tool scope"
+          plain={
+            manifest.permissions.tools.value === "scoped" &&
+            manifest.permissions.tools.scope !== null
+              ? describeToolScope(manifest.permissions.tools.scope)
+              : "this identity's agent can reach every tool mortal brokers. no scope is declared."
+          }
+          enforcement={manifest.permissions.tools.enforcement}
+          note={TOOL_BOUNDARY}
         />
         <PermissionRow
           field="permissions.wallet"

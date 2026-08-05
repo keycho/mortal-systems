@@ -6,6 +6,7 @@ import {
   MANIFEST_VERSION,
   type IdentityManifest,
   type NetworkRoute,
+  type ToolScope,
 } from "./manifest.js";
 import type { ManifestOverrides } from "./api.js";
 
@@ -36,6 +37,14 @@ export interface ComposeManifestInput {
    * combination unrepresentable.
    */
   networkRoute?: NetworkRoute;
+  /**
+   * declare which brokered tools this identity's agent may reach: when
+   * present, tools becomes value "scoped" / enforcement "enforced" and the
+   * runtime refuses every call outside it. absent → open / advisory (mortal
+   * brokers whatever is registered). the schema makes any other combination
+   * unrepresentable.
+   */
+  toolScope?: ToolScope;
   /** chrome web store ids beyond the always-present companion */
   extensions?: string[];
   blueprint?: { source: string | null; version: string | null; signature: string | null };
@@ -84,6 +93,10 @@ export function composeManifest(input: ComposeManifestInput): IdentityManifest {
         input.networkRoute !== undefined
           ? { value: "routed", enforcement: "enforced", route: input.networkRoute }
           : { value: "standard", enforcement: "advisory", route: null },
+      tools:
+        input.toolScope !== undefined
+          ? { value: "scoped", enforcement: "enforced", scope: input.toolScope }
+          : { value: "open", enforcement: "advisory", scope: null },
     },
     privacy: {
       retainHistory: { value: input.retainHistory ?? true, enforcement: "enforced" },

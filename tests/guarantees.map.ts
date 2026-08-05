@@ -26,6 +26,9 @@ export const GUARANTEES_MAP: Record<string, string[]> = {
 
 export const BADGE_TESTS: Record<string, string[]> = {
   "permissions.wallet": ["BADGE-1"],
+  // schema 2.2 raised the ceiling; the label stays advisory until G20 proves
+  // an out-of-scope call to a live tool is really refused
+  "permissions.tools": ["BADGE-1"],
   "permissions.email": ["BADGE-1"],
   "privacy.redaction": ["BADGE-1"],
 };

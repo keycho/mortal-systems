@@ -3,6 +3,7 @@ import {
   identityManifestSchema,
   relativePathSchema,
   tombstoneSchema,
+  upgradeStoredManifest,
   type IdentityManifest,
 } from "../src/manifest.js";
 import { composeManifest } from "../src/compose.js";
@@ -197,5 +198,67 @@ describe("tombstone", () => {
         manifest: {},
       }).success
     ).toBe(false);
+  });
+});
+
+/**
+ * schema 2.2: the tool-scope ceiling. exactly parallel to 2.1's network
+ * ceiling — "enforced" is only expressible for an identity that actually
+ * declares a scope, so an over-claiming manifest cannot be written at all.
+ */
+describe("tool scope (schema 2.2 ceiling)", () => {
+  it("defaults to open/advisory with no declared scope", () => {
+    const m = validManifest();
+    expect(m.permissions.tools.value).toBe("open");
+    expect(m.permissions.tools.enforcement).toBe("advisory");
+    expect(m.permissions.tools.scope).toBeNull();
+  });
+
+  it("reaches enforced only with a declared scope", () => {
+    const scoped = composeManifest({
+      id: "idn_abc123def456ghi789jkl",
+      name: "scoped agent",
+      createdAt: NOW,
+      toolScope: { servers: [{ server: "notes", tools: ["read_note"] }] },
+    });
+    expect(scoped.permissions.tools.value).toBe("scoped");
+    expect(scoped.permissions.tools.enforcement).toBe("enforced");
+    expect(identityManifestSchema.safeParse(scoped).success).toBe(true);
+  });
+
+  it("makes tools enforced-without-a-scope unrepresentable", () => {
+    const m = validManifest();
+    for (const tools of [
+      { value: "open", enforcement: "enforced", scope: null },
+      { value: "scoped", enforcement: "advisory", scope: { servers: [] } },
+      { value: "scoped", enforcement: "enforced", scope: null },
+      { value: "open", enforcement: "advisory", scope: { servers: [] } },
+    ]) {
+      const r = identityManifestSchema.safeParse({
+        ...m,
+        permissions: { ...m.permissions, tools },
+      });
+      expect(r.success, `should reject ${JSON.stringify(tools)}`).toBe(false);
+    }
+  });
+
+  it("allows an empty scope — a scoped identity that may reach nothing", () => {
+    const none = composeManifest({
+      id: "idn_abc123def456ghi789jkl",
+      name: "no tools",
+      createdAt: NOW,
+      toolScope: { servers: [] },
+    });
+    expect(none.permissions.tools.enforcement).toBe("enforced");
+    expect(none.permissions.tools.scope!.servers).toHaveLength(0);
+  });
+
+  it("upgrades a stored pre-2.2 manifest to open/advisory, never to scoped", () => {
+    const m = validManifest() as unknown as Record<string, any>;
+    const stored = JSON.parse(JSON.stringify({ ...m, schemaVersion: "2.1" }));
+    delete stored.permissions.tools;
+    const upgraded = identityManifestSchema.parse(upgradeStoredManifest(stored));
+    expect(upgraded.permissions.tools.value).toBe("open");
+    expect(upgraded.permissions.tools.enforcement).toBe("advisory");
   });
 });

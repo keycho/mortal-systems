@@ -10,7 +10,11 @@ import {
   type IdentitySummary,
 } from "@mortal/schema";
 import { EnforcementBadge } from "../src/components/EnforcementBadge.js";
-import { NETWORK_POSITION, PermissionRows } from "../src/components/PermissionRows.js";
+import {
+  NETWORK_POSITION,
+  PermissionRows,
+  TOOL_BOUNDARY,
+} from "../src/components/PermissionRows.js";
 import { ActivityLog } from "../src/components/ActivityLog.js";
 import { PermissionsTab } from "../src/views/IdentityWorkspace.js";
 
@@ -68,7 +72,7 @@ describe("permission rows (workspace permissions tab)", () => {
     const levels = badges.map((b) => b.getAttribute("data-enforcement"));
     // browser isolation (structural), filesystem, memoryScope, retainHistory
     expect(levels.filter((l) => l === "enforced")).toHaveLength(4);
-    expect(levels.filter((l) => l === "advisory")).toHaveLength(2); // wallet, network
+    expect(levels.filter((l) => l === "advisory")).toHaveLength(3); // wallet, network, tools
     expect(levels.filter((l) => l === "roadmap")).toHaveLength(2); // email, redaction
     // the wallet honesty line is present because the value is not "none"
     expect(screen.getByText("a declaration, not a technical control")).toBeTruthy();
@@ -114,6 +118,35 @@ describe("permission rows (workspace permissions tab)", () => {
     // generated surface (site grid, mcp capabilities) inherits it from one source
     const row = ENFORCEMENT_TABLE.find((r) => r.field === "permissions.network")!;
     expect(row.description).toContain("bring your own proxy");
+  });
+
+  // BADGE-1 (tool scope half): the tool-scope badge follows THIS identity's
+  // manifest, and names what the scope actually allows.
+  it("renders the tool scope: open by default, scoped when declared", () => {
+    const open = composeManifest({
+      id: summary.id,
+      name: summary.name,
+      createdAt: "2026-08-05T12:00:00.000Z",
+      color: "#FFB000",
+    });
+    const { unmount } = render(<PermissionRows manifest={open} />);
+    const openRow = screen.getByTestId("perm-permissions.tools").textContent!;
+    expect(openRow).toContain("advisory");
+    expect(openRow).toContain("no scope is declared");
+    expect(openRow).toContain(TOOL_BOUNDARY);
+    unmount();
+
+    const scoped = composeManifest({
+      id: summary.id,
+      name: summary.name,
+      createdAt: "2026-08-05T12:00:00.000Z",
+      color: "#FFB000",
+      toolScope: { servers: [{ server: "notes", tools: ["read_note"] }] },
+    });
+    render(<PermissionRows manifest={scoped} />);
+    const scopedRow = screen.getByTestId("perm-permissions.tools").textContent!;
+    expect(scopedRow).toContain("notes (read_note)");
+    expect(scopedRow).toContain("every other brokered call is refused");
   });
 
   it("renders a tombstone message for destroyed identities", () => {

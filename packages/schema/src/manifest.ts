@@ -17,16 +17,21 @@ import { PERSISTENT, lifetimeSchema } from "./duration.js";
 export const SCHEMA_VERSION = "2.0" as const;
 
 /**
- * identity-manifest schema version. schema 2.1 raises exactly one ceiling over
- * 2.0: permissions.network may reach enforcement "enforced", but ONLY when an
- * actual route is attached (see networkPermissionSchema). every other ceiling
- * is unchanged. we accept both versions on read and emit 2.1 for new
- * identities — the established accept-old / emit-new / upgrade-on-read bridge.
- * blueprints stay 2.0: a route is operator-specific infrastructure, never
- * shareable template content.
+ * identity-manifest schema version.
+ *
+ * 2.1 raised exactly one ceiling over 2.0: permissions.network may reach
+ * enforcement "enforced", but ONLY when an actual route is attached (see
+ * networkPermissionSchema).
+ *
+ * 2.2 raises exactly one more: permissions.tools may reach "enforced", but
+ * ONLY when the identity declares a tool scope (see toolsPermissionSchema).
+ * every other ceiling is unchanged. we accept all three versions on read and
+ * emit 2.2 for new identities — the established accept-old / emit-new /
+ * upgrade-on-read bridge. blueprints stay 2.0: routes and tool scopes are
+ * operator-specific infrastructure, never shareable template content.
  */
-export const MANIFEST_VERSION = "2.1" as const;
-export const ACCEPTED_MANIFEST_VERSIONS = ["2.0", "2.1"] as const;
+export const MANIFEST_VERSION = "2.2" as const;
+export const ACCEPTED_MANIFEST_VERSIONS = ["2.0", "2.1", "2.2"] as const;
 
 /**
  * a per-identity network route. the proxy is applied at launch via chromium's
@@ -67,6 +72,62 @@ export const networkPermissionSchema = z
     {
       message:
         "network: 'standard' requires no route and enforcement 'advisory'; 'routed' requires an attached route and enforcement 'enforced'",
+    }
+  );
+
+/** mcp server and tool names, as they appear on the wire */
+export const toolNameSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/, "must be an mcp server/tool name");
+
+/**
+ * which brokered tools this identity's agent may reach.
+ *
+ * `tools: null` means every tool that server exposes — including tools it
+ * grows later, which is why a null entry is the looser choice. an empty
+ * `servers` array is legal and meaningful: a scoped identity that may reach
+ * nothing at all.
+ */
+export const toolScopeSchema = z
+  .object({
+    servers: z
+      .array(
+        z
+          .object({
+            server: toolNameSchema,
+            tools: z.array(toolNameSchema).max(128).nullable(),
+          })
+          .strict()
+      )
+      .max(64),
+  })
+  .strict();
+export type ToolScope = z.infer<typeof toolScopeSchema>;
+
+/**
+ * tool permission with a scope-gated enforcement ceiling, exactly parallel to
+ * network. the two shapes are the ONLY representable states, so "tools
+ * enforced with no declared scope" — an unearned claim — cannot be written:
+ *   - open:   no scope declared, mortal brokers whatever is registered, advisory
+ *   - scoped: a scope declared, calls outside it are refused, enforcement enforced
+ *
+ * what "enforced" covers: the tool calls mortal brokers. an agent that holds
+ * its own connection to a server is outside this boundary — see NON_GUARANTEES.
+ */
+export const toolsPermissionSchema = z
+  .object({
+    value: z.enum(["open", "scoped"]),
+    enforcement: z.enum(["advisory", "enforced"]),
+    scope: toolScopeSchema.nullable(),
+  })
+  .strict()
+  .refine(
+    (t) =>
+      (t.value === "open" && t.enforcement === "advisory" && t.scope === null) ||
+      (t.value === "scoped" && t.enforcement === "enforced" && t.scope !== null),
+    {
+      message:
+        "tools: 'open' requires no scope and enforcement 'advisory'; 'scoped' requires a declared scope and enforcement 'enforced'",
     }
   );
 
@@ -181,6 +242,7 @@ export const permissionsSchema = z
       .object({ value: z.enum(["none", "temporary", "dedicated"]), enforcement: z.literal("roadmap") })
       .strict(),
     network: networkPermissionSchema,
+    tools: toolsPermissionSchema,
   })
   .strict();
 
@@ -299,7 +361,7 @@ export function upgradeStoredManifest(parsed: unknown): unknown {
   if (parsed !== null && typeof parsed === "object") {
     const manifest = parsed as {
       surfaces?: { browser?: { extensions?: unknown[] } };
-      permissions?: { network?: { route?: unknown } };
+      permissions?: { network?: { route?: unknown }; tools?: unknown };
     };
     const extensions = manifest.surfaces?.browser?.extensions;
     if (Array.isArray(extensions)) {
@@ -312,6 +374,12 @@ export function upgradeStoredManifest(parsed: unknown): unknown {
     const network = manifest.permissions?.network;
     if (network !== undefined && network !== null && network.route === undefined) {
       network.route = null;
+    }
+    // 2.1 -> 2.2: an identity written before tool scoping declared no scope,
+    // and an undeclared scope is exactly "open" — mortal brokers whatever is
+    // registered and says so. never silently upgraded to "scoped".
+    if (manifest.permissions !== undefined && manifest.permissions.tools === undefined) {
+      manifest.permissions.tools = { value: "open", enforcement: "advisory", scope: null };
     }
   }
   return parsed;
