@@ -91,7 +91,22 @@ function reportError(err: unknown, jsonMode: boolean, errW: (s: string) => void)
   return 1;
 }
 
+/**
+ * dying quietly when the read end of a pipe closes (mortal list | head) is
+ * correct unix behavior; node turns SIGPIPE into EPIPE write errors, so this
+ * restores the convention instead of crashing with a stack trace.
+ */
+function exitQuietlyOnEpipe(): void {
+  for (const stream of [process.stdout, process.stderr]) {
+    stream.on("error", (err: NodeJS.ErrnoException) => {
+      if (err.code === "EPIPE") process.exit(0);
+      throw err;
+    });
+  }
+}
+
 async function main(): Promise<number> {
+  exitQuietlyOnEpipe();
   const argv = process.argv.slice(2);
   const [command, ...rest] = argv;
   const out = (s: string) => void process.stdout.write(s);

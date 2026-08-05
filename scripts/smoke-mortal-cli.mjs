@@ -154,6 +154,15 @@ try {
     fail("tombstone missing from --state destroyed");
   }
 
+  // -- pipelines: closing the read end must not crash the cli ----------------
+  const piped = spawnSync(
+    "sh",
+    ["-c", `${JSON.stringify(process.execPath)} ${JSON.stringify(mortalCli)} list | head -1`],
+    { env, encoding: "utf8", timeout: 60_000 }
+  );
+  if (piped.status !== 0) fail(`mortal list | head -1 exited ${piped.status}`);
+  if (piped.stderr.includes("EPIPE")) fail(`piping to head crashed with EPIPE:\n${piped.stderr}`);
+
   // -- capabilities: the honesty surface ------------------------------------
   const caps = json(mortal(["capabilities", "--json"]), "capabilities --json");
   for (const [group, field] of [
