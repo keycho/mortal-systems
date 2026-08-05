@@ -17,9 +17,21 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # branded chrome ≥137 stopped honoring --load-extension and 141 removed
+      # the DisableLoadExtensionCommandLineSwitch escape hatch, so the runner's
+      # google chrome can no longer load the companion (risk r3, observed here
+      # 2026-08-05: "companion never appeared in the browser's target list").
+      # the browser suites run against playwright's chromium instead — the same
+      # browser the local dev environment pins, version-matched to the repo's
+      # playwright-core dependency.
+      - name: chromium for browser suites (branded chrome cannot load the companion)
+        run: |
+          pnpm --filter mortal-tests exec playwright-core install chromium
+          BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
+          test -x "$BROWSER"
+          echo "MORTAL_BROWSER_PATH=$BROWSER" >> "$GITHUB_ENV"
       - run: pnpm build
-      # full suites, including real-chromium isolation/lifecycle (the ubuntu
-      # runner ships google chrome; discovery finds it, launches are headless)
+      # full suites, including real-chromium isolation/lifecycle, headless
       - run: pnpm test
         env:
           MORTAL_HEADLESS: "1"
@@ -51,6 +63,15 @@ jobs:
           # no pnpm cache on purpose: the point of this job is coldness
       - run: git clean -dxf
       - run: pnpm install --frozen-lockfile
+      # same pinned chromium as the gate job: the mortal cli smoke inside
+      # pnpm check launches a real browser, and the runner's branded chrome
+      # cannot load the companion (see the gate job's note)
+      - name: chromium for browser suites
+        run: |
+          pnpm --filter mortal-tests exec playwright-core install chromium
+          BROWSER="$(cd tests && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
+          test -x "$BROWSER"
+          echo "MORTAL_BROWSER_PATH=$BROWSER" >> "$GITHUB_ENV"
       # the committed bin shim must be linked at install time — before any
       # dist exists — and must refuse honestly rather than ERR_MODULE_NOT_FOUND
       - name: bin linked and honest before build
