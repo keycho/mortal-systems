@@ -147,4 +147,4 @@ export const JOBS: Array<{ label: string; body: string }> = [
  * time this file was last edited (vitest suites across all packages and
  * apps); update it when it drifts, never round it up.
  */
-export const PROOF_BAND = ["241 tests", "open source", "signed builds at release", "every guarantee has a test id you can read"];
+export const PROOF_BAND = ["254 tests", "open source", "signed builds at release", "every guarantee has a test id you can read"];

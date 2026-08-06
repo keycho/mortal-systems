@@ -17,7 +17,8 @@
     "@mortal/schema": "workspace:*",
     "better-sqlite3": "^12.2.0",
     "playwright-core": "^1.53.0",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@mortal/mcp": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

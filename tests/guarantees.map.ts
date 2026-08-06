@@ -16,12 +16,12 @@
  */
 
 export const GUARANTEES_MAP: Record<string, string[]> = {
-  "surfaces.browser.isolation": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G16"],
+  "surfaces.browser.isolation": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G16", "MCP-1", "MCP-2"],
   "permissions.filesystem": ["G8"],
   "permissions.memoryScope": ["G9", "G18"],
   "privacy.retainHistory": ["G15"],
-  "lifecycle.expiry": ["G10", "G11"],
-  "lifecycle.destruction": ["G12", "G13", "G14"],
+  "lifecycle.expiry": ["G10", "G11", "MCP-3"],
+  "lifecycle.destruction": ["G12", "G13", "G14", "MCP-4"],
   "permissions.network": ["G19"],
   "permissions.tools": ["G20"],
 };

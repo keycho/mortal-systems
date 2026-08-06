@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { MortalClient } from "./client.js";
+import { MortalClient, MortalRpcError } from "./client.js";
 
 /**
  * the mortal mcp server: identity primitives for any mcp agent.
@@ -30,11 +30,17 @@ function json(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
 
+/**
+ * refusals are typed, not prose: a runtime error keeps its code (NOT_FOUND,
+ * INVALID_STATE, FORBIDDEN, ...) so agent code can branch on the refusal
+ * instead of parsing a message. anything else is UNEXPECTED.
+ */
 function err(e: unknown) {
+  const code = e instanceof MortalRpcError ? e.code : "UNEXPECTED";
   const message = e instanceof Error ? e.message : String(e);
   return {
     isError: true,
-    content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }],
+    content: [{ type: "text" as const, text: JSON.stringify({ error: { code, message } }) }],
   };
 }
 

@@ -293,6 +293,9 @@ importers:
       '@mortal/blueprints':
         specifier: workspace:*
         version: link:../packages/blueprints-first-party
+      '@mortal/mcp':
+        specifier: workspace:*
+        version: link:../packages/mcp
       '@mortal/runtime':
         specifier: workspace:*
         version: link:../packages/runtime
