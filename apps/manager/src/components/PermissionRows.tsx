@@ -16,7 +16,7 @@ export const NETWORK_POSITION =
  * cannot police a connection an agent opened on its own.
  */
 export const TOOL_BOUNDARY =
-  "mortal scopes the tool calls it brokers — a connection an agent opens on its own is outside this boundary.";
+  "mortal scopes the tool calls it brokers: a connection an agent opens on its own is outside this boundary.";
 
 /** "notes (read_note) · files (all tools)" — the scope in the operator's words */
 export function describeToolScope(scope: ToolScope): string {

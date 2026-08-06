@@ -18,6 +18,13 @@ if (!fs.existsSync(outDir)) {
 const ALLOWLIST = [
   /does not make identities\s+anonymous/gi,
   /not\s+anonymous in version one/gi,
+  // the handoff's honesty-block and manifesto disclaimers: "anonymous" as a
+  // stated non-capability, never as a selling word
+  /does not provide\s+anonymity in version one/gi,
+  /does not make\s+you anonymous, and says so/gi,
+  // the crossorigin attribute on font preloads (and its serialized form in
+  // the react flight payload), not copy
+  /crossorigin[\\":=]*anonymous/gi,
 ];
 
 const BANNED = [
@@ -38,6 +45,9 @@ const BANNED = [
   /\bairdrop\b/i,
   /bonding curve/i,
   /\bticker\b/i,
+  // brand voice: no em dashes anywhere in site copy (use colon, comma or
+  // period). the en dash (–) stays allowed for ranges like D0–D7.
+  /—/,
 ];
 
 const htmlFiles = [];
