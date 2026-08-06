@@ -40,6 +40,32 @@
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "esbuild"
-    ]
+    ],
+    "packageExtensions": {
+      "next": {
+        "peerDependencies": {
+          "@types/react": "*",
+          "@types/react-dom": "*"
+        },
+        "peerDependenciesMeta": {
+          "@types/react": {
+            "optional": true
+          },
+          "@types/react-dom": {
+            "optional": true
+          }
+        }
+      },
+      "lucide-react": {
+        "peerDependencies": {
+          "@types/react": "*"
+        },
+        "peerDependenciesMeta": {
+          "@types/react": {
+            "optional": true
+          }
+        }
+      }
+    }
   }
 }

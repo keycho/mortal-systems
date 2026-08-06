@@ -1,47 +1,85 @@
+import type { CSSProperties } from "react";
+
 /**
- * inline svg wordmark: the site mono, with the space between words as a thin
- * timer bar (the countdown-colon motif). no illustration in v1; a slot for a
- * real mark later.
+ * the wordmark: site mono with the partial-fill dash element between the
+ * words (62% filled, always). one component, four calibrated sizes from
+ * the handoff — nav, footer, and the small light/dark marks used inside
+ * the manifesto's shareable compositions.
  */
-export function Wordmark({ height = 16 }: { height?: number }) {
-  const width = height * 10.5;
+const VARIANTS = {
+  nav: {
+    font: "500 15px var(--font-mono)",
+    color: "var(--ink)",
+    dash: { width: 28, height: 3, margin: "0 11px" },
+    bar: "rgba(25,23,19,.22)",
+    fill: "var(--ink)",
+  },
+  footer: {
+    font: "500 13px var(--font-mono)",
+    color: "rgba(25,23,19,.6)",
+    dash: { width: 24, height: 2, margin: "0 10px" },
+    bar: "rgba(25,23,19,.2)",
+    fill: "rgba(25,23,19,.6)",
+  },
+  smallLight: {
+    font: "500 12px var(--font-mono)",
+    color: "rgba(25,23,19,.55)",
+    dash: { width: 22, height: 2, margin: "0 9px" },
+    bar: "rgba(25,23,19,.2)",
+    fill: "rgba(25,23,19,.55)",
+  },
+  smallDark: {
+    font: "500 12px var(--font-mono)",
+    color: "rgba(242,239,231,.5)",
+    dash: { width: 22, height: 2, margin: "0 9px" },
+    bar: "rgba(242,239,231,.2)",
+    fill: "rgba(242,239,231,.5)",
+  },
+} as const;
+
+export function Wordmark({
+  variant = "nav",
+  style,
+}: {
+  variant?: keyof typeof VARIANTS;
+  style?: CSSProperties;
+}) {
+  const v = VARIANTS[variant];
   return (
-    <svg
-      width={width}
-      height={height}
-      viewBox="0 0 168 16"
-      role="img"
-      aria-label="mortal systems"
-      className="shrink-0"
+    <span
+      style={{
+        display: "flex",
+        alignItems: "center",
+        font: v.font,
+        letterSpacing: "0.02em",
+        color: v.color,
+        ...style,
+      }}
     >
-      <text
-        x="0"
-        y="12.5"
-        fontFamily="inherit"
-        fontSize="13"
-        letterSpacing="1.5"
-        fill="currentColor"
+      mortal
+      <span
+        aria-hidden
+        style={{
+          display: "inline-block",
+          width: v.dash.width,
+          height: v.dash.height,
+          background: v.bar,
+          margin: v.dash.margin,
+          position: "relative",
+        }}
       >
-        mortal
-      </text>
-      <rect x="62" y="10.5" width="14" height="2" fill="var(--state-active)">
-        <animate
-          attributeName="width"
-          values="14;3;14"
-          dur="8s"
-          repeatCount="indefinite"
+        <span
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            height: "100%",
+            width: "62%",
+            background: v.fill,
+          }}
         />
-      </rect>
-      <text
-        x="82"
-        y="12.5"
-        fontFamily="inherit"
-        fontSize="13"
-        letterSpacing="1.5"
-        fill="currentColor"
-      >
-        systems
-      </text>
-    </svg>
+      </span>
+      systems
+    </span>
   );
 }

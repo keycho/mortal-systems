@@ -1,104 +1,101 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  DESTROY_STEPS,
-  DESTRUCTION_CAVEATS,
-  identityManifestSchema,
-  identityStateSchema,
-} from "@mortal/schema";
-import { cryptoOperations, onchainInvestigator } from "@mortal/blueprints";
-import {
-  buildDestructionReport,
-  createFromBlueprint,
-  createSimIdentity,
-  LAUNCH_SEQUENCE,
-  remainingMs,
-  resetSpaceNumbers,
-  withState,
+  ACT_SECONDS,
+  clock,
+  EXPIRING_AT,
+  initialState,
+  isExpiring,
+  PROVISION_LINES,
+  provisioned,
+  reset,
+  setPurpose,
+  SIM_PURPOSES,
+  start,
+  tick,
 } from "../components/simulator/machine";
 
-const NOW = Date.parse("2026-08-03T12:00:00.000Z");
-
-beforeEach(resetSpaceNumbers);
-
-describe("simulator machine: everything semantic comes from @mortal/schema", () => {
-  it("creates a valid identity through the real compose + grammar", () => {
-    const result = createSimIdentity({ name: "incident review", color: "#4DA3FF", lifetime: "60s" }, NOW);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(identityManifestSchema.safeParse(result.identity.manifest).success).toBe(true);
-    expect(result.identity.state).toBe("created");
-    expect(remainingMs(result.identity, NOW)).toBe(60_000);
-    expect(result.identity.events.map((e) => e.event)).toEqual(["created", "expiry_scheduled"]);
-    expect(result.identity.spaceNumber).toBe(1);
+describe("simulator machine", () => {
+  it("starts configured with the first purpose and a full countdown", () => {
+    const s = initialState();
+    expect(s.phase).toBe("cfg");
+    expect(s.secondsLeft).toBe(ACT_SECONDS);
+    expect(s.purpose).toBe("agent task");
   });
 
-  it("rejects invalid lifetimes with the REAL grammar error, not a reimplementation", () => {
-    const tooShort = createSimIdentity({ name: "x", color: "#4DA3FF", lifetime: "2s" }, NOW);
-    expect(tooShort.ok).toBe(false);
-    if (!tooShort.ok) expect(tooShort.error).toContain("30s minimum");
-    const garbage = createSimIdentity({ name: "x", color: "#4DA3FF", lifetime: "forever" }, NOW);
-    expect(garbage.ok).toBe(false);
-    if (!garbage.ok) expect(garbage.error).toContain('invalid lifetime');
+  it("keeps the handoff's purposes, in order", () => {
+    expect([...SIM_PURPOSES]).toEqual([
+      "agent task",
+      "client work",
+      "research session",
+      "new-user test",
+    ]);
   });
 
-  it("persistent identities carry no deadline and no expiry event", () => {
-    const result = createSimIdentity({ name: "client acme", color: "#F59E0B", lifetime: "persistent" }, NOW);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.identity.expiresAtMs).toBeNull();
-    expect(result.identity.events.map((e) => e.event)).toEqual(["created"]);
+  it("keeps the handoff's provisioning lines, in order", () => {
+    expect([...PROVISION_LINES]).toEqual([
+      "browser isolated",
+      "memory mounted",
+      "files partitioned",
+      "history removed on expiry",
+    ]);
   });
 
-  it("installs a real first-party blueprint with consent-gated extensions", () => {
-    const noConsent = createFromBlueprint(cryptoOperations, {}, NOW);
-    expect(noConsent.ok).toBe(true);
-    if (noConsent.ok) {
-      expect(noConsent.identity.manifest.surfaces.browser.extensions).toEqual(["mortal-companion"]);
+  it("walks cfg -> prov -> act with the countdown re-armed", () => {
+    let s = start(initialState());
+    expect(s.phase).toBe("prov");
+    s = provisioned(s);
+    expect(s.phase).toBe("act");
+    expect(s.secondsLeft).toBe(ACT_SECONDS);
+  });
+
+  it("ticks the countdown down and destroys at zero", () => {
+    let s = provisioned(start(initialState()));
+    for (let i = 0; i < ACT_SECONDS - 1; i++) {
+      s = tick(s);
+      expect(s.phase).toBe("act");
     }
-    const consented = createFromBlueprint(
-      cryptoOperations,
-      { consentedExtensionIds: ["nkbihfbeogaeaoehlefnkodbefgpgknn"] },
-      NOW
-    );
-    expect(consented.ok).toBe(true);
-    if (consented.ok) {
-      expect(consented.identity.manifest.surfaces.browser.extensions).toContain(
-        "nkbihfbeogaeaoehlefnkodbefgpgknn"
-      );
-    }
+    expect(s.secondsLeft).toBe(1);
+    s = tick(s);
+    expect(s.phase).toBe("done");
+    expect(s.secondsLeft).toBe(0);
   });
 
-  it("applies the investigator's real values through the blueprint path", () => {
-    const result = createFromBlueprint(onchainInvestigator, { lifetime: "60s" }, NOW);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.identity.manifest.privacy.retainHistory.value).toBe(false);
-    expect(result.identity.manifest.color).toBe("#C8FF4D");
-    expect(result.identity.manifest.lifecycle.onExpiry).toBe("destroy");
+  it("only ticks while active", () => {
+    const cfg = initialState();
+    expect(tick(cfg)).toEqual(cfg);
   });
 
-  it("launch sequence states are real schema states", () => {
-    for (const step of LAUNCH_SEQUENCE) {
-      expect(identityStateSchema.options).toContain(step.state);
-    }
-    const result = createSimIdentity({ name: "x", color: "#4DA3FF", lifetime: "60s" }, NOW);
-    if (!result.ok) throw new Error("setup failed");
-    let sim = result.identity;
-    for (const step of LAUNCH_SEQUENCE) {
-      sim = withState(sim, step.state, NOW);
-    }
-    expect(sim.state).toBe("running");
-    expect(sim.events.map((e) => e.event)).toContain("provisioning");
+  it("flips to expiring at three seconds, not four", () => {
+    let s = provisioned(start(initialState()));
+    while (s.secondsLeft > EXPIRING_AT + 1) s = tick(s);
+    expect(s.secondsLeft).toBe(EXPIRING_AT + 1);
+    expect(isExpiring(s)).toBe(false);
+    s = tick(s);
+    expect(s.secondsLeft).toBe(EXPIRING_AT);
+    expect(isExpiring(s)).toBe(true);
   });
 
-  it("destruction reports carry the real steps and the fixed caveats, untrimmed", () => {
-    const result = createSimIdentity({ name: "doomed", color: "#4DA3FF", lifetime: "60s" }, NOW);
-    if (!result.ok) throw new Error("setup failed");
-    const report = buildDestructionReport(result.identity, NOW, NOW + 1_500);
-    expect(report.steps.map((s) => s.step)).toEqual([...DESTROY_STEPS]);
-    expect(report.steps.every((s) => s.ok && s.detail?.includes("simulated"))).toBe(true);
-    expect(report.caveats).toEqual([...DESTRUCTION_CAVEATS]);
-    expect(report.identityId).toBe(result.identity.manifest.id);
-    expect(report.resumed).toBe(false);
+  it("renders the clock as a zero-padded mm:ss under a minute", () => {
+    const s = provisioned(start(initialState()));
+    expect(clock(s)).toBe("00:10");
+    expect(clock(tick(s))).toBe("00:09");
+  });
+
+  it("carries the chosen purpose through the whole lifecycle", () => {
+    let s = setPurpose(initialState(), "client work");
+    s = provisioned(start(s));
+    while (s.phase === "act") s = tick(s);
+    expect(s.phase).toBe("done");
+    expect(s.purpose).toBe("client work");
+  });
+
+  it("resets to cfg with the countdown restored, keeping the purpose", () => {
+    let s = setPurpose(initialState(), "research session");
+    s = provisioned(start(s));
+    s = tick(s);
+    s = reset(s);
+    expect(s.phase).toBe("cfg");
+    expect(s.secondsLeft).toBe(ACT_SECONDS);
+    expect(s.purpose).toBe("research session");
   });
 });

@@ -1,80 +1,172 @@
-import {
-  DESTROYED_MEANS,
-  ENFORCEMENT_TABLE,
-  NON_GUARANTEES,
-} from "@mortal/schema";
+import type { Metadata } from "next";
+import { DESTROYED_MEANS, ENFORCEMENT_TABLE, NON_GUARANTEES } from "@mortal/schema";
+import { Tag } from "../../components/Badge";
+import { Nav } from "../../components/site/Nav";
+import { SiteFooter } from "../../components/site/SiteFooter";
 
-const BADGE_STYLE: Record<string, string> = {
-  enforced: "bg-ink text-void border border-ink",
-  advisory: "bg-transparent text-ink border border-ink",
-  roadmap: "bg-transparent text-mute border border-dashed border-mute",
+export const metadata: Metadata = {
+  title: "guarantees · mortal systems",
+  description: "every guarantee, labeled honestly: enforced, advisory, or roadmap.",
+};
+
+const KIND: Record<string, "solid" | "outline" | "dashed"> = {
+  enforced: "solid",
+  advisory: "outline",
+  roadmap: "dashed",
 };
 
 /** generated from the same enforcement table the runtime and both uis read.
  * every "enforced" row maps to at least one automated test or the build fails. */
 export default function Guarantees() {
   return (
-    <div className="flex flex-col gap-12">
-      <section className="flex flex-col gap-4">
-        <h1 className="text-[20px]">the guarantees, labeled honestly</h1>
-        <p className="text-mute text-[12px] max-w-2xl">
-          every control carries exactly one label. enforced means a passing automated test backs
-          it, and the build fails if that mapping breaks. advisory means a declaration shown in
-          the ui, not a technical control. roadmap means not built, and the product says so. a
-          control marked <span className="text-ink">conditional</span> is enforced only for
-          identities configured for it — a network route attached, a tool scope declared — and
-          the identity&apos;s own manifest is what tells you whether it applies.
-        </p>
-      </section>
+    <div style={{ position: "relative" }}>
+      <div style={{ maxWidth: 1296, margin: "0 auto", padding: "36px 40px 40px" }}>
+        <Nav />
+        <div style={{ maxWidth: 880, margin: "84px 0 0" }}>
+          <div
+            style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(25,23,19,.5)" }}
+          >
+            GUARANTEES
+          </div>
+          <h1
+            style={{
+              font: "400 42px/1.12 var(--font-display)",
+              margin: "14px 0 0",
+              letterSpacing: "-0.01em",
+              fontWeight: 400,
+            }}
+          >
+            the guarantees, labeled <em style={{ fontStyle: "italic" }}>honestly</em>.
+          </h1>
+          <p
+            style={{
+              font: "400 13.5px/1.75 var(--font-mono)",
+              color: "rgba(25,23,19,.6)",
+              margin: "22px 0 0",
+            }}
+          >
+            every control carries exactly one label. enforced means a passing automated test
+            backs it, and the build fails if that mapping breaks. advisory means a declaration
+            shown in the ui, not a technical control. roadmap means not built, and the product
+            says so. a control marked conditional is enforced only for identities configured for
+            it: a network route attached, a tool scope declared. the identity&apos;s own manifest
+            is what tells you whether it applies.
+          </p>
+        </div>
 
-      <section className="flex flex-col gap-2 overflow-x-auto">
-        <table className="text-[12px] w-full border-collapse min-w-[600px]">
-          <thead>
-            <tr className="text-left text-mute text-[10px] uppercase tracking-widest">
-              <th className="py-2 pr-4 font-normal">control</th>
-              <th className="py-2 pr-4 font-normal">value</th>
-              <th className="py-2 pr-4 font-normal">label</th>
-              <th className="py-2 font-normal">tests</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ENFORCEMENT_TABLE.map((row) => (
-              <tr key={row.field} className="border-t border-line align-top">
-                <td className="py-3 pr-4">
-                  <div>{row.label}</div>
-                  <div className="text-mute text-[11px] max-w-sm">{row.description}</div>
-                </td>
-                <td className="py-3 pr-4 text-mute">{row.value}</td>
-                <td className="py-3 pr-4">
-                  <span className={`text-[10px] px-2 py-0.5 whitespace-nowrap ${BADGE_STYLE[row.enforcement]}`}>
-                    {row.enforcement}
-                  </span>
-                  {row.conditional !== undefined && (
-                    <div className="text-mute text-[10px] pt-1 max-w-[13rem]">
-                      conditional · {row.conditional}
-                    </div>
-                  )}
-                </td>
-                <td className="py-3 text-mute text-[11px]">{row.plannedTests.join(" ")}</td>
+        <div style={{ overflowX: "auto", marginTop: 44 }}>
+          <table
+            style={{
+              font: "400 12.5px var(--font-mono)",
+              width: "100%",
+              borderCollapse: "collapse",
+              minWidth: 640,
+            }}
+          >
+            <thead>
+              <tr
+                style={{
+                  textAlign: "left",
+                  color: "rgba(25,23,19,.5)",
+                  font: "500 10px var(--font-mono)",
+                  letterSpacing: "0.18em",
+                }}
+              >
+                <th style={{ padding: "8px 16px 8px 0", fontWeight: 500 }}>CONTROL</th>
+                <th style={{ padding: "8px 16px 8px 0", fontWeight: 500 }}>VALUE</th>
+                <th style={{ padding: "8px 16px 8px 0", fontWeight: 500 }}>LABEL</th>
+                <th style={{ padding: "8px 0", fontWeight: 500 }}>TESTS</th>
               </tr>
+            </thead>
+            <tbody>
+              {ENFORCEMENT_TABLE.map((row) => (
+                <tr key={row.field} style={{ borderTop: "1px solid var(--line-l)", verticalAlign: "top" }}>
+                  <td style={{ padding: "14px 16px 14px 0" }}>
+                    <div style={{ font: "500 13px var(--font-body)" }}>{row.label}</div>
+                    <div
+                      style={{
+                        font: "400 12px/1.6 var(--font-body)",
+                        color: "rgba(25,23,19,.6)",
+                        maxWidth: 460,
+                        marginTop: 4,
+                      }}
+                    >
+                      {row.description}
+                    </div>
+                  </td>
+                  <td style={{ padding: "14px 16px 14px 0", color: "rgba(25,23,19,.6)" }}>{row.value}</td>
+                  <td style={{ padding: "14px 16px 14px 0" }}>
+                    <Tag
+                      kind={KIND[row.enforcement]}
+                      style={{ font: "500 9.5px var(--font-mono)", padding: "3.5px 9px", borderRadius: 4 }}
+                    >
+                      {row.enforcement.toUpperCase()}
+                    </Tag>
+                    {row.conditional !== undefined && (
+                      <div
+                        style={{
+                          color: "rgba(25,23,19,.55)",
+                          font: "400 11px/1.6 var(--font-mono)",
+                          paddingTop: 6,
+                          maxWidth: 240,
+                        }}
+                      >
+                        conditional · {row.conditional}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: "14px 0", color: "rgba(25,23,19,.55)", font: "400 11.5px var(--font-mono)" }}>
+                    {row.plannedTests.join(" ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop: 64, maxWidth: 880 }}>
+          <h2 style={{ font: "400 24px var(--font-display)", fontWeight: 400, margin: 0 }}>
+            what mortal systems does not guarantee
+          </h2>
+          <ul
+            style={{
+              margin: "16px 0 0",
+              padding: 0,
+              listStyle: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: 7,
+              font: "400 12.5px/1.7 var(--font-mono)",
+              color: "rgba(25,23,19,.65)",
+            }}
+          >
+            {NON_GUARANTEES.map((line) => (
+              <li key={line}>· {line}</li>
             ))}
-          </tbody>
-        </table>
-      </section>
+          </ul>
+        </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[14px]">what mortal systems does not guarantee</h2>
-        <ul className="flex flex-col gap-1 text-[12px] text-mute">
-          {NON_GUARANTEES.map((line) => (
-            <li key={line}>· {line}</li>
-          ))}
-        </ul>
-      </section>
+        <div style={{ marginTop: 56, maxWidth: 880 }}>
+          <h2 style={{ font: "400 24px var(--font-display)", fontWeight: 400, margin: 0 }}>
+            what destroyed means
+          </h2>
+          <p
+            style={{
+              font: "400 13px/1.75 var(--font-body)",
+              color: "rgba(25,23,19,.7)",
+              margin: "16px 0 0",
+              border: "1px solid rgba(25,23,19,.12)",
+              borderRadius: "var(--r-card)",
+              background: "var(--surface)",
+              padding: "18px 22px",
+            }}
+          >
+            {DESTROYED_MEANS}
+          </p>
+        </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[14px]">what destroyed means</h2>
-        <p className="text-[12px] text-mute max-w-2xl border border-line p-4">{DESTROYED_MEANS}</p>
-      </section>
+        <SiteFooter />
+      </div>
     </div>
   );
 }
