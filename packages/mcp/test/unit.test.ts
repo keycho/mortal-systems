@@ -6,8 +6,9 @@ import { createServer, type Server } from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { MortalClient, MortalRpcError } from "../src/client.js";
+import { MCP_TRUST_BOUNDARY, MortalClient, MortalRpcError } from "../src/client.js";
 
 interface Seen {
   authorization: string | undefined;
@@ -112,5 +113,41 @@ describe("rpc envelope", () => {
     });
     // the refusal happened before anything touched the runtime
     expect(seen).toHaveLength(0);
+  });
+});
+
+describe("the trust boundary, single-sourced", () => {
+  it("capabilities() ships the canonical trust boundary alongside the runtime's lists", async () => {
+    const { port } = await fakeRuntime({
+      ok: true,
+      result: {
+        enforceable: [],
+        advisory: [],
+        roadmap: [],
+        conditional: {},
+        reservedMethods: [],
+      },
+    });
+    const client = new MortalClient({ port, token: "t" });
+    const caps = await client.capabilities();
+    expect(caps.trustBoundary).toBe(MCP_TRUST_BOUNDARY);
+    expect(caps.enforcementTable.length).toBeGreaterThan(0);
+    expect(caps.nonGuarantees.length).toBeGreaterThan(0);
+  });
+
+  it("states possession-of-id authority and forbids the cross-session inference, naming the upgrade", () => {
+    expect(MCP_TRUST_BOUNDARY).toContain("possession of the id");
+    expect(MCP_TRUST_BOUNDARY).toContain("never infer cross-session isolation");
+    expect(MCP_TRUST_BOUNDARY).toContain("runtime-level session tokens");
+    expect(MCP_TRUST_BOUNDARY).toContain("candidate enforcement upgrade");
+  });
+
+  it("the readme carries the canonical sentence verbatim (doc sync)", () => {
+    const readme = fs.readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "README.md"),
+      "utf8"
+    );
+    const normalize = (s: string) => s.replace(/^>\s?/gm, "").replace(/\s+/g, " ").trim();
+    expect(normalize(readme)).toContain(normalize(MCP_TRUST_BOUNDARY));
   });
 });

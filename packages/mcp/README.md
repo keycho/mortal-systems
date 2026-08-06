@@ -68,9 +68,26 @@ claude code: `claude mcp add mortal -- node /absolute/path/to/mortal-systems/pac
 agents should call `capabilities` first and feature-detect, then read the
 identity's own `manifest.permissions.<field>.enforcement` — the identity is
 always authoritative. an advisory control is a declaration, not a technical
-control; nothing in this package upgrades a label. refusals are typed
-(`{ error: { code, message } }`: `NOT_FOUND`, `INVALID_STATE`, `FORBIDDEN`,
-…) so agent code branches on codes, never on prose.
+control; nothing in this package upgrades a label.
+
+### refusal codes — branch on these, never on prose
+
+every refusal is typed: `{ error: { code, message } }`. the codes an agent
+will meet through this surface:
+
+| code | when |
+| --- | --- |
+| `NOT_FOUND` | the id names no identity this runtime holds — unknown and foreign ids refuse identically |
+| `INVALID_STATE` | the identity exists but the operation does not fit its lifecycle state (launching a destroyed identity, destroying twice) |
+| `FORBIDDEN` | a brokered tool call outside the identity's declared scope — refused before any upstream contact, and journaled |
+| `VALIDATION_FAILED` | the input never reached the runtime (bad lifetime grammar, create without a name or blueprintId) |
+| `NOT_IMPLEMENTED` | a reserved roadmap method — feature-detect via `capabilities` instead of retrying |
+| `UNEXPECTED` | anything that was not a typed runtime error (transport failures and the like) |
+
+the full runtime code list lives in `@mortal/schema`'s `ERROR_CODES`; the
+mcp safety suite asserts `NOT_FOUND` and `INVALID_STATE` through the real
+protocol (`MCP-3`, `MCP-4`, `MCP-6`) and the scope suite asserts
+`FORBIDDEN` (`G20`).
 
 ## safety properties — each one tested, not asserted
 
@@ -106,7 +123,7 @@ hardcoded). human-readable summary:
 | --- | --- |
 | **enforced** (each maps to a passing test, by ci gate) | browser state isolation · filesystem partition · memory scope · history retention · lifecycle expiry · destruction contract D0–D7 · network route (**conditional**: only for identities with a route attached) · tool scope (**conditional**: only for identities that declare one) |
 | **advisory** (declaration shown in the ui, not a technical control) | wallet · network on routeless identities (they share your ip) · tools on scopeless identities |
-| **roadmap** (not built; the field exists so intent can be declared) | email aliasing · redaction · receipt signing |
+| **roadmap** (not built; the field exists so intent can be declared) | email aliasing · redaction · receipt signing · runtime-level session tokens |
 
 reserved rpc methods (`identity.attachAgent`, `identity.issueCredential`, …)
 return `NOT_IMPLEMENTED` with `enforcement: "roadmap"` so agents
@@ -114,18 +131,26 @@ feature-detect instead of guessing.
 
 ## the trust boundary, stated plainly
 
-the runtime has two auth planes today: the admin token and per-identity
-companion tokens. there is no runtime-level per-session scope. the mcp
-server holds the admin token itself (agents never see it), and authority
-over an identity is possession of its unguessable id: the surface offers no
-enumeration, so an agent holds exactly the ids it created or was handed.
-compromising the mcp server process yields admin authority over the runtime;
-the `capabilities` tool's non-guarantees say what is and is not held.
-identities from a dead agent still expire on schedule — lifecycle lives in
-the runtime scheduler, not the agent — and the operator sees everything in
-the manager. what mortal brokers is scoped (G20); a connection an agent
-opens on its own is outside that boundary, and that is a printed
-non-guarantee.
+the canonical sentence, shipped verbatim as `capabilities().trustBoundary`
+and held to this readme by a doc-sync test (the wording cannot drift):
+
+> least authority at this surface is possession of the id: no tool lists,
+> searches, or enumerates identities, so an agent holds exactly the ids it
+> created or was handed, and unknown ids refuse with a uniform typed
+> NOT_FOUND. there is no runtime-level per-session scope — the mcp server
+> holds the admin token, and every connection to it carries the same
+> authority underneath, so never infer cross-session isolation between
+> agents sharing one runtime. runtime-level session tokens are a candidate
+> enforcement upgrade; until they exist nothing claims them.
+
+context: the runtime has two auth planes today, the admin token and
+per-identity companion tokens. agents never see the admin token, and
+compromising the mcp server process yields admin authority over the
+runtime. identities from a dead agent still expire on schedule — lifecycle
+lives in the runtime scheduler, not the agent — and the operator sees
+everything in the manager. what mortal brokers is scoped (G20); a
+connection an agent opens on its own is outside that boundary, and that is
+a printed non-guarantee.
 
 ## the flagship demo
 

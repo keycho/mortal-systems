@@ -1,4 +1,4 @@
-export { MortalClient, MortalRpcError } from "./client.js";
+export { MCP_TRUST_BOUNDARY, MortalClient, MortalRpcError } from "./client.js";
 export type {
   Capabilities,
   CreateIdentityInput,

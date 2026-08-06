@@ -157,6 +157,12 @@ try {
   if (!Array.isArray(caps.nonGuarantees) || caps.nonGuarantees.length === 0) {
     fail("capabilities ships no non-guarantees");
   }
+  if (
+    typeof caps.trustBoundary !== "string" ||
+    !caps.trustBoundary.includes("never infer cross-session isolation")
+  ) {
+    fail(`capabilities ships no honest trust boundary: ${JSON.stringify(caps.trustBoundary)}`);
+  }
 
   // a fabricated id refuses with a typed NOT_FOUND through the built server
   const ghostRes = await request("tools/call", {

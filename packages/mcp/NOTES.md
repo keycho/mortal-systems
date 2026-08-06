@@ -190,6 +190,14 @@ must not add one (and does not: no extend/update tool exists).
 
 ## least authority for the mcp session (property 6) — honest v1 posture
 
+> **superseded.** the session-scope-at-the-mcp-boundary design described
+> below is the six-tool exploration's and did not ship. the surviving
+> server's posture is possession-of-id least authority — no enumeration
+> surface, uniform typed NOT_FOUND for unknown ids, and **no cross-session
+> isolation between agents sharing one runtime**. the canonical statement
+> is `capabilities().trustBoundary` (see README.md); runtime-level session
+> tokens remain the candidate enforcement upgrade named below.
+
 the runtime has exactly two auth planes today: the **admin token** (full rpc)
 and **per-identity companion tokens** (identity-scoped `/v1/self` surface,
 `packages/runtime/src/api/self.ts` — routes derive the identity from the

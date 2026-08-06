@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { MortalClient, MortalRpcError } from "./client.js";
+import { MCP_TRUST_BOUNDARY, MortalClient, MortalRpcError } from "./client.js";
 
 /**
  * the mortal mcp server: identity primitives for any mcp agent.
@@ -191,7 +191,8 @@ export function buildServer(client: MortalClient): McpServer {
     "capabilities",
     {
       description:
-        "what is enforceable vs advisory vs roadmap right now, the full enforcement table with the tests behind each enforced control, mortal's explicit non-guarantees, and `conditional`: fields that are enforced only for identities configured for them (today permissions.network, enforced only with an attached route, and permissions.tools, enforced only with a declared scope). feature-detect against this, then read the identity's own manifest.permissions.<field>.enforcement — the identity is always authoritative.",
+        "what is enforceable vs advisory vs roadmap right now, the full enforcement table with the tests behind each enforced control, mortal's explicit non-guarantees, and `conditional`: fields that are enforced only for identities configured for them (today permissions.network, enforced only with an attached route, and permissions.tools, enforced only with a declared scope). feature-detect against this, then read the identity's own manifest.permissions.<field>.enforcement — the identity is always authoritative. " +
+        `trust boundary: ${MCP_TRUST_BOUNDARY}`,
       inputSchema: {},
     },
     async () => {

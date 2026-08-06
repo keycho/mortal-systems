@@ -70,6 +70,20 @@ export interface IdentityStatus {
   remainingMs: number | null;
 }
 
+/**
+ * the trust boundary of the mcp surface, single-sourced like the enforcement
+ * table: the capabilities() result carries this string, the capabilities
+ * tool description states it, and the README is held to it verbatim by a
+ * doc-sync unit test, so the wording cannot drift. an agent reading any of
+ * those surfaces must learn the same posture and never infer more.
+ */
+export const MCP_TRUST_BOUNDARY =
+  "least authority at this surface is possession of the id: no tool lists, searches, or enumerates identities, " +
+  "so an agent holds exactly the ids it created or was handed, and unknown ids refuse with a uniform typed NOT_FOUND. " +
+  "there is no runtime-level per-session scope — the mcp server holds the admin token, and every connection to it " +
+  "carries the same authority underneath, so never infer cross-session isolation between agents sharing one runtime. " +
+  "runtime-level session tokens are a candidate enforcement upgrade; until they exist nothing claims them.";
+
 export interface Capabilities extends RuntimeCapabilities {
   /** the full honesty table: every control with its enforcement + tests */
   enforcementTable: Array<{
@@ -84,6 +98,8 @@ export interface Capabilities extends RuntimeCapabilities {
   }>;
   /** what mortal does NOT claim — agents must not assume these */
   nonGuarantees: string[];
+  /** the mcp surface's authority posture — read it before trusting anything */
+  trustBoundary: string;
 }
 
 export class MortalRpcError extends Error {
@@ -235,6 +251,7 @@ export class MortalClient {
         ...(row.conditional !== undefined ? { conditional: row.conditional } : {}),
       })),
       nonGuarantees: [...NON_GUARANTEES],
+      trustBoundary: MCP_TRUST_BOUNDARY,
     };
   }
 }

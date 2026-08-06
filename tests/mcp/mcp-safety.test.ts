@@ -23,7 +23,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 // side-effect import wires the chromium launcher into runtime startup
 import "@mortal/runtime";
 import { MortalRuntime } from "@mortal/runtime";
-import { buildServer, MortalClient } from "@mortal/mcp";
+import { buildServer, MCP_TRUST_BOUNDARY, MortalClient } from "@mortal/mcp";
 import {
   ADVISORY_FIELDS,
   composeManifest,
@@ -205,7 +205,13 @@ describe("mcp safety properties (MCP-1..MCP-6)", () => {
         reservedMethods: string[];
         enforcementTable: Array<{ field: string; enforcement: string; verifiedBy: string[] }>;
         nonGuarantees: string[];
+        trustBoundary: string;
       }>("capabilities");
+
+      // the trust boundary ships verbatim through the real protocol: the
+      // posture an agent learns here is the one the readme and the tool
+      // description state, and it never implies cross-session isolation
+      expect(caps.trustBoundary).toBe(MCP_TRUST_BOUNDARY);
 
       // the tool's lists must equal the schema's derived lists exactly —
       // real values, not hardcoded optimism (and not a stale pin: a
