@@ -135,11 +135,46 @@ export const PLATFORMS: Platform[] = [
   { name: "Linux", arch: "x64 · AppImage", signed: "signed · gpg key: pending slot", href: null },
 ];
 
-export const JOBS: Array<{ label: string; body: string }> = [
-  { label: "AGENTS", body: "give your claude code or ai agent a disposable identity, not your browser." },
-  { label: "CLIENT WORK", body: "one identity per client, destroyed at offboarding. nothing bleeds between clients." },
-  { label: "RESEARCH", body: "a research or due-diligence session that leaves nothing behind." },
-  { label: "TESTING", body: "a fresh, clean environment for testing as a new user." },
+/** the use-case band (founder copy, final as written) */
+export const USE_CASES: Array<{ label: string; body: string }> = [
+  {
+    label: "AGENT OPERATIONS",
+    body: "Give each agent a persistent operational identity instead of access to your personal browser. It can build context over time without inheriting yours.",
+  },
+  {
+    label: "GLOBAL RESEARCH",
+    body: "Launch region-specific research identities with dedicated routes, local browser settings and isolated downloads.",
+  },
+  {
+    label: "MULTI-CLIENT WORK",
+    body: "Keep one persistent identity per client. Sessions, notes, files and accounts never cross engagements.",
+  },
+  {
+    label: "CRYPTO OPERATIONS",
+    body: "Separate investigations, communities, projects and operational accounts into isolated environments with explicit permissions.",
+  },
+  {
+    label: "PRODUCT TESTING",
+    body: "Enter your product as a clean user, returning user or user from another market without contaminating the test with existing browser state.",
+  },
+  {
+    label: "DISPOSABLE TASKS",
+    body: "Provision an identity for a single operation and automatically destroy its managed state when the work ends.",
+  },
+];
+
+/**
+ * landing display copy for the blueprints section (founder copy). these are
+ * NOT the shipped blueprints: the three real first-party blueprints render
+ * from BLUEPRINT_CARDS below, and the section's footnote says exactly which
+ * ship. rendered with the site's middot idiom, never an em dash.
+ */
+export const BLUEPRINT_DISPLAY: Array<{ name: string; region: string }> = [
+  { name: "regional researcher", region: "germany" },
+  { name: "onchain investigator", region: "singapore" },
+  { name: "client operations", region: "united states" },
+  { name: "product tester", region: "brazil" },
+  { name: "community operator", region: "global" },
 ];
 
 /**
@@ -147,4 +182,4 @@ export const JOBS: Array<{ label: string; body: string }> = [
  * time this file was last edited (vitest suites across all packages and
  * apps); update it when it drifts, never round it up.
  */
-export const PROOF_BAND = ["257 tests", "open source", "signed builds at release", "every guarantee has a test id you can read"];
+export const PROOF_BAND = ["258 tests", "open source", "signed builds at release", "every guarantee has a test id you can read"];

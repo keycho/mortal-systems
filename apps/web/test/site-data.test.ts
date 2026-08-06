@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ENFORCEMENT_TABLE, NON_GUARANTEES } from "@mortal/schema";
-import { BLUEPRINT_CARDS, GUARANTEE_CELLS, PROOF_BAND } from "../lib/site-data";
+import {
+  BLUEPRINT_CARDS,
+  BLUEPRINT_DISPLAY,
+  GUARANTEE_CELLS,
+  PROOF_BAND,
+  USE_CASES,
+} from "../lib/site-data";
 
 /**
  * the landing page's curated cells are handoff copy, but their enforcement
@@ -67,6 +73,12 @@ describe("blueprint cards against the schema", () => {
 
   it("crypto never leads the gallery", () => {
     expect(BLUEPRINT_CARDS[0]!.name).not.toMatch(/chain|crypto|wallet/i);
+  });
+
+  it("landing display copy: crypto never leads, and no em dashes sneak in", () => {
+    expect(BLUEPRINT_DISPLAY[0]!.name).not.toMatch(/chain|crypto|wallet/i);
+    for (const b of BLUEPRINT_DISPLAY) expect(`${b.name} ${b.region}`).not.toContain("—");
+    for (const u of USE_CASES) expect(`${u.label} ${u.body}`).not.toContain("—");
   });
 });
 

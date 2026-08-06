@@ -7,7 +7,13 @@ import { LifecycleTicker } from "../components/site/LifecycleTicker";
 import { Nav } from "../components/site/Nav";
 import { SectionHead } from "../components/site/SectionHead";
 import { Simulator } from "../components/simulator/Simulator";
-import { BLUEPRINT_CARDS, GUARANTEE_CELLS, JOBS, PROOF_BAND } from "../lib/site-data";
+import {
+  BLUEPRINT_CARDS,
+  BLUEPRINT_DISPLAY,
+  GUARANTEE_CELLS,
+  PROOF_BAND,
+  USE_CASES,
+} from "../lib/site-data";
 
 /**
  * the landing page, recreated from the design handoff. copy is the
@@ -57,7 +63,7 @@ function Hero() {
                 color: "rgba(25,23,19,.52)",
               }}
             >
-              PROGRAMMABLE IDENTITY RUNTIME
+              PROGRAMMABLE IDENTITY INFRASTRUCTURE
             </div>
             <h1
               className="m-h1"
@@ -69,9 +75,9 @@ function Hero() {
                 fontWeight: 400,
               }}
             >
-              Your agents should never
+              Your agents are already operating the internet.
               <br />
-              {em("inherit")} your identity.
+              Never as you.
             </h1>
             <p
               style={{
@@ -81,10 +87,12 @@ function Hero() {
                 maxWidth: "46ch",
               }}
             >
-              an ai agent with your browser has your logins, your email, your accounts, your
-              reach. people hand that over every day. mortal gives the agent its own identity
-              instead: a real isolated browser, its own memory and files, scoped permissions, a
-              finite life. when the work ends it is destroyed, and leaves only a receipt.
+              AI agents are browsing websites, opening accounts, conducting research, moving
+              assets and completing work through browsers built for humans. Most inherit the
+              operator&apos;s sessions, logins, files and digital reach. Mortal gives every agent
+              an identity of its own: a real isolated browser, private memory and files, scoped
+              permissions, a network route you attach and a lifetime you define. Disposable for
+              one task. Persistent for ongoing work. Destroyed when its purpose ends.
             </p>
             <div className="m-cta" style={{ display: "flex", gap: 14, marginTop: 36 }}>
               <a
@@ -111,7 +119,7 @@ function Hero() {
                   color: "var(--ink)",
                 }}
               >
-                try it in your browser
+                launch an identity
               </a>
             </div>
             <div
@@ -126,7 +134,7 @@ function Hero() {
               }}
             >
               <span style={{ font: "400 12.5px var(--font-mono)", color: "rgba(25,23,19,.45)" }}>
-                watch an agent get an identity
+                watch an agent operate
               </span>
               <Tag kind="dashed">COMING</Tag>
             </div>
@@ -148,8 +156,7 @@ function Hero() {
                 letterSpacing: "0.05em",
               }}
             >
-              local-first&nbsp;&nbsp;/&nbsp;&nbsp;no account&nbsp;&nbsp;/&nbsp;&nbsp;scoped
-              context&nbsp;&nbsp;/&nbsp;&nbsp;enforced lifecycle
+              local-first&nbsp;&nbsp;/&nbsp;&nbsp;isolated&nbsp;chromium&nbsp;&nbsp;/&nbsp;&nbsp;scoped&nbsp;context&nbsp;&nbsp;/&nbsp;&nbsp;enforced&nbsp;lifecycle
             </div>
           </div>
           <div className="m-mark" style={{ display: "flex", justifyContent: "flex-end", marginRight: -40 }}>
@@ -166,32 +173,162 @@ function Hero() {
             letterSpacing: "0.06em",
           }}
         >
-          ↓&nbsp;&nbsp;one task → isolated identity → real browser → enforced destruction
+          ↓&nbsp;&nbsp;one agent → one identity → one controlled surface on the internet
         </div>
       </div>
     </div>
   );
 }
 
-function JobsBand() {
+function AgentsNeedIdentities() {
+  const receives = [
+    "its own browser",
+    "its own memory",
+    "its own files",
+    "its own permissions",
+    "its own network route",
+    "its own lifetime",
+  ];
   return (
-    <div data-screen-label="jobs" style={{ position: "relative", borderTop: "1px solid var(--line-l)" }}>
+    <div
+      data-screen-label="agents need identities"
+      style={{ position: "relative", borderTop: "1px solid var(--line-l)" }}
+    >
+      <div style={{ maxWidth: 1296, margin: "0 auto", padding: "84px 40px" }}>
+        <SectionHead
+          eyebrow="AGENTS NEED IDENTITIES"
+          title="An agent without its own identity operates as whoever launched it."
+          intro="It inherits their browser state, authenticated sessions, accounts, history and access. That works for demos. It does not work for autonomous systems operating continuously across clients, markets, accounts and workflows."
+        />
+        <div
+          className="m-life-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0,640px) minmax(280px,1fr)",
+            gap: 48,
+            marginTop: 44,
+            alignItems: "start",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                font: "400 15.5px/1.7 var(--font-body)",
+                color: "rgba(25,23,19,.7)",
+                margin: 0,
+                maxWidth: "52ch",
+              }}
+            >
+              Mortal places a programmable identity between the agent and the internet. The agent
+              receives exactly what it needs:
+            </p>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+                gap: "12px 24px",
+                marginTop: 24,
+                maxWidth: 520,
+              }}
+            >
+              {receives.map((line) => (
+                <span
+                  key={line}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    font: "400 13.5px var(--font-mono)",
+                    color: "rgba(25,23,19,.75)",
+                  }}
+                >
+                  <span
+                    style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }}
+                  />
+                  {line}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div
+            style={{
+              background: "var(--surface)",
+              border: "1px solid rgba(25,23,19,.12)",
+              borderRadius: "var(--r-card)",
+              padding: "22px 24px",
+              alignSelf: "center",
+            }}
+          >
+            <p style={{ font: "500 15px/1.6 var(--font-body)", margin: 0 }}>
+              Your identity remains outside the environment.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OperateAcrossRegions() {
+  const bullets = [
+    "research the local web from another region",
+    "test how a product behaves in another country",
+    "operate separate international campaigns",
+    "give agents environments specific to their market",
+    "keep regional activity isolated from your personal browser",
+  ];
+  return (
+    <div
+      data-screen-label="operate across regions"
+      style={{ position: "relative", borderTop: "1px solid var(--line-l)" }}
+    >
+      <div style={{ maxWidth: 1296, margin: "0 auto", padding: "84px 40px" }}>
+        <SectionHead
+          eyebrow="OPERATE ACROSS REGIONS"
+          title="Launch identities configured for different markets, languages, timezones and network routes."
+          intro="Mortal does not sell documents, accounts, credentials or fabricated people. It provisions controlled environments. You provide any credentials and network routes required by the workflow."
+        />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 9,
+            marginTop: 40,
+            font: "400 13px/1.7 var(--font-mono)",
+            color: "rgba(25,23,19,.7)",
+          }}
+        >
+          {bullets.map((line) => (
+            <span key={line} style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+              <span style={{ color: "rgba(25,23,19,.35)" }}>·</span>
+              {line}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UseCasesBand() {
+  return (
+    <div data-screen-label="use cases" style={{ position: "relative", borderTop: "1px solid var(--line-l)" }}>
       <div style={{ maxWidth: 1296, margin: "0 auto", padding: "60px 40px 68px" }}>
         <div
           style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(25,23,19,.5)" }}
         >
-          WHAT YOU'D USE IT FOR
+          WHAT YOU WOULD USE IT FOR
         </div>
         <div
           className="m-jobs"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+            gridTemplateColumns: "repeat(3,minmax(0,1fr))",
             gap: 14,
             marginTop: 24,
           }}
         >
-          {JOBS.map((job) => (
+          {USE_CASES.map((job) => (
             <div
               key={job.label}
               style={{
@@ -682,10 +819,50 @@ function BlueprintsSection() {
     <div data-screen-label="blueprints" id="blueprints" style={{ position: "relative" }}>
       <div style={{ maxWidth: 1296, margin: "0 auto", padding: "84px 40px" }}>
         <SectionHead
-          eyebrow="BLUEPRINTS"
-          title={<>identities you can {em("install")}.</>}
-          intro="a blueprint is a preconfigured identity: permissions, lifetime and enforcement, declared up front. install one and launch it: the environment is identical every time."
+          eyebrow="IDENTITY BLUEPRINTS"
+          title="Install a complete operating environment for an agent."
+          intro="A blueprint defines the browser setup, permissions, memory, files, region, route, lifetime and destruction policy before the identity launches."
         />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            marginTop: 36,
+            font: "400 13.5px var(--font-mono)",
+            color: "rgba(25,23,19,.75)",
+          }}
+        >
+          {BLUEPRINT_DISPLAY.map((b) => (
+            <span key={b.name} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span
+                style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--state-neutral)" }}
+              />
+              {b.name} · {b.region}
+            </span>
+          ))}
+        </div>
+        <p
+          style={{
+            font: "400 14px/1.75 var(--font-body)",
+            color: "rgba(25,23,19,.68)",
+            margin: "28px 0 0",
+            maxWidth: "56ch",
+          }}
+        >
+          Inspect every permission before launch. See which controls are enforced, which are
+          configurable and what the identity can access.
+        </p>
+        <div
+          style={{
+            font: "400 12.5px var(--font-mono)",
+            color: "rgba(25,23,19,.55)",
+            marginTop: 10,
+            letterSpacing: "0.02em",
+          }}
+        >
+          install the configuration. bring your own credentials. launch the identity.
+        </div>
         <div
           className="m-grid3"
           style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18, marginTop: 40 }}
@@ -723,7 +900,7 @@ function ForAgentsSection() {
                 color: "rgba(25,23,19,.5)",
               }}
             >
-              FOR AGENTS
+              THE INTERNET ALREADY HAS AGENTS
             </div>
             <h2
               style={{
@@ -733,7 +910,7 @@ function ForAgentsSection() {
                 fontWeight: 400,
               }}
             >
-              agents get an identity, not {em("your")} identity.
+              What it does not have is an identity model built for them.
             </h2>
             <p
               style={{
@@ -743,9 +920,11 @@ function ForAgentsSection() {
                 maxWidth: "44ch",
               }}
             >
-              an agent that browses as you can inherit your sessions, history and logged-in
-              accounts. mortal gives it a scoped environment instead: a real browser, its own
-              memory and files, a finite lifetime and none of your existing browser state.
+              Companies will operate fleets of agents across research, support, procurement,
+              finance, development and online operations. Those agents cannot all inherit the
+              identity of the person who launched them. Mortal is the runtime that decides where
+              an agent operates, what it remembers, what it can access and how long it is
+              allowed to exist.
             </p>
             <p
               style={{
@@ -919,15 +1098,30 @@ function ClosingSection() {
         >
           launch isolated identities that {em("disappear")} when their work is done.
         </h2>
-        <div className="m-cta" style={{ display: "flex", gap: 14, marginTop: 44, justifyContent: "center" }}>
+        <div
+          className="m-cta"
+          style={{ display: "flex", gap: 14, marginTop: 44, justifyContent: "center", flexWrap: "wrap" }}
+        >
           <a
-            href="#download"
+            href="#try"
             style={{
               font: "500 14px var(--font-body)",
               background: "var(--bone)",
               color: "var(--dark)",
               padding: "15px 28px",
               borderRadius: "var(--r-btn)",
+            }}
+          >
+            launch the first identity
+          </a>
+          <a
+            href="#download"
+            style={{
+              font: "500 14px var(--font-body)",
+              border: "1px solid rgba(242,239,231,.35)",
+              padding: "15px 28px",
+              borderRadius: "var(--r-btn)",
+              color: "var(--bone)",
             }}
           >
             download the alpha
@@ -964,7 +1158,9 @@ export default function Home() {
   return (
     <div>
       <Hero />
-      <JobsBand />
+      <AgentsNeedIdentities />
+      <OperateAcrossRegions />
+      <UseCasesBand />
       <TrySection />
       <ManagerSection />
       <LifecycleSection />
