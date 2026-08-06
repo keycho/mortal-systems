@@ -182,14 +182,28 @@ beforeAll(async () => {
 }, T);
 
 afterAll(async () => {
+  // wait for the operator browser to actually exit before removing its
+  // profile: a SIGKILLed chromium can still be mid-write when rmSync walks
+  // the tree (observed on the ci runner as ENOTEMPTY on Default/)
   if (userBrowserProc && userBrowserProc.exitCode === null) {
+    const exited = new Promise<void>((resolve) => userBrowserProc!.once("exit", () => resolve()));
     userBrowserProc.kill("SIGKILL");
+    await Promise.race([exited, new Promise((r) => setTimeout(r, 5_000))]);
   }
   await mcpClient?.close().catch(() => {});
   await server?.close().catch(() => {});
   await runtime?.stop().catch(() => {});
-  fs.rmSync(root, { recursive: true, force: true });
-  if (userProfileDir) fs.rmSync(userProfileDir, { recursive: true, force: true });
+  // throwaway tmp dirs on an ephemeral runner are not a product assertion:
+  // retry through write races and warn instead of failing the suite
+  const rmrf = (dir: string) => {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (e) {
+      console.warn(`cleanup left ${dir}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  rmrf(root);
+  if (userProfileDir) rmrf(userProfileDir);
 }, T);
 
 describe("mcp safety properties (MCP-1..MCP-6)", () => {
