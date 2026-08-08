@@ -57,6 +57,12 @@ export interface AgentNowLive extends AgentNow {
 
 const EVENT_BUFFER = 400;
 const NOW_POLL_MS = 15_000;
+/** while a living cell has no stream yet, the snapshot polls fast: the
+ * server withholds stream_url until a playlist actually exists, so
+ * right after boot or an encoder restart the only thing between a ready
+ * stream and a visible cell is this poll. fifteen seconds of not asking
+ * was most of a cell's apparent startup time. */
+const NOW_CATCHUP_MS = 2_000;
 const EVENT_POLL_MS = 5_000;
 const SSE_RETRY_MS = 60_000;
 
@@ -74,8 +80,22 @@ export function useWall(): WallSnapshot {
     let source: EventSource | null = null;
     let eventPoll: ReturnType<typeof setInterval> | null = null;
     let sseRetry: ReturnType<typeof setTimeout> | null = null;
+    let nowTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // the snapshot poll is a chain, not an interval, so its cadence can
+    // follow the wall's state: fast while any living cell is waiting on
+    // its stream url, relaxed once every cell that can stream does
+    const scheduleNow = (current: AgentNowLive[]): void => {
+      if (stopped) return;
+      if (nowTimer) clearTimeout(nowTimer);
+      const catchup = current.some(
+        (a) => a.state !== "dead" && a.state !== "unborn" && !a.stream_url
+      );
+      nowTimer = setTimeout(() => void pullNow(), catchup ? NOW_CATCHUP_MS : NOW_POLL_MS);
+    };
 
     const pullNow = async (): Promise<void> => {
+      if (nowTimer) clearTimeout(nowTimer);
       try {
         const res = await fetch(`${WALL_API}/now`);
         if (!res.ok) throw new Error(String(res.status));
@@ -83,8 +103,12 @@ export function useWall(): WallSnapshot {
         if (stopped) return;
         setAgents(body.agents);
         setAlive(body.alive);
+        scheduleNow(body.agents);
       } catch {
-        if (!stopped) setConnected(false);
+        if (!stopped) {
+          setConnected(false);
+          scheduleNow([]);
+        }
       }
     };
 
@@ -154,14 +178,13 @@ export function useWall(): WallSnapshot {
     };
 
     void pullNow();
-    const nowPoll = setInterval(() => void pullNow(), NOW_POLL_MS);
     startSse();
 
     const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       stopped = true;
-      clearInterval(nowPoll);
       clearInterval(clock);
+      if (nowTimer) clearTimeout(nowTimer);
       if (eventPoll) clearInterval(eventPoll);
       if (sseRetry) clearTimeout(sseRetry);
       source?.close();
