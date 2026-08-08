@@ -15,26 +15,30 @@ interface Candidate {
   names: string[];
 }
 
-/** standard install locations per os, chrome stable first, then chromium, then brave */
-function candidates(): Candidate[] {
-  const platform = os.platform();
+/**
+ * standard install locations per os, chrome stable first, then chromium,
+ * then brave. every path here is a location on the USER's machine — the
+ * shipped app never carries a path from the machine that built it (the
+ * release build gates on exactly that, see release-macos.yml).
+ *
+ * platform and home are injectable so the per-os lists stay testable from
+ * any host.
+ */
+export function browserCandidates(
+  platform: string = os.platform(),
+  home: string = os.homedir()
+): Candidate[] {
   if (platform === "darwin") {
+    // both /Applications (system-wide) and ~/Applications (per-user
+    // installs, which chrome's installer chooses without admin rights)
+    const mac = (app: string, bin: string): string[] => [
+      `/Applications/${app}.app/Contents/MacOS/${bin}`,
+      path.join(home, `Applications/${app}.app/Contents/MacOS/${bin}`),
+    ];
     return [
-      {
-        kind: "chrome",
-        paths: ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"],
-        names: [],
-      },
-      {
-        kind: "chromium",
-        paths: ["/Applications/Chromium.app/Contents/MacOS/Chromium"],
-        names: [],
-      },
-      {
-        kind: "brave",
-        paths: ["/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"],
-        names: [],
-      },
+      { kind: "chrome", paths: mac("Google Chrome", "Google Chrome"), names: [] },
+      { kind: "chromium", paths: mac("Chromium", "Chromium"), names: [] },
+      { kind: "brave", paths: mac("Brave Browser", "Brave Browser"), names: [] },
     ];
   }
   if (platform === "win32") {
@@ -150,7 +154,7 @@ export async function discoverBrowsers(): Promise<DetectedBrowser[]> {
     }
   }
 
-  for (const candidate of candidates()) {
+  for (const candidate of browserCandidates()) {
     let executable = firstExisting(candidate.paths);
     let source: DetectedBrowser["source"] = "standard-path";
     if (!executable && candidate.names.length > 0) {

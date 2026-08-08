@@ -46,6 +46,15 @@ jobs:
           # assert nothing symlinked survives before the bundler sees it.
           pnpm --filter @mortal/runtime deploy --legacy --prod --config.node-linker=hoisted "$SIDE/runtime"
           rm -rf "$SIDE/runtime/node_modules/.bin"
+          # ship only what the app executes. the package's test/ and src/
+          # trees are dead weight in a .dmg and their fixtures reference
+          # ci-only browser paths (/opt/pw-browsers, ms-playwright) — inert,
+          # but they are exactly what makes a grep of the bundle look like
+          # the app hardcodes a build-machine chromium. remove the
+          # ambiguity instead of explaining it.
+          rm -rf "$SIDE/runtime/test" "$SIDE/runtime/src" "$SIDE/runtime/turbo.json" \
+                 "$SIDE/runtime/.turbo" "$SIDE"/runtime/tsconfig*.json
+          find "$SIDE/runtime/node_modules" -name '.turbo' -type d -prune -exec rm -rf {} + 2>/dev/null || true
           test "$(find "$SIDE" -type l | wc -l)" -eq 0
           cp -R apps/companion/dist "$SIDE/companion"
           # the setup-node binary is a self-contained, node.js-project-signed
@@ -64,6 +73,21 @@ jobs:
           PORT=$(node -p "JSON.parse(require('fs').readFileSync('$PROOF/runtime.json','utf8')).port")
           curl -fsS "http://127.0.0.1:$PORT/v1/health"
           kill $BOOT || true
+
+      - name: portability gate — no build-machine path may ship
+        run: |
+          set -uo pipefail
+          SIDE=apps/manager/src-tauri/sidecar
+          # a downloaded build must resolve chromium on the machine it runs
+          # on. this fails the release if anything in the shipped tree
+          # references a path that only exists on a build machine — the
+          # runner's tool cache, playwright's browser cache, a container
+          # home, or a per-build temp dir.
+          if grep -rIl -E '/opt/pw-browsers|ms-playwright|hostedtoolcache|/Users/runner|/home/runner|/private/var/folders' "$SIDE" ; then
+            echo "FAIL: the shipped sidecar references a build-machine path (listed above)"
+            exit 1
+          fi
+          echo "portability gate: OK — nothing in the sidecar points at this build machine"
 
       - name: tauri build (unsigned .app)
         run: pnpm --filter manager exec tauri build --bundles app
@@ -109,11 +133,27 @@ jobs:
           curl -fsS "http://127.0.0.1:$PORT/v1/health"
           kill -0 $APP_PID
           echo "app process alive and bundled runtime healthy on port $PORT"
+          # portability, proven at runtime: the app must find the browser
+          # itself, from a standard location on this machine. MORTAL_BROWSER_PATH
+          # is deliberately unset in this job — a discovery logged as
+          # env-override (or a path outside /Applications) would mean the
+          # artifact only works where it was built.
+          BROWSER_LINE=$(grep -m1 "browser:" "$HOME/.mortal/sidecar.log" || true)
+          echo "discovery: $BROWSER_LINE"
+          case "$BROWSER_LINE" in
+            *env-override*) echo "FAIL: browser came from an env override, not discovery"; exit 1 ;;
+            *standard-path*|*path-lookup*) : ;;
+            *) echo "FAIL: no browser discovery line in the sidecar log"; exit 1 ;;
+          esac
+          case "$BROWSER_LINE" in
+            *"/Applications/"*) : ;;
+            *) echo "FAIL: resolved browser is not in a standard user location"; exit 1 ;;
+          esac
           sleep 2
           screencapture -x "$RUNNER_TEMP/launch.png" || true
           tail -n 40 "$HOME/.mortal/sidecar.log" || true
           kill $APP_PID || true
-          echo "LAUNCH SMOKE OK"
+          echo "LAUNCH SMOKE OK — browser resolved on this machine, not baked at build time"
 
       - uses: actions/upload-artifact@v4
         with:
