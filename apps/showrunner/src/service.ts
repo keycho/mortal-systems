@@ -1,5 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { WallStore } from "@mortal/wall";
 import {
@@ -55,11 +62,22 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   const env = opts.env ?? process.env;
   const log = opts.log ?? console.log;
   const cast = opts.cast ?? LAUNCH_CAST;
-  mkdirSync(join(opts.root, "wall"), { recursive: true });
-  mkdirSync(join(opts.root, "terrarium"), { recursive: true });
 
-  const wallStore = new WallStore(join(opts.root, "wall", "wall.db"));
-  const terrariumStore = new TerrariumStore(join(opts.root, "terrarium", "terrarium.db"));
+  // the state root is the life of the wall. a store that will not open
+  // is fatal and must say exactly why: an operator reading this line
+  // should not have to guess at ownership.
+  const wallStore = openStore(
+    "wall",
+    join(opts.root, "wall"),
+    (dir) => new WallStore(join(dir, "wall.db")),
+    opts.root
+  );
+  const terrariumStore = openStore(
+    "terrarium",
+    join(opts.root, "terrarium"),
+    (dir) => new TerrariumStore(join(dir, "terrarium.db")),
+    opts.root
+  );
   const terrariumToken = env.TERRARIUM_ADMIN_TOKEN ?? "terrarium-dev";
   if (terrariumToken === "terrarium-dev" && env.NODE_ENV === "production") {
     console.warn("warning: TERRARIUM_ADMIN_TOKEN is the dev default in production");
@@ -78,7 +96,12 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   // navigation off entirely, with the reason in /health.
   const wantLive = !opts.runtime && (env.WALL_RUNTIME ?? "stub").toLowerCase() === "live";
   const sandboxWanted = env.CHROME_SANDBOX === "1";
-  let sandboxStatus: { wanted: boolean; ok: boolean; reason?: string } = {
+  let sandboxStatus: {
+    wanted: boolean;
+    ok: boolean;
+    failure?: string;
+    reason?: string;
+  } = {
     wanted: sandboxWanted,
     ok: false,
     ...(sandboxWanted ? {} : { reason: "not requested (CHROME_SANDBOX unset)" }),
@@ -86,9 +109,16 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   if (wantLive && sandboxWanted) {
     const { probeSandbox } = await import("./sandbox-probe.js");
     const probe = await probeSandbox(env.CHROME_PATH);
-    sandboxStatus = { wanted: true, ok: probe.ok, ...(probe.reason ? { reason: probe.reason } : {}) };
+    sandboxStatus = {
+      wanted: true,
+      ok: probe.ok,
+      ...(probe.failure ? { failure: probe.failure } : {}),
+      ...(probe.reason ? { reason: probe.reason } : {}),
+    };
     if (!probe.ok) {
-      console.warn(`sandbox probe failed, external browsing OFF: ${probe.reason}`);
+      console.warn(
+        `sandbox probe failed [${probe.failure}], external browsing OFF: ${probe.reason}`
+      );
     }
   }
   const preFlags = opts.flags ?? flagsFromEnv(env);
@@ -131,6 +161,11 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   };
   const terrariumHandler = createTerrariumHandler(terrariumOpts);
   let director: StreamDirector | null = null;
+  const boot: {
+    phase: "starting" | "running" | "failed";
+    error?: string;
+    spawn_failures: Array<{ agent_id: string; reason: string }>;
+  } = { phase: "starting", spawn_failures: [] };
   const wallHandler = createWallApiHandler({
     store: wallStore,
     names: () => showrunner.names,
@@ -148,7 +183,16 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     streamUrl: (agentId) => streams?.playbackUrl(agentId) ?? null,
     maxSseConnections: Number(env.WALL_SSE_MAX ?? 200),
     health: () => ({
+      // an empty wall is never healthy: boot failures and a cast that
+      // never came up both drive /health to 503 (see api.ts)
+      ok: boot.phase === "running",
+      boot: {
+        phase: boot.phase,
+        ...(boot.error ? { error: boot.error } : {}),
+        ...(boot.spawn_failures.length > 0 ? { spawn_failures: boot.spawn_failures } : {}),
+      },
       agents_live: showrunner.live.size,
+      cast_size: cast.length,
       thinker: thinker.label,
       stream_provider: streamProvider?.name ?? "none",
       runtime_port: runtimeLabel,
@@ -189,19 +233,65 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     });
   }
 
-  // restart continuity first, fresh spawns only for lives never lived
-  const { recovered, unspawned } = await showrunner.resume(cast);
-  if (recovered.length > 0) log(`resumed: ${recovered.join(", ")}`);
-  for (const member of cast) if (member.serial) showrunner.registerSerialMember(member);
-  for (const member of unspawned) {
-    if (member.serial) {
-      const predecessorId = showrunner.lastSerialAgentId(member);
-      await showrunner.spawn(member, {
-        inherited_fragments: predecessorId ? showrunner.chooseInheritance(predecessorId) : [],
-      });
-    } else {
-      await showrunner.spawn(member);
+  // restart continuity first, fresh spawns only for lives never lived.
+  // every failure here is recorded and surfaced: the server is already
+  // listening at this point, so an exception that merely rejected the
+  // boot promise would leave a live service serving an empty wall behind
+  // a green healthcheck. that happened in production; it cannot again.
+  try {
+    const { recovered, unspawned } = await showrunner.resume(cast);
+    if (recovered.length > 0) log(`resumed: ${recovered.join(", ")}`);
+    for (const member of cast) if (member.serial) showrunner.registerSerialMember(member);
+    for (const member of unspawned) {
+      // one browser that will not launch must not cost the whole cast
+      try {
+        if (member.serial) {
+          const predecessorId = showrunner.lastSerialAgentId(member);
+          await showrunner.spawn(member, {
+            inherited_fragments: predecessorId ? showrunner.chooseInheritance(predecessorId) : [],
+          });
+        } else {
+          await showrunner.spawn(member);
+        }
+      } catch (err) {
+        const reason = firstLine(err);
+        boot.spawn_failures.push({ agent_id: member.agent_id, reason });
+        console.error(`boot: ${member.agent_id} failed to spawn: ${reason}`);
+      }
     }
+    boot.phase = "running";
+  } catch (err) {
+    boot.phase = "failed";
+    boot.error = firstLine(err);
+    console.error(`boot: resume failed: ${boot.error}`);
+  }
+
+  // a cast that produced no live identity is a failed boot even when
+  // every individual error was caught and survived: whatever the reasons
+  // were, there is no wall. one identity short of the cast is a live
+  // wall, and stays "running" with the missing one named.
+  if (boot.phase === "running" && cast.length > 0 && showrunner.live.size === 0) {
+    boot.phase = "failed";
+    boot.error = boot.spawn_failures[0]?.reason ?? "the cast produced no live identity";
+  }
+
+  if (boot.phase !== "running" || showrunner.live.size === 0) {
+    console.error(
+      [
+        "",
+        "==================== the wall came up empty ====================",
+        `phase:        ${boot.phase}`,
+        `agents live:  ${showrunner.live.size} of ${cast.length} in the cast`,
+        boot.error ? `resume error: ${boot.error}` : "",
+        ...boot.spawn_failures.map((f) => `spawn failed: ${f.agent_id}: ${f.reason}`),
+        "/health now answers 503 so the platform restarts this instead of",
+        "leaving a dead wall behind a green check.",
+        "================================================================",
+        "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    );
   }
 
   // the director cam points the one camera at the hot agent; it needs
@@ -253,6 +343,80 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       terrariumStore.close();
     },
   };
+}
+
+/** the first line of an error, which is the part worth logging */
+/**
+ * one operator-readable line out of an error of unknown shape. taking
+ * literally the first line is not enough: a schema validation error
+ * arrives pretty-printed as json, whose first line is "[", and a banner
+ * that says `resume error: [` is the same silence this incident was
+ * about. so collapse the whole message instead and keep the front of it.
+ */
+function firstLine(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const collapsed = message.replace(/\s+/g, " ").trim();
+  if (collapsed.length <= 200) return collapsed || "no message";
+  return `${collapsed.slice(0, 200)}...`;
+}
+
+/**
+ * open a store, or fail with a line an operator can act on. the volume
+ * ownership case is called out by name because it is the one that
+ * actually happens: a volume written by an earlier root boot, mounted
+ * into a container that has since dropped privileges.
+ */
+function openStore<T>(
+  label: string,
+  dir: string,
+  make: (dir: string) => T,
+  root: string
+): T {
+  try {
+    mkdirSync(dir, { recursive: true });
+    // opening is not enough. a directory left root-owned by an earlier
+    // boot is still mode 755, so mkdir sees it already there and sqlite
+    // opens the file read-only without complaint; the failure surfaces
+    // later as "attempt to write a readonly database" from inside the
+    // heartbeat, long after boot, with no line saying why. prove the
+    // volume is writable here, where the diagnosis still fits in one
+    // banner.
+    const probe = join(dir, ".write-probe");
+    writeFileSync(probe, String(process.pid));
+    unlinkSync(probe);
+    return make(dir);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    const uid = typeof process.getuid === "function" ? process.getuid() : "?";
+    const gid = typeof process.getgid === "function" ? process.getgid() : "?";
+    let owner = "unknown";
+    try {
+      const st = statSync(root);
+      owner = `uid ${st.uid}:gid ${st.gid}, mode ${(st.mode & 0o777).toString(8)}`;
+    } catch {
+      owner = "the state root does not exist or is not readable";
+    }
+    console.error(
+      [
+        "",
+        "================ the wall cannot open its state ================",
+        `store:        ${label}`,
+        `path:         ${dir}`,
+        `error:        ${code ?? ""} ${(err as Error).message}`,
+        `running as:   uid ${uid}:gid ${gid}`,
+        `state root:   ${root} (${owner})`,
+        code === "EACCES" || code === "EPERM"
+          ? "likely cause: the volume was written by an earlier boot running as root and this process has dropped privileges. the container entrypoint chowns the volume before dropping; if you are seeing this, the entrypoint did not run (check ENTRYPOINT) or it could not reach the volume."
+          : code === "EROFS"
+            ? "likely cause: the volume is mounted read-only. the wall's record is append-only and it cannot append here."
+            : "likely cause: the volume is not mounted at this path.",
+        "the wall refuses to start rather than serve an empty room.",
+        "================================================================",
+        "",
+      ].join("\n")
+    );
+    throw err;
+  }
 }
 
 const HLS_TYPES: Record<string, string> = {

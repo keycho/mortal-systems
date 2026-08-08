@@ -75,11 +75,16 @@ export function createWallApiHandler(
 
     if (url.pathname === "/health") {
       const last = store.list({ publicOnly: true, newestFirst: true, limit: 1 })[0];
-      sendJson(res, 200, {
-        ok: true,
+      const extra = opts.health?.() ?? {};
+      // a wall that failed to boot, or came up empty, is not healthy: it
+      // answers 503 so the platform's healthcheck restarts it instead of
+      // parking a silent empty wall behind a green check
+      const ok = extra.ok !== false;
+      sendJson(res, ok ? 200 : 503, {
+        ok,
         uptime_seconds: Math.floor((Date.now() - startedAt) / 1000),
         last_public_event_ts: last?.ts ?? null,
-        ...(opts.health?.() ?? {}),
+        ...extra,
       });
       return true;
     }
