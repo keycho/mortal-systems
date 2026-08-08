@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "pnpm install --filter mortal-systems --filter web...",
-  "buildCommand": "cd ../.. && pnpm turbo run build --filter=web && node apps/web/scripts/check-bundle-env.mjs"
+  "buildCommand": "cd ../.. && pnpm turbo run build --filter=web && node apps/web/scripts/check-bundle-env.mjs",
+  "ignoreCommand": "exit 1"
 }
