@@ -1,0 +1,86 @@
+# api.mortal.systems -> the wall service on this box.
+#
+# caddy gets a certificate on its own the first time the domain resolves
+# here; there is nothing to run and no cron to add. everything below is
+# about the two routes that are not ordinary json: the event stream,
+# which must not be buffered or compressed, and the hls segments, which a
+# browser on another origin has to be allowed to fetch.
+#
+# handle blocks are mutually exclusive and are matched in the order they
+# appear, so the specific routes come first and the last one is the rest
+# of the wall.
+{
+	email {$WALL_ACME_EMAIL}
+}
+
+{$WALL_API_DOMAIN} {
+	log {
+		output stdout
+		format console
+	}
+
+	# hls.js sends a preflight before ranged segment requests. answering
+	# it here keeps it off the showrunner, which is read-only and refuses
+	# every method that is not a GET -- a 405 to a preflight would read to
+	# the browser as "this stream is not allowed" rather than "that verb
+	# is not".
+	@hls_preflight {
+		path /hls/*
+		method OPTIONS
+	}
+	handle @hls_preflight {
+		header {
+			Access-Control-Allow-Origin "{$WALL_WEB_ORIGIN}"
+			Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+			Access-Control-Allow-Headers "Range"
+			Access-Control-Max-Age "86400"
+			Vary "Origin"
+		}
+		respond 204
+	}
+
+	# the playlists and segments the cells play. the wall api already
+	# answers a wildcard origin; this narrows it to the site, and `header`
+	# replaces rather than appends, so the response carries exactly one
+	# allow-origin -- a duplicated one is refused by every browser.
+	@hls path /hls/*
+	handle @hls {
+		header {
+			Access-Control-Allow-Origin "{$WALL_WEB_ORIGIN}"
+			Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+			Access-Control-Allow-Headers "Range"
+			Access-Control-Expose-Headers "Content-Length, Content-Range"
+			Vary "Origin"
+			# a live playlist that is cached is a wall showing the past
+			Cache-Control "no-store"
+		}
+		reverse_proxy showrunner:4925
+	}
+
+	# the wire is a long-lived text/event-stream. a proxy that buffers it
+	# turns a live wall into one that updates in bursts, and a proxy that
+	# compresses it can hold a whole event back waiting for enough bytes
+	# to be worth compressing. so this route is never encoded, says
+	# no-transform to anything downstream, and flushes every write.
+	@events path /events
+	handle @events {
+		header {
+			Cache-Control "no-cache, no-transform"
+			# nginx and several cdns read this; caddy does not need it,
+			# but caddy may not be the only thing in front of this box
+			X-Accel-Buffering "no"
+		}
+		reverse_proxy showrunner:4925 {
+			flush_interval -1
+		}
+	}
+
+	# everything else: the public read-only wall routes (/health, /now,
+	# /wire, /recent, /recap, /graveyard) and the terrarium the identities
+	# write to (/t/{name}, its rss, its comment forms). one service serves
+	# both on one port by design, so there is one thing to proxy.
+	handle {
+		encode zstd gzip
+		reverse_proxy showrunner:4925
+	}
+}

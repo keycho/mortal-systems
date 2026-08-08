@@ -23,4 +23,6 @@ tests/.tmp/
 *.log
 .env
 .env.*
+# the box's template carries no secrets, only the names of them
+!infra/box/.env.example
 artifacts/demo/

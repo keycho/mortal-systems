@@ -1,0 +1,103 @@
+# the wall on one box: the showrunner, and caddy in front of it.
+#
+# this stack is a SECOND home for the wall, standing beside railway on a
+# fresh empty database. it does not read railway's data, does not write
+# to it, and nothing here points production at this box. moving the
+# record across and repointing the site are a separate, later step.
+#
+#   docker compose up -d --build
+#
+# state lives in the named volume, which is the whole life of the wall:
+# the append-only record, the terrarium archives, the provisioned session
+# state, and the hls segments the cells play.
+
+name: mortal-wall
+
+services:
+  showrunner:
+    build:
+      context: ../..
+      dockerfile: apps/showrunner/Dockerfile
+    image: mortal-wall-showrunner:local
+    restart: unless-stopped
+    # the wall is not public: caddy is. binding to loopback matters more
+    # than usual here because docker writes its own iptables rules, which
+    # ufw does not filter -- a 0.0.0.0 publish would be reachable from the
+    # internet with the firewall still reporting it closed.
+    ports:
+      - "127.0.0.1:4925:4925"
+    env_file:
+      - .env
+    environment:
+      # fixed for this box; everything operator-shaped lives in .env
+      NODE_ENV: production
+      PORT: "4925"
+      MORTAL_ROOT: /data
+      WALL_RUNTIME: live
+      STREAM_PROVIDER: ffmpeg
+      # chromium's sandbox is asked for here and decided by the boot
+      # probe; on this host userns is available, so it should pass
+      CHROME_SANDBOX: "1"
+      # each identity gets a real browser window on its own Xvfb screen,
+      # so tabs, toolbar and url bar are in frame
+      WALL_HEADFUL: "1"
+      WALL_XVFB_BASE: "99"
+    volumes:
+      - wall-data:/data
+    # chromium wants real shared memory; the 64mb docker default is what
+    # sends the sandbox probe walking its ladder looking for a way around
+    shm_size: "1gb"
+    # a box with headroom: the ceiling below is the container's, and
+    # WALL_STREAM_MEM_MB (in .env) is the softer line the director starts
+    # giving up grid quality at, well before the kernel starts killing.
+    mem_limit: ${BOX_MEM_LIMIT:-6g}
+    memswap_limit: ${BOX_MEM_LIMIT:-6g}
+    healthcheck:
+      # /health answers 503 on a wall that came up empty or cannot keep
+      # its record, so this restarts a dead wall instead of parking a
+      # green check on it. node has fetch; the image ships no curl.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4925/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      # browsers, screens and encoders all start before the first health
+      # answer; a short start period would restart-loop a healthy boot
+      start_period: 180s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - showrunner
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # the domain and the origin allowed to embed the streams; both are
+      # read by the Caddyfile
+      WALL_API_DOMAIN: ${WALL_API_DOMAIN:?set WALL_API_DOMAIN in .env}
+      WALL_WEB_ORIGIN: ${WALL_WEB_ORIGIN:?set WALL_WEB_ORIGIN in .env}
+      WALL_ACME_EMAIL: ${WALL_ACME_EMAIL:?set WALL_ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  wall-data:
+  caddy-data:
+  caddy-config:
