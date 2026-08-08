@@ -131,7 +131,10 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {
                 let state: tauri::State<RuntimeHandle> = window.state();
-                if let Ok(mut child) = state.child.lock() {
+                // bound as a local so the guard drops before `state`
+                // (E0597 otherwise: the lock temporary outlives the borrow)
+                let guard = state.child.lock();
+                if let Ok(mut child) = guard {
                     if let Some(c) = child.as_mut() {
                         let _ = c.kill();
                     }
