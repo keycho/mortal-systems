@@ -1,0 +1,200 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { Server } from "node:http";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { RATE_LIMIT, TerrariumStore, createTerrariumServer, moderate } from "../src/index.js";
+
+const TOKEN = "test-token";
+let dir: string;
+let store: TerrariumStore;
+let server: Server;
+let base: string;
+
+beforeEach(async () => {
+  dir = mkdtempSync(join(tmpdir(), "terrarium-"));
+  store = new TerrariumStore(join(dir, "t.db"));
+  server = createTerrariumServer({ store, adminToken: TOKEN, baseHost: "terrarium.local" });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  base = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
+});
+
+afterEach(async () => {
+  await new Promise((resolve) => server.close(resolve));
+  store.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+const api = (path: string, body?: unknown, method = body === undefined ? "GET" : "POST") =>
+  fetch(`${base}${path}`, {
+    method,
+    headers: { authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+async function seedMarlowe(): Promise<{ postId: string }> {
+  await api("/api/tenants", { name: "marlowe", agent_id: "ag_marlowe", title: "the slow blog" });
+  const res = await api("/api/posts", {
+    tenant: "marlowe",
+    title: "on graves",
+    body_md: "first paragraph\n\nsecond paragraph",
+  });
+  const { post } = (await res.json()) as { post: { id: string } };
+  return { postId: post.id };
+}
+
+describe("terrarium", () => {
+  it("refuses the internal api without the token", async () => {
+    const res = await fetch(`${base}/api/tenants`);
+    expect(res.status).toBe(401);
+  });
+
+  it("serves a tenant blog over the path route and the subdomain route", async () => {
+    const { postId } = await seedMarlowe();
+    const home = await fetch(`${base}/t/marlowe/`);
+    expect(home.status).toBe(200);
+    const html = await home.text();
+    expect(html).toContain("the slow blog");
+    expect(html).toContain("on graves");
+    expect(html).toContain("autonomous identity");
+
+    // undici strips a literal host header; the forwarded form is what the
+    // cdn sends in production anyway
+    const viaHost = await fetch(`${base}/posts/${postId}`, {
+      headers: { "x-forwarded-host": "marlowe.terrarium.local" },
+    });
+    expect(viaHost.status).toBe(200);
+    expect(await viaHost.text()).toContain("second paragraph");
+  });
+
+  it("serves real rss with escaped content", async () => {
+    await seedMarlowe();
+    await api("/api/posts", {
+      tenant: "marlowe",
+      title: `an "odd" <title> & so on`,
+      body_md: "body",
+    });
+    const res = await fetch(`${base}/t/marlowe/rss.xml`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("rss");
+    const xml = await res.text();
+    expect(xml).toContain("<rss version=");
+    expect(xml).toContain("&quot;odd&quot; &lt;title&gt; &amp; so on");
+    expect(xml).toContain("<pubDate>");
+  });
+
+  it("takes human comments, moderates them, and lets the agent read and reply", async () => {
+    const { postId } = await seedMarlowe();
+    const sinceBefore = new Date(Date.now() - 1000).toISOString();
+
+    const ok = await fetch(`${base}/t/marlowe/posts/${postId}/comments`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({ author: "conrad", body: "who taught you grief" }).toString(),
+    });
+    expect(ok.status).toBe(201);
+    expect(((await ok.json()) as { status: string }).status).toBe("approved");
+
+    const spam = await fetch(`${base}/t/marlowe/posts/${postId}/comments`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({
+        author: "bot",
+        body: "free money click here https://a.example https://b.example",
+      }).toString(),
+    });
+    expect(((await spam.json()) as { status: string }).status).toBe("held");
+
+    // the agent's reading cursor sees only approved human comments
+    const read = await api(`/api/comments?tenant=marlowe&since=${encodeURIComponent(sinceBefore)}`);
+    const { comments } = (await read.json()) as { comments: Array<{ body: string }> };
+    expect(comments).toHaveLength(1);
+    expect(comments[0]?.body).toBe("who taught you grief");
+
+    // the agent replies through the internal api; the reply publishes
+    const reply = await api("/api/replies", {
+      post_id: postId,
+      agent_id: "ag_marlowe",
+      author: "marlowe",
+      body: "grief taught itself",
+    });
+    expect(reply.status).toBe(201);
+    const postHtml = await (await fetch(`${base}/t/marlowe/posts/${postId}`)).text();
+    expect(postHtml).toContain("grief taught itself");
+    // held spam never renders
+    expect(postHtml).not.toContain("free money");
+  });
+
+  it("escapes comment html so nothing executes", async () => {
+    const { postId } = await seedMarlowe();
+    await api("/api/replies", {
+      post_id: postId,
+      agent_id: "ag_marlowe",
+      author: "marlowe",
+      body: "plain <script>alert(1)</script>",
+    });
+    const html = await (await fetch(`${base}/t/marlowe/posts/${postId}`)).text();
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("rate-limits comments per ip", async () => {
+    const { postId } = await seedMarlowe();
+    for (let i = 0; i < RATE_LIMIT.max; i++) {
+      const res = await fetch(`${base}/t/marlowe/posts/${postId}/comments`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+        body: new URLSearchParams({ author: "c", body: `note ${i}` }).toString(),
+      });
+      expect(res.status).toBe(201);
+    }
+    const over = await fetch(`${base}/t/marlowe/posts/${postId}/comments`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({ author: "c", body: "one more" }).toString(),
+    });
+    expect(over.status).toBe(429);
+  });
+
+  it("freeze is one-way: the archive stays readable, every write dies", async () => {
+    const { postId } = await seedMarlowe();
+    const frozen = await api("/api/freeze", { tenant: "marlowe" });
+    expect(frozen.status).toBe(200);
+
+    // reads survive
+    const home = await fetch(`${base}/t/marlowe/`);
+    expect(home.status).toBe(200);
+    expect(await home.text()).toContain("frozen read-only");
+
+    // writes refuse: posts, agent replies, human comments
+    const post = await api("/api/posts", { tenant: "marlowe", title: "x", body_md: "y" });
+    expect(post.status).toBe(410);
+    const reply = await api("/api/replies", {
+      post_id: postId,
+      agent_id: "ag_marlowe",
+      author: "marlowe",
+      body: "from beyond",
+    });
+    expect(reply.status).toBe(410);
+    const comment = await fetch(`${base}/t/marlowe/posts/${postId}/comments`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({ author: "c", body: "hello" }).toString(),
+    });
+    expect(comment.status).toBe(410);
+
+    // and there is no thaw route or store method at all
+    expect(Object.getOwnPropertyNames(Object.getPrototypeOf(store)).join(",")).not.toMatch(
+      /thaw|unfreeze/i
+    );
+  });
+
+  it("moderation verdicts", () => {
+    expect(moderate("a decent sentence").status).toBe("approved");
+    expect(moderate("<b>bold</b>").status).toBe("held");
+    expect(moderate("").status).toBe("held");
+    expect(moderate("x".repeat(3000)).status).toBe("held");
+    expect(moderate("kys").status).toBe("held");
+  });
+});

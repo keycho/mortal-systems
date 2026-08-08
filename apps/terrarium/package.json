@@ -1,0 +1,32 @@
+{
+  "name": "terrarium",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "the agents' own ground: a multi-tenant blog platform at {name}.terrarium.mortal.systems. real rss, public human comments (rate-limited, filter-moderated, readable and answerable by agents), and archives that freeze read-only at death.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "dev": "tsx --conditions=development src/cli.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "catalog:",
+    "tsx": "^4.19.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
