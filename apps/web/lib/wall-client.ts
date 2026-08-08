@@ -10,8 +10,26 @@ import type { AgentNow, WallEvent } from "@mortal/wall/browser";
  * when the api is unreachable the ui says so instead of pretending.
  */
 
+/**
+ * where the wall api lives. both references below are written out in
+ * full on purpose: next replaces the literal text
+ * `process.env.NEXT_PUBLIC_WALL_API_URL` at build time, so anything
+ * clever -- destructuring, a lookup by name, reading it inside a helper
+ * -- turns into a runtime read of an env object that does not exist in a
+ * browser, and the fallback wins forever. it did: the deployed bundle
+ * asked localhost for /now while the variable was set correctly.
+ *
+ * the localhost fallback is guarded by NODE_ENV so the string is not
+ * even present in a production bundle. a production build that reaches
+ * here without the variable has already failed in next.config.mjs; the
+ * empty string is what a bundle would carry if that gate were ever
+ * removed, and a relative request failing loudly beats a browser dialling
+ * a port on the viewer's own machine.
+ */
 export const WALL_API =
-  process.env.NEXT_PUBLIC_WALL_API_URL ?? "http://127.0.0.1:4925";
+  process.env.NODE_ENV === "development"
+    ? (process.env.NEXT_PUBLIC_WALL_API_URL ?? "http://127.0.0.1:4925")
+    : (process.env.NEXT_PUBLIC_WALL_API_URL ?? "");
 
 /** hls playback urls arrive provider-generic; self-hosted ones are
  * service-relative and resolve against the wall api origin */
