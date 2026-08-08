@@ -1,12 +1,13 @@
 import { contourMark, MARK_FORM, MARK_SEED, MARK_VIEWBOX } from "../../lib/contour";
 
 /**
- * the hero mark: 54 nested contours computed once at module scope (the
- * generator is deterministic) and shipped as static svg. the field layers
- * stagger in on load and breathe on a 16s cycle; layer 52 is the stray,
- * offset from the field, looping solid to flare to dashed erosion and back
- * (identity forming and dissolving). under prefers-reduced-motion the
- * css collapses every animation: static full field, solid stray, no loop.
+ * the hero mark: a heartbeat field, 54 stacked ECG traces computed once
+ * at module scope (the generator is deterministic) and shipped as static
+ * svg. the field layers stagger in on load and breathe on a 16s cycle;
+ * layer 40 is the stray, offset from the field, looping solid to flare
+ * to dashed erosion and back (identity forming and dissolving). under
+ * prefers-reduced-motion the css collapses every animation: static full
+ * field, solid stray, no loop.
  */
 const mark = contourMark(MARK_SEED, MARK_FORM);
 

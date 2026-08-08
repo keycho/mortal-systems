@@ -1,33 +1,32 @@
 /**
- * the hero contour mark — generated geometry, not an asset.
- * ported verbatim from the design handoff's generator: nested closed
- * contours whose radius is modulated by four seeded sine harmonics, with a
- * center drift across layers. the prng is deterministic (fractional part of
- * sin(seed) * 10000), so the same seed always renders the same mark; the
- * paths are computed at module scope and shipped as static svg.
+ * the hero mark — generated geometry, not an asset.
+ * ported verbatim from the design handoff's generator (`_stack` in the
+ * site design file): a heartbeat field of 54 stacked ECG traces, each a
+ * sum of gaussians (P bump, Q dip, R spike, S dip, T bump) around a
+ * per-layer spike center that drifts across the stack, shaped by a
+ * sine envelope with a 0.22 floor. the prng is deterministic
+ * (fractional part of sin(seed) * 10000), so the same seed always
+ * renders the same mark; the paths are computed at module scope and
+ * shipped as static svg. layer 40 is lifted out as the stray.
  */
 
-export interface ContourForm {
-  /** number of nested contours (one of them becomes the stray) */
+export interface HeartbeatForm {
+  /** number of stacked traces (one of them becomes the stray) */
   n: number;
-  rMax: number;
-  cx: number;
-  cy: number;
-  sx: number;
-  sy: number;
+  x0: number;
+  /** trace width */
+  w: number;
+  y0: number;
+  /** stack height */
+  h: number;
+  /** spike amplitude before the envelope */
+  amp: number;
+  /** spike center as a fraction of the trace, 0..1 */
+  cU: number;
   /** center drift applied across layers */
-  dx: number;
-  dy: number;
-  sw: number;
-  swA: number;
-  sw2: number;
-  swA2: number;
+  drift: number;
   /** index of the layer lifted out as the stray line */
   tempI: number;
-  rMin?: number;
-  pw?: number;
-  /** harmonic strength */
-  hs?: number;
 }
 
 export interface ContourLayer {
@@ -38,47 +37,43 @@ export interface ContourLayer {
 
 export interface ContourMark {
   layers: ContourLayer[];
-  /** the stray contour's path, rendered offset from the field */
+  /** the stray trace's path, rendered offset from the field */
   stray: string;
 }
 
-export function contourMark(seed: number, form: ContourForm): ContourMark {
+/** the shared ECG beat: P bump, Q dip, R spike, S dip, T bump */
+const gauss = (u: number, c: number, w: number) => Math.exp(-((u - c) * (u - c)) / (w * w));
+const beat = (u: number, c: number) =>
+  0.1 * gauss(u, c - 0.14, 0.03) -
+  0.16 * gauss(u, c - 0.035, 0.012) +
+  gauss(u, c, 0.01) -
+  0.26 * gauss(u, c + 0.035, 0.014) +
+  0.2 * gauss(u, c + 0.13, 0.045);
+
+export function contourMark(seed: number, form: HeartbeatForm): ContourMark {
   let n0 = seed;
   const rnd = () => {
     n0 = Math.sin(n0) * 10000;
     return n0 - Math.floor(n0);
   };
   const N = form.n;
-  const pts = 56;
-  const TAU = Math.PI * 2;
-  const h: Array<{ k: number; a: number; p: number; d: number }> = [];
-  for (let k = 0; k < 4; k++) {
-    h.push({
-      k: 2 + k + Math.floor(rnd() * 2),
-      a: (0.06 + rnd() * 0.1) / (k * 0.8 + 1),
-      p: rnd() * TAU,
-      d: (rnd() - 0.5) * 2.2,
-    });
-  }
+  const pts = 220;
   const layers: ContourLayer[] = [];
   let stray = "";
   for (let i = 0; i < N; i++) {
     const t = (i + 1) / N;
-    const rm = form.rMin ?? 0.12;
-    const R = form.rMax * (rm + (1 - rm) * Math.pow(t, form.pw ?? 1));
-    const cx = form.cx + form.dx * (1 - t) + Math.sin(t * form.sw) * form.swA;
-    const cy = form.cy + form.dy * (1 - t) + Math.cos(t * form.sw2) * form.swA2;
+    const y0 = form.y0 + form.h * (i / (N - 1));
+    const env = Math.sin(Math.PI * Math.pow(t, 0.8));
+    const amp = form.amp * (0.22 + 0.78 * env);
+    const c = form.cU + form.drift * (1 - t) + (rnd() - 0.5) * 0.03;
+    const ph = rnd() * 6.28;
     let d = "";
     for (let j = 0; j <= pts; j++) {
-      const th = ((j % pts) / pts) * TAU;
-      let r = 1;
-      const hs = form.hs ?? 1;
-      for (const q of h) r += hs * q.a * Math.sin(th * q.k + q.p + t * q.d * 6);
-      const x = cx + Math.cos(th) * R * r * form.sx;
-      const y = cy + Math.sin(th) * R * r * form.sy;
+      const u = j / pts;
+      const x = form.x0 + u * form.w;
+      const y = y0 - amp * beat(u, c) + 2.5 * Math.sin(u * 9 + ph + t * 5);
       d += (j ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1) + " ";
     }
-    d += "Z";
     if (i === form.tempI) stray = d;
     else layers.push({ d, dl: (i * 0.045).toFixed(2) + "s" });
   }
@@ -86,24 +81,52 @@ export function contourMark(seed: number, form: ContourForm): ContourMark {
 }
 
 /** the one mark the site uses (hero + og card), locked by the handoff */
-export const MARK_FORM: ContourForm = {
+export const MARK_FORM: HeartbeatForm = {
   n: 54,
-  rMax: 205,
-  cx: 300,
-  cy: 268,
-  sx: 1.0,
-  sy: 0.94,
-  dx: 34,
-  dy: 22,
-  sw: 6,
-  swA: 14,
-  sw2: 8,
-  swA2: 12,
-  tempI: 52,
-  rMin: 0.34,
-  hs: 0.85,
+  x0: 10,
+  w: 750,
+  y0: 60,
+  h: 420,
+  amp: 165,
+  cU: 0.56,
+  drift: 0.09,
+  tempI: 40,
 };
 
-export const MARK_SEED = 66.6;
+export const MARK_SEED = 61.8;
 
 export const MARK_VIEWBOX = "-90 -70 760 640";
+
+/**
+ * the wall's vacant form (`_vac` in the gate design file): nine quiet
+ * traces of the same beat, sized to a frame. an empty plate on the wall
+ * is the brand mark at rest. opacity is distributed on a sine across
+ * the nine lines so the field reads as depth rather than a stack.
+ */
+export interface VacantLine {
+  d: string;
+  op: string;
+}
+
+export function vacantField(): VacantLine[] {
+  let n0 = 44.7;
+  const rnd = () => {
+    n0 = Math.sin(n0) * 10000;
+    return n0 - Math.floor(n0);
+  };
+  const out: VacantLine[] = [];
+  for (let i = 0; i < 9; i++) {
+    const t = (i + 1) / 9;
+    const y0 = 70 + 130 * (i / 8);
+    const amp = 46 * Math.sin(Math.PI * Math.pow(t, 0.8));
+    const c = 0.45 + (rnd() - 0.5) * 0.06;
+    const ph = rnd() * 6.28;
+    let d = "";
+    for (let j = 0; j <= 160; j++) {
+      const u = j / 160;
+      d += (j ? "L" : "M") + (-40 + u * 500).toFixed(1) + " " + (y0 - amp * beat(u, c) + 2 * Math.sin(u * 8 + ph)).toFixed(1) + " ";
+    }
+    out.push({ d, op: (0.06 + 0.12 * Math.sin(Math.PI * t)).toFixed(2) });
+  }
+  return out;
+}
