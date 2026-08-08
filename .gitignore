@@ -10,6 +10,10 @@ apps/manager/src-tauri/target/
 apps/web/next-env.d.ts
 apps/web/.vercel/
 
+# ci-assembled sidecar tree (release-macos.yml); only the README is committed
+apps/manager/src-tauri/sidecar/*
+!apps/manager/src-tauri/sidecar/README.md
+
 # test artifacts
 test-results/
 playwright-report/

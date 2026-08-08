@@ -1,9 +1,11 @@
 // mortal manager — tauri 2 shell.
 //
-// STATUS (poc): scaffolded but NOT compiled or run in the linux build
-// container (no webkit2gtk). written for the macos poc target; treat as
-// unverified until built there. the ui works headlessly today via
-// `pnpm dev` (vite + runtime loopback proxy).
+// STATUS: compiled and launch-smoked by release ci (release-macos.yml) on the
+// macos runner — the smoke asserts the bundled sidecar boots, /v1/health
+// answers, and the app process stays up. still never compiled in the linux
+// dev container (no webkit2gtk). windowed human verification stays a founder
+// action. the ui also works headlessly via `pnpm dev` (vite + runtime
+// loopback proxy).
 //
 // responsibilities of this shell, per the architecture:
 // - spawn/monitor the @mortal/runtime sidecar (node dist/cli.js serve)
