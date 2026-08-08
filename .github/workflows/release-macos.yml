@@ -39,7 +39,14 @@ jobs:
           set -euxo pipefail
           SIDE=apps/manager/src-tauri/sidecar
           rm -rf "$SIDE/runtime" "$SIDE/companion" "$SIDE/node"
-          pnpm --filter @mortal/runtime deploy --legacy --prod "$SIDE/runtime"
+          # hoisted linker: real files instead of pnpm's symlink farm — the
+          # tauri resource copier breaks symlinks (run 2's smoke: zod
+          # unresolvable inside the .app). the leftover .bin shims are
+          # install-time cli links, dead weight at runtime; drop them and
+          # assert nothing symlinked survives before the bundler sees it.
+          pnpm --filter @mortal/runtime deploy --legacy --prod --config.node-linker=hoisted "$SIDE/runtime"
+          rm -rf "$SIDE/runtime/node_modules/.bin"
+          test "$(find "$SIDE" -type l | wc -l)" -eq 0
           cp -R apps/companion/dist "$SIDE/companion"
           # the setup-node binary is a self-contained, node.js-project-signed
           # arm64 executable — reuse it instead of downloading a tarball
