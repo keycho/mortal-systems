@@ -175,6 +175,9 @@ importers:
       '@mortal/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@mortal/wall':
+        specifier: workspace:*
+        version: link:../../packages/wall
       next:
         specifier: ^15.3.0
         version: 15.5.22(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

@@ -72,7 +72,13 @@ export const scriptedThinker: ThinkFn = async (ctx) => {
       },
     };
   }
-  return { monologue: truncate(`${ctx.name} is thinking about ${ctx.role.split(",")[0]}`, 140) };
+  const focus = (ctx.role.split(",")[0] as string).trim();
+  // cast roles for personas are verb-led ("writes a japanese diary");
+  // arcs are noun-led and need a preposition
+  const line = /^(writes|reads|posts)\b/.test(focus)
+    ? `${ctx.name} ${focus}`
+    : `${ctx.name} is at work on the ${focus}`;
+  return { monologue: truncate(line, 140) };
 };
 
 function truncate(s: string, max: number): string {

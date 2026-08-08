@@ -1,3 +1,5 @@
+import "./wall.css";
+import { Gate as WallGate } from "../components/wall/Gate";
 import { EnforcementChip, Tag } from "../components/Badge";
 import { BlueprintCard } from "../components/site/BlueprintCard";
 import { ContourMark } from "../components/site/ContourMark";
@@ -1155,6 +1157,13 @@ function ClosingSection() {
 }
 
 export default function Home() {
+  // the wall spec puts the gate at the root; the switch is a build-time
+  // flag so the product landing survives until the wall is live in
+  // production (recorded in DECISIONS.md). the gate is always previewable
+  // at /gate either way.
+  if (process.env.NEXT_PUBLIC_WALL_GATE === "1") {
+    return <WallGate />;
+  }
   return (
     <div>
       <Hero />

@@ -45,8 +45,4 @@ export function verifyReceipt(event: {
   return receiptHash(event) === event.receipt;
 }
 
-/** the display form used everywhere on screen: first 4 and last 2 hex chars */
-export function shortReceipt(receipt: string): string {
-  if (receipt.length <= 8) return receipt;
-  return `${receipt.slice(0, 4)}…${receipt.slice(-2)}`;
-}
+export { shortReceipt } from "./humanize.js";

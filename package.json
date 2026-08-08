@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo run dev --filter=@mortal/runtime --filter=manager",
     "dev:web": "turbo run dev --filter=web",
+    "dev:wall": "turbo run dev --filter=terrarium --filter=showrunner",
     "dev:manager": "turbo run dev --filter=manager",
     "dev:runtime": "turbo run dev --filter=@mortal/runtime",
     "build": "turbo run build",

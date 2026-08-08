@@ -12,6 +12,12 @@ import {
  * (ag_ash_1 -> ash-1) so raw ids never leak into copy.
  */
 
+/** the display form of a receipt everywhere on screen: 8f2c…e1 */
+export function shortReceipt(receipt: string): string {
+  if (receipt.length <= 8) return receipt;
+  return `${receipt.slice(0, 4)}…${receipt.slice(-2)}`;
+}
+
 export function humanizeSeconds(total: number): string {
   if (total < 60) return `${Math.max(0, Math.floor(total))}s`;
   if (total < 3600) return `${Math.floor(total / 60)}m`;
