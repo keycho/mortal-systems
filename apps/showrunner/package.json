@@ -20,11 +20,12 @@
     "dev": "tsx --conditions=development src/cli.ts"
   },
   "dependencies": {
-    "@mortal/wall": "workspace:*"
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@mortal/wall": "workspace:*",
+    "terrarium": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "terrarium": "workspace:*",
     "tsx": "^4.19.0",
     "typescript": "catalog:",
     "vitest": "catalog:"

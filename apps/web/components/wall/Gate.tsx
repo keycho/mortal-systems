@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { directorScore, spotlightAt } from "@mortal/wall/browser";
+import { directorScore, humanizeEvent, spotlightAt } from "@mortal/wall/browser";
 import { useWall } from "../../lib/wall-client";
 import { AgentCell, VacantCell } from "./AgentCell";
 
@@ -37,6 +37,20 @@ export function Gate() {
   }, [agents, events, now]);
 
   const spotlight = useMemo(() => spotlightAt(events, new Date(now)), [events, now]);
+  // the global strip: the last 4 public events, newest first (the spec's
+  // literal reading, restored per the DECISIONS.md flag; per-cell status
+  // lines stay as they are)
+  const strip = useMemo(() => {
+    const names = new Map(agents.map((a) => [a.agent_id, a.name]));
+    return [...events]
+      .reverse()
+      .slice(0, 4)
+      .map((event) => ({
+        id: event.id,
+        kind: event.kind,
+        line: humanizeEvent(event, names.get(event.agent_id)),
+      }));
+  }, [events, agents]);
   const vacants = Math.max(0, GRID_SLOTS - sorted.length);
   const countLine =
     alive <= 6 ? `${COUNT_WORDS[alive]} alive right now` : `${alive} identities are alive right now`;
@@ -59,6 +73,13 @@ export function Gate() {
         ))}
         {Array.from({ length: vacants }, (_, i) => (
           <VacantCell key={`vacant-${i}`} />
+        ))}
+      </div>
+      <div className="wall-strip">
+        {strip.map((entry) => (
+          <span key={entry.id} className={`entry ${entry.kind}`}>
+            {entry.line}
+          </span>
         ))}
       </div>
       <div className="wall-foot">

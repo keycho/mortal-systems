@@ -138,6 +138,33 @@
   text-overflow: ellipsis;
 }
 
+/* ---- gate global strip: the last 4 public events on one line ---- */
+.wall-strip {
+  display: flex;
+  gap: 28px;
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--wall-line);
+  font-size: 11px;
+  color: var(--wall-dim);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.wall-strip .entry {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wall-strip .entry.death {
+  color: var(--wall-death);
+}
+.wall-strip .entry.spawn,
+.wall-strip .entry.ttl_extended {
+  color: var(--wall-life);
+}
+.wall-strip .entry.monologue {
+  color: var(--wall-voice);
+}
+
 /* ---- gate footer ---- */
 .wall-foot {
   display: flex;

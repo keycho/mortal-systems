@@ -1,4 +1,9 @@
-import { createServer, type Server, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import {
   agentNow,
   depthScore,
@@ -14,6 +19,7 @@ import {
  * there is no write route at all. sse keeps latency low without paying
  * for webrtc; everything else is a cacheable snapshot.
  *
+ *   GET /health         liveness for the deploy platform's healthcheck
  *   GET /now            agent_now snapshot (plus depth with its inputs)
  *   GET /wire           last 50 public events, humanized
  *   GET /events         sse: public events as they append
@@ -33,27 +39,62 @@ export interface WallApiOptions {
   /** the origin allowed to read us from a browser; * by default, the api
    * is public and read-only */
   corsOrigin?: string;
+  /** extra live facts for /health (agents live, thinker, stream provider) */
+  health?: () => Record<string, unknown>;
+  /** streaming phase one: generic hls playback url per agent, provider
+   * details never cross this boundary */
+  streamUrl?: (agentId: string) => string | null;
 }
 
-export function createWallApi(opts: WallApiOptions): Server {
+/** the raw request handler, composable behind a shared port. returns true
+ * when the request was one of ours, false to let the caller route on. */
+export function createWallApiHandler(
+  opts: WallApiOptions
+): (req: IncomingMessage, res: ServerResponse) => boolean {
   const { store } = opts;
-  return createServer((req, res) => {
+  const startedAt = Date.now();
+  return (req, res) => {
     const url = new URL(req.url ?? "/", "http://wall.local");
+    if (!WALL_ROUTES.has(url.pathname)) return false;
     res.setHeader("access-control-allow-origin", opts.corsOrigin ?? "*");
-    if (req.method !== "GET") return sendJson(res, 405, { error: "read-only" });
+    if (req.method !== "GET") {
+      sendJson(res, 405, { error: "read-only" });
+      return true;
+    }
+
+    if (url.pathname === "/health") {
+      const last = store.list({ publicOnly: true, newestFirst: true, limit: 1 })[0];
+      sendJson(res, 200, {
+        ok: true,
+        uptime_seconds: Math.floor((Date.now() - startedAt) / 1000),
+        last_public_event_ts: last?.ts ?? null,
+        ...(opts.health?.() ?? {}),
+      });
+      return true;
+    }
 
     if (url.pathname === "/now") {
       const agents = agentNow(store.list({ publicOnly: true }), { names: opts.names() });
       const enriched = agents.map((agent) => {
         const inputs = opts.depthInputs?.(agent.agent_id) ?? null;
-        return inputs ? { ...agent, depth: depthScore(inputs), depth_inputs: inputs } : agent;
+        const stream = opts.streamUrl?.(agent.agent_id) ?? null;
+        return {
+          ...agent,
+          ...(inputs ? { depth: depthScore(inputs), depth_inputs: inputs } : {}),
+          stream_url: stream,
+        };
       });
-      return sendJson(res, 200, { agents: enriched, alive: enriched.filter((a) => a.state !== "dead" && a.state !== "unborn").length });
+      sendJson(res, 200, {
+        agents: enriched,
+        alive: enriched.filter((a) => a.state !== "dead" && a.state !== "unborn").length,
+      });
+      return true;
     }
 
     if (url.pathname === "/wire") {
       const events = store.list({ publicOnly: true, newestFirst: true, limit: 50 }).reverse();
-      return sendJson(res, 200, { lines: tickerLines(events, { limit: 50, names: opts.names() }) });
+      sendJson(res, 200, { lines: tickerLines(events, { limit: 50, names: opts.names() }) });
+      return true;
     }
 
     if (url.pathname === "/events") {
@@ -77,7 +118,7 @@ export function createWallApi(opts: WallApiOptions): Server {
         clearInterval(keepalive);
         unsubscribe();
       });
-      return;
+      return true;
     }
 
     if (url.pathname === "/recap") {
@@ -87,7 +128,7 @@ export function createWallApi(opts: WallApiOptions): Server {
       void recap(events, { names: opts.names(), summarizer: opts.summarizer }).then((text) =>
         sendJson(res, 200, { since, text })
       );
-      return;
+      return true;
     }
 
     if (url.pathname === "/graveyard") {
@@ -107,10 +148,28 @@ export function createWallApi(opts: WallApiOptions): Server {
           final_words: a.death?.final_words,
           receipt: a.death?.receipt,
         }));
-      return sendJson(res, 200, { dead });
+      sendJson(res, 200, { dead });
+      return true;
     }
 
-    return sendJson(res, 404, { error: "not found" });
+    sendJson(res, 404, { error: "not found" });
+    return true;
+  };
+}
+
+const WALL_ROUTES = new Set([
+  "/health",
+  "/now",
+  "/wire",
+  "/events",
+  "/recap",
+  "/graveyard",
+]);
+
+export function createWallApi(opts: WallApiOptions): Server {
+  const handler = createWallApiHandler(opts);
+  return createServer((req, res) => {
+    if (!handler(req, res)) sendJson(res, 404, { error: "not found" });
   });
 }
 

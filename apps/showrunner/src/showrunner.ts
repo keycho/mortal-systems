@@ -1,6 +1,7 @@
 import {
   MAX_INHERITED_FRAGMENTS,
   WallStore,
+  agentNow,
   type PayloadFor,
   type WallEvent,
 } from "@mortal/wall";
@@ -182,6 +183,111 @@ export class Showrunner {
     const title = (lastPost?.payload as PayloadFor<"action"> | undefined)?.title;
     if (title) fragments.push(`a predecessor left a text called "${title}"`);
     return fragments.slice(0, MAX_INHERITED_FRAGMENTS);
+  }
+
+  /**
+   * restart continuity. a deployed showrunner restarts; respawning the
+   * cast would fake births, so the roster is rebuilt from the event
+   * stream: living agents reattach to their runtime identities (the port
+   * must support reattach, otherwise this refuses loudly), keep their
+   * dies_at, warnings, serial numbering and their own public material as
+   * memory, and get a public lost_time event (crash policy: downtime
+   * becomes character). members that never spawned are returned so the
+   * caller can spawn them fresh. agents already past dies_at are left to
+   * the next tick, which honors the death late.
+   */
+  async resume(members: CastMember[]): Promise<{ recovered: string[]; unspawned: CastMember[] }> {
+    const byBase = new Map(members.map((m) => [m.agent_id, m]));
+    const record = this.store.list({});
+    const folded = agentNow(record);
+    const recovered: string[] = [];
+    const seenBases = new Set<string>();
+
+    for (const agent of folded) {
+      const serialMatch = /_(\d+)$/.exec(agent.agent_id);
+      const baseId = serialMatch ? agent.agent_id.slice(0, -serialMatch[0].length) : agent.agent_id;
+      const member = byBase.get(agent.agent_id) ?? byBase.get(baseId);
+      if (!member) continue;
+      seenBases.add(member.agent_id);
+      // serial numbering continues across restarts, dead or alive
+      if (member.serial && serialMatch) {
+        const n = Number(serialMatch[1]);
+        if (n > (this.serialCounters.get(member.agent_id) ?? 0)) {
+          this.serialCounters.set(member.agent_id, n);
+        }
+      }
+      if (agent.state === "dead" || agent.state === "unborn") continue;
+
+      if (!this.runtime.reattach) {
+        throw new Error(
+          `cannot resume ${agent.agent_id}: this RuntimePort has no reattach; a respawn would fake a birth`
+        );
+      }
+      const handle = await this.runtime.reattach(agent.agent_id, agent.spawned_at ?? "");
+      if (!handle) {
+        throw new Error(
+          `cannot resume ${agent.agent_id}: the runtime no longer holds its identity`
+        );
+      }
+
+      const own = record.filter((e) => e.agent_id === agent.agent_id);
+      const memory: string[] = [...agent.inherited_fragments];
+      let postCount = 0;
+      let lastPostId: string | null = null;
+      let readCursor = agent.spawned_at ?? new Date(0).toISOString();
+      const warned = new Set<"final_hour" | "final_10m">();
+      for (const event of own) {
+        if (event.kind === "monologue" && event.visibility === "public") {
+          memory.push((event.payload as PayloadFor<"monologue">).text);
+        } else if (event.kind === "action") {
+          const p = event.payload as PayloadFor<"action">;
+          if (p.verb === "published_post") {
+            postCount += 1;
+            memory.push(`published "${p.title ?? ""}"`);
+            const idMatch = /\/posts\/([A-Za-z0-9_]+)$/.exec(p.target_url ?? "");
+            lastPostId = idMatch?.[1] ?? lastPostId;
+          }
+        } else if (event.kind === "human_contact") {
+          // the reading cursor advances past comments already reacted to
+          readCursor = event.ts > readCursor ? event.ts : readCursor;
+        } else if (event.kind === "ttl_warning") {
+          warned.add((event.payload as PayloadFor<"ttl_warning">).window);
+        }
+      }
+
+      const name = serialMatch ? `${member.name}-${serialMatch[1]}` : member.name;
+      this.live.set(agent.agent_id, {
+        agent_id: agent.agent_id,
+        member,
+        serial_n: serialMatch ? Number(serialMatch[1]) : null,
+        tenant: member.tenant
+          ? serialMatch
+            ? `${member.tenant}-${serialMatch[1]}`
+            : member.tenant
+          : null,
+        identity_id: handle.identity_id,
+        spawned_at: agent.spawned_at ?? new Date(0).toISOString(),
+        dies_at: agent.dies_at ? Date.parse(agent.dies_at) : 0,
+        memory: memory.slice(-24),
+        reading: [],
+        read_cursor: readCursor,
+        warned,
+        post_count: postCount,
+        last_post_id: lastPostId,
+      });
+      this.names[agent.agent_id] = name;
+      recovered.push(agent.agent_id);
+      this.store.append({
+        agent_id: agent.agent_id,
+        kind: "system",
+        visibility: "public",
+        primitive: "runtime.respawn()",
+        payload: { what: "lost_time", detail: "the process restarted; the life continues" },
+      });
+    }
+
+    const unspawned = members.filter((m) => !seenBases.has(m.agent_id));
+    return { recovered, unspawned };
   }
 
   /** crash policy: downtime becomes character, never a cover-up */

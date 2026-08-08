@@ -26,5 +26,34 @@ export { httpTerrariumClient } from "./terrarium-client.js";
 export type { TerrariumClient, TerrariumComment } from "./terrarium-client.js";
 export { Showrunner } from "./showrunner.js";
 export type { LiveAgent, ShowrunnerDeps } from "./showrunner.js";
-export { createWallApi } from "./api.js";
+export { createWallApi, createWallApiHandler } from "./api.js";
 export type { WallApiOptions } from "./api.js";
+export { storeTerrariumClient } from "./terrarium-client.js";
+export { selectThinker } from "./think-select.js";
+export type { SelectedThinker } from "./think-select.js";
+export {
+  AMBIENT_MODEL_DEFAULT,
+  SET_PIECE_MODEL_DEFAULT,
+  WALL_CONSTITUTION,
+  buildAnthropicThinker,
+  parseThought,
+  personaFromMember,
+} from "./anthropic-thinker.js";
+export type { AnthropicThinkerOptions } from "./anthropic-thinker.js";
+export {
+  CdpScreencast,
+  MuxProvider,
+  SelfHostedHlsProvider,
+  StreamManager,
+  StreamNotImplementedError,
+  ffmpegArgs,
+  selectStreamProvider,
+} from "./stream/index.js";
+export type {
+  EncodeTarget,
+  Encoder,
+  EncoderFactory,
+  FrameSource,
+  StreamChannel,
+  StreamProvider,
+} from "./stream/index.js";

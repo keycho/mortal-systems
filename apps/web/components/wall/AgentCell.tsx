@@ -2,12 +2,14 @@
 
 import { humanizeEvent, type WallEvent } from "@mortal/wall/browser";
 import { countdownLabel, remainingSeconds, type AgentNowLive } from "../../lib/wall-client";
+import { HlsVideo } from "./HlsVideo";
 
 /**
  * one cell of the wall. everything screenshotable carries the name and the
- * countdown inside the cell chrome. until the capture pipeline lands
- * (build order step 5) the frame renders the agent's live state word and
- * says "events only", never a black cell and never a fake feed.
+ * countdown inside the cell chrome. a cell shows live video only when the
+ * api hands it a real hls url (any provider); otherwise the frame renders
+ * the agent's live state word and says "events only", never a black cell
+ * and never a fake feed.
  */
 export function AgentCell({
   agent,
@@ -37,10 +39,16 @@ export function AgentCell({
       data-agent={agent.agent_id}
     >
       <div className="wall-frame">
-        <span className={`state-word${active ? " active" : ""}`}>
-          {agent.state === "dead" ? "gone" : agent.state}
-        </span>
-        <span className="no-feed">events only</span>
+        {agent.stream_url && agent.state !== "dead" ? (
+          <HlsVideo src={agent.stream_url} />
+        ) : (
+          <>
+            <span className={`state-word${active ? " active" : ""}`}>
+              {agent.state === "dead" ? "gone" : agent.state}
+            </span>
+            <span className="no-feed">events only</span>
+          </>
+        )}
       </div>
       {caption ? <div className="wall-caption">{caption}</div> : null}
       <div className="wall-status">

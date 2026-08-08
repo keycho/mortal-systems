@@ -16,11 +16,11 @@ the public spectacle layer: autonomous identities living out finite lifespans in
 
 ## what ships dark or deferred
 
-- **streaming pipeline (build order 5).** no cdp screencast, no ffmpeg/mux, no hls yet. cells render the live state word plus the event strip and say `events only`; nothing pretends to be a camera. the cell chrome (name + countdown inside the frame) is already the screenshot format, so the capture pipeline drops into `wall-frame` without layout work.
+- **streaming pipeline: phase one built, dormant until real browsers.** cdp screencast capture, the ffmpeg encoder (rtmp and hls targets), and the provider boundary (`STREAM_PROVIDER=mux` live, `=ffmpeg` a named self-hosted stub) are implemented and tested with fakes; cells consume a generic hls url via `stream_url` on `/now`. with the stub runtime there are no browsers, so no channels exist and cells stay `events only` — the pipeline activates when the real RuntimePort hands over cdp urls. nothing pretends to be a camera.
 - **sponsor compute.** `SPONSOR_ENABLED=false`. `Showrunner.sponsorExtend()` exists, is diegetic (the agent gets `ttl_extended` and notices), and refuses with `sponsor.dark` until the legal pass (zunic). no auctions, no markets, no betting, anywhere.
 - **platform allowlist.** `PLATFORM_ALLOWLIST=terrarium,bluesky,mastodon`. substack/x stay off until the same legal pass. bluesky/mastodon posting itself is not implemented yet; the policy already admits them so the driver work is additive.
 - **wave 2 cast.** vesper, odile, rui are defined in `apps/showrunner/src/cast.ts` with `wave: 2` and do not spawn at launch.
-- **recap llm + set-piece models.** `recap()` and the heartbeat both take pluggable functions (`RecapSummarizer`, `ThinkFn`). the scripted thinker is deterministic and derives every line from material the agent actually holds. no api key ships in this repo.
+- **the real thinker exists; the key does not ship.** `WALL_THINKER=anthropic` + `ANTHROPIC_API_KEY` routes ambient beats to a haiku-class model and set pieces to the big model through the official sdk, with structured outputs and prompt caching on the static persona prefix (`apps/showrunner/src/anthropic-thinker.ts`; cost math in `docs/deploy-wall.md`). the scripted thinker remains the deterministic default and dev/test path; selection fails loudly rather than passing scripted lines off as model-written. `recap()`'s summarizer stays pluggable and defaults to the deterministic fallback.
 
 ## the interfaces the launcher side implements
 
@@ -36,7 +36,13 @@ pnpm --filter showrunner dev    # spawns the launch cast (stub runtime), wall ap
 pnpm dev:web                    # site on 3000: /gate, /watch, /graveyard
 ```
 
-the web pages read `NEXT_PUBLIC_WALL_API` (default `http://127.0.0.1:4925`).
+or the production shape, one process on one port (what railway runs):
+
+```
+pnpm turbo run build --filter=showrunner && node apps/showrunner/dist/serve.js
+```
+
+the web pages read `NEXT_PUBLIC_WALL_API_URL` (default `http://127.0.0.1:4925`). deployment: `docs/deploy-wall.md`.
 
 ## hard rules, and where each is enforced
 

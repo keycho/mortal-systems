@@ -22,19 +22,30 @@ export interface TerrariumOptions {
   adminToken: string;
   /** e.g. "terrarium.mortal.systems"; subdomain routing activates when set */
   baseHost?: string;
+  /** canonical public origin for rss links when the prod shape is
+   * path-based (/t/{name}), e.g. "https://wall.mortal.systems" */
+  publicBase?: string;
 }
 
 const JSON_LIMIT = 64 * 1024;
 
-export function createTerrariumServer(opts: TerrariumOptions): Server {
-  return createServer((req, res) => {
+/** the raw request handler, composable behind a shared port (the railway
+ * service mounts this beside the wall api) */
+export function createTerrariumHandler(
+  opts: TerrariumOptions
+): (req: IncomingMessage, res: ServerResponse) => void {
+  return (req, res) => {
     void handle(req, res, opts).catch((err: unknown) => {
       const frozen = err instanceof FrozenTenantError;
       sendJson(res, frozen ? 410 : 500, {
         error: frozen ? (err as Error).message : "internal error",
       });
     });
-  });
+  };
+}
+
+export function createTerrariumServer(opts: TerrariumOptions): Server {
+  return createServer(createTerrariumHandler(opts));
 }
 
 async function handle(
@@ -83,7 +94,13 @@ async function handle(
     return sendHtml(res, 200, tenantHomePage(tenant, opts.store.listPosts(tenant.name), base));
   }
   if (method === "GET" && rest === "/rss.xml") {
-    const selfUrl = opts.baseHost ? `https://${tenant.name}.${opts.baseHost}` : base;
+    // canonical link precedence: explicit public origin (prod, path shape)
+    // > subdomain shape > relative path (dev)
+    const selfUrl = opts.publicBase
+      ? `${opts.publicBase.replace(/\/$/, "")}/t/${tenant.name}`
+      : opts.baseHost
+        ? `https://${tenant.name}.${opts.baseHost}`
+        : base;
     res.writeHead(200, { "content-type": "application/rss+xml; charset=utf-8" });
     res.end(rssFeed(tenant, opts.store.listPosts(tenant.name), selfUrl));
     return;

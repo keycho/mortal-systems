@@ -40,6 +40,14 @@ export interface RuntimePort {
   spawn(spec: SpawnSpec): Promise<SpawnResult>;
   destroy(identityId: string, cause: string): Promise<DestroyResult>;
   stats(identityId: string): Promise<IdentityStats>;
+  /**
+   * restart continuity: hand back the handle for an identity that already
+   * exists (the real runtime persists identities across showrunner
+   * restarts and looks them up here). a port without reattach cannot
+   * resume a wall: Showrunner.resume() refuses loudly rather than
+   * respawning, because a respawn would fake a birth.
+   */
+  reattach?(agentId: string, spawnedAt: string): Promise<SpawnResult | null>;
 }
 
 export class StubRuntimePort implements RuntimePort {
@@ -76,5 +84,18 @@ export class StubRuntimePort implements RuntimePort {
   async stats(identityId: string): Promise<IdentityStats> {
     if (!this.live.has(identityId)) throw new Error(`no live identity ${identityId}`);
     return { cookie_count: 0, account_count: 0, memory_bytes: 0 };
+  }
+
+  /** the stub's identities live in process memory, so reattach rebuilds
+   * the record with the original spawn timestamp: destroy receipts after a
+   * resume still hash over the true created_at */
+  async reattach(agentId: string, spawnedAt: string): Promise<SpawnResult | null> {
+    const identityId = `idn_stub_resumed_${agentId}`;
+    this.live.set(identityId, {
+      spec: { agent_id: agentId, class: "unknown", region: null, locale: null, ttl_seconds: 0 },
+      created_at: spawnedAt,
+    });
+    const fingerprint = createHash("sha256").update(identityId).digest("hex");
+    return { identity_id: identityId, fingerprint_short: `fp_${fingerprint.slice(0, 4)}` };
   }
 }

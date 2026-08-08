@@ -10,7 +10,8 @@ import type { AgentNow, WallEvent } from "@mortal/wall/browser";
  * when the api is unreachable the ui says so instead of pretending.
  */
 
-export const WALL_API = process.env.NEXT_PUBLIC_WALL_API ?? "http://127.0.0.1:4925";
+export const WALL_API =
+  process.env.NEXT_PUBLIC_WALL_API_URL ?? "http://127.0.0.1:4925";
 
 export interface WallSnapshot {
   agents: AgentNowLive[];
@@ -23,6 +24,8 @@ export interface WallSnapshot {
 export interface AgentNowLive extends AgentNow {
   depth?: number;
   depth_inputs?: Record<string, number>;
+  /** generic hls playback url when a live camera exists for this agent */
+  stream_url?: string | null;
 }
 
 const EVENT_BUFFER = 400;

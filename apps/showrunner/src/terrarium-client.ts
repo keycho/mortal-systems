@@ -21,6 +21,49 @@ export interface TerrariumClient {
   humanCommentsSince(tenant: string, sinceIso: string): Promise<TerrariumComment[]>;
 }
 
+/**
+ * in-process client over the terrarium store, for the single-service
+ * deployment where the showrunner and the terrarium share a process. same
+ * interface, same semantics (frozen tenants refuse writes at the store
+ * layer); the http client below stays the shape for split deployments.
+ * the store type is structural to keep terrarium out of the runtime deps
+ * of split builds.
+ */
+export function storeTerrariumClient(store: {
+  getTenant(name: string): { name: string; frozen_at: string | null } | null;
+  createTenant(input: { name: string; agent_id: string; title: string }): unknown;
+  createPost(input: { tenant: string; title: string; body_md: string }): { id: string };
+  createComment(input: {
+    post_id: string;
+    author: string;
+    body: string;
+    status: "approved" | "held";
+    agent_id?: string | null;
+  }): unknown;
+  freezeTenant(name: string): unknown;
+  humanCommentsSince(tenant: string, sinceIso: string): TerrariumComment[];
+}): TerrariumClient {
+  return {
+    async ensureTenant(name, agentId, title) {
+      if (store.getTenant(name)) return;
+      store.createTenant({ name, agent_id: agentId, title });
+    },
+    async publishPost(tenant, title, bodyMd) {
+      const post = store.createPost({ tenant, title, body_md: bodyMd });
+      return { id: post.id, url: `/t/${tenant}/posts/${post.id}` };
+    },
+    async reply(postId, agentId, author, body) {
+      store.createComment({ post_id: postId, author, body, status: "approved", agent_id: agentId });
+    },
+    async freeze(tenant) {
+      store.freezeTenant(tenant);
+    },
+    async humanCommentsSince(tenant, sinceIso) {
+      return store.humanCommentsSince(tenant, sinceIso);
+    },
+  };
+}
+
 export function httpTerrariumClient(baseUrl: string, token: string): TerrariumClient {
   const call = async (path: string, body?: unknown): Promise<unknown> => {
     const res = await fetch(`${baseUrl}${path}`, {
