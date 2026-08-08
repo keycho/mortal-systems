@@ -10,6 +10,7 @@ import { rpc, RpcClientError } from "./lib/client.js";
 import { IdentityNavigator, type View } from "./components/IdentityNavigator.js";
 import { Button, Modal, Toasts, type ToastItem } from "./components/ui.js";
 import { CreateIdentityForm } from "./components/CreateIdentityForm.js";
+import { RuntimeUnreachable } from "./components/RuntimeUnreachable.js";
 import { HomeView } from "./views/HomeView.js";
 import { IdentityWorkspace, type WorkspaceData } from "./views/IdentityWorkspace.js";
 import {
@@ -166,20 +167,7 @@ export default function App() {
             </div>
           </div>
         ) : unreachable ? (
-          <div className="flex-1 flex items-center justify-center px-8">
-            <div className="rounded-2xl bg-surface px-8 py-10 max-w-md flex flex-col items-center gap-3 text-center">
-              <span className="text-[17px] font-medium">the runtime is unreachable</span>
-              <p className="text-[13.5px] text-sec leading-relaxed">
-                the manager talks to the local mortal runtime over loopback. start it with{" "}
-                <span className="font-mono text-[12.5px]">pnpm dev:runtime</span> and it will
-                reconnect automatically.
-              </p>
-              {error !== null && <p className="font-mono text-[12px] text-mute break-all">{error}</p>}
-              <Button variant="primary" className="mt-1" onClick={() => void refresh()}>
-                retry now
-              </Button>
-            </div>
-          </div>
+          <RuntimeUnreachable error={error} onRetry={() => void refresh()} />
         ) : workspace !== null ? (
           <IdentityWorkspace
             key={workspace.summary.id}

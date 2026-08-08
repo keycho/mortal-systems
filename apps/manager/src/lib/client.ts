@@ -23,6 +23,39 @@ function inTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
+/**
+ * true when this is the packaged desktop app (which ships and starts its own
+ * runtime) rather than browser dev mode (where the runtime is a separate
+ * `pnpm dev:runtime` process). the two have completely different failure
+ * advice, so the ui must never guess.
+ */
+export const isPackagedApp = inTauri;
+
+/** what the shell knows about the runtime process it spawned */
+export interface RuntimeDiagnostics {
+  mode: string;
+  node: string | null;
+  cli: string | null;
+  log: string | null;
+  spawnError: string | null;
+  quarantineCleared: boolean;
+  exited: string | null;
+}
+
+/** null in browser dev mode: there is no shell to ask */
+export async function runtimeDiagnostics(): Promise<RuntimeDiagnostics | null> {
+  if (!inTauri()) return null;
+  const { invoke } = await import("@tauri-apps/api/core");
+  return (await invoke("runtime_diagnostics")) as RuntimeDiagnostics;
+}
+
+/** restart the bundled runtime; null in browser dev mode */
+export async function restartRuntime(): Promise<RuntimeDiagnostics | null> {
+  if (!inTauri()) return null;
+  const { invoke } = await import("@tauri-apps/api/core");
+  return (await invoke("runtime_restart")) as RuntimeDiagnostics;
+}
+
 const DEV_TOKEN: string =
   (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_MORTAL_TOKEN ??
   "mortal-dev";

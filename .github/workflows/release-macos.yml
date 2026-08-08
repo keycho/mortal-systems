@@ -165,6 +165,42 @@ jobs:
           kill $APP_PID || true
           echo "LAUNCH SMOKE OK — browser resolved on this machine, not baked at build time"
 
+      - name: quarantine smoke — the app a stranger actually downloads
+        run: |
+          set -uo pipefail
+          # a .dmg fetched through a browser arrives quarantined, and the
+          # nested helper binaries inherit it. ci has never seen that state,
+          # so it is applied deliberately here: mount the real dmg, copy the
+          # app out, quarantine the whole bundle, and require the runtime to
+          # come up anyway (the shell clears it and retries).
+          MNT=$(mktemp -d)
+          hdiutil attach dist-dmg/mortal-manager_macos_arm64.dmg -nobrowse -quiet -mountpoint "$MNT"
+          APP="$RUNNER_TEMP/quarantined/mortal manager.app"
+          rm -rf "$RUNNER_TEMP/quarantined" && mkdir -p "$RUNNER_TEMP/quarantined"
+          cp -R "$MNT/mortal manager.app" "$RUNNER_TEMP/quarantined/"
+          hdiutil detach "$MNT" -quiet || true
+          xattr -w com.apple.quarantine "0081;00000000;Safari;" "$APP" 2>/dev/null || true
+          find "$APP/Contents/Resources/sidecar" -type f -maxdepth 1 -exec \
+            xattr -w com.apple.quarantine "0081;00000000;Safari;" {} \; 2>/dev/null || true
+          echo "quarantine set on the copied bundle:"
+          xattr -l "$APP" 2>/dev/null | head -3 || true
+          rm -rf "$HOME/.mortal"
+          "$APP/Contents/MacOS/mortal-manager" > "$RUNNER_TEMP/quarantined-stdout.log" 2>&1 &
+          QPID=$!
+          for _ in $(seq 1 45); do [ -s "$HOME/.mortal/runtime.json" ] && break; sleep 1; done
+          if [ ! -s "$HOME/.mortal/runtime.json" ]; then
+            echo "FAIL: the quarantined bundle never started its runtime — this is what a downloader would see"
+            cat "$HOME/.mortal/sidecar.log" 2>/dev/null || true
+            cat "$RUNNER_TEMP/quarantined-stdout.log" || true
+            kill $QPID 2>/dev/null || true
+            exit 1
+          fi
+          QPORT=$(node -p "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.mortal/runtime.json','utf8')).port")
+          curl -fsS "http://127.0.0.1:$QPORT/v1/health" || { kill $QPID 2>/dev/null; exit 1; }
+          kill $QPID 2>/dev/null || true
+          echo
+          echo "QUARANTINE SMOKE OK — the downloaded-app path starts its runtime"
+
       - uses: actions/upload-artifact@v4
         with:
           name: mortal-manager-macos-arm64-unsigned
