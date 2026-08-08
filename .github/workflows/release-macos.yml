@@ -55,6 +55,13 @@ jobs:
           rm -rf "$SIDE/runtime/test" "$SIDE/runtime/src" "$SIDE/runtime/turbo.json" \
                  "$SIDE/runtime/.turbo" "$SIDE"/runtime/tsconfig*.json
           find "$SIDE/runtime/node_modules" -name '.turbo' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          # pnpm's own install metadata records the store path of the machine
+          # that ran the install. node never reads it at runtime, but it is a
+          # build-machine path inside a shipped artifact, which is precisely
+          # what the gate below refuses.
+          rm -f "$SIDE/runtime/node_modules/.modules.yaml" \
+                "$SIDE/runtime/node_modules/.pnpm-workspace-state.json" \
+                "$SIDE/runtime/node_modules/.pnpm/lock.yaml"
           test "$(find "$SIDE" -type l | wc -l)" -eq 0
           cp -R apps/companion/dist "$SIDE/companion"
           # the setup-node binary is a self-contained, node.js-project-signed
@@ -83,7 +90,10 @@ jobs:
           # references a path that only exists on a build machine — the
           # runner's tool cache, playwright's browser cache, a container
           # home, or a per-build temp dir.
-          if grep -rIl -E '/opt/pw-browsers|ms-playwright|hostedtoolcache|/Users/runner|/home/runner|/private/var/folders' "$SIDE" ; then
+          # the pattern is machine-agnostic on purpose: the same command run
+          # against a local assembly catches the same class of leak, so the
+          # gate cannot pass locally and fail only on the runner.
+          if grep -rIl -E '/opt/pw-browsers|ms-playwright|hostedtoolcache|/Users/runner|/home/runner|/private/var/folders|/root/|pnpm/store' "$SIDE" ; then
             echo "FAIL: the shipped sidecar references a build-machine path (listed above)"
             exit 1
           fi
