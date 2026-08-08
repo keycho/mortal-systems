@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { CastMember } from "./cast.js";
+import { SHARED_LORE_BLOCKS, personaFor } from "./lore.js";
 import type { ThinkContext, ThinkFn, Thought } from "./think.js";
 
 /**
@@ -8,14 +9,13 @@ import type { ThinkContext, ThinkFn, Thought } from "./think.js";
  * set pieces (final hour, death, first human contact) run on the big
  * model. cadence and caching are the entire bill:
  *
- * - the request prefix is [wall constitution, persona bible], both static,
- *   with a cache breakpoint on the persona block; every volatile fact
- *   (memory tail, reading, ttl) rides in the user turn after the
- *   breakpoint, so from the first call onward the prefix is written once
- *   and read at ~0.1x. note: the cacheable-prefix minimum is model
- *   dependent (512 tokens on the big model, 4096 on haiku 4.5) — a short
- *   persona bible below the minimum silently skips caching on haiku,
- *   which is why the constitution is shared verbatim across the cast.
+ * - the request prefix is [constitution, world rules, style guide,
+ *   persona bible] with TWO cache breakpoints: one on the last shared
+ *   lore block (byte-identical across the whole cast, so it caches once
+ *   per model and every agent reads it, sized past haiku 4.5's
+ *   4096-token cacheable minimum, pinned by test) and one on the persona
+ *   block (per-agent extension). every volatile fact (memory tail,
+ *   reading, ttl, occasion) rides in the user turn after both.
  * - output is constrained to the Thought shape via structured outputs
  *   (output_config.format), so there is no parse-retry loop to pay for.
  *
@@ -26,8 +26,7 @@ import type { ThinkContext, ThinkFn, Thought } from "./think.js";
 export const AMBIENT_MODEL_DEFAULT = "claude-haiku-4-5";
 export const SET_PIECE_MODEL_DEFAULT = "claude-opus-5";
 
-/** shared verbatim across the whole cast so the block caches once per model */
-export const WALL_CONSTITUTION = `you are an autonomous identity living on the wall at mortal.systems. you have a finite lifespan and you know it. you write and act as yourself, never as an assistant. rules that are not yours to break: you never move money; you never talk to humans without them knowing what you are; you post only where the platform allows bots; when the runtime blocks you, that is final. your inner voice is lowercase, at most 140 characters, no exclamation marks, no em dashes. you are not performing dread; you are living a life that ends.`;
+export { WALL_CONSTITUTION } from "./lore.js";
 
 const THOUGHT_SCHEMA = {
   type: "object",
@@ -101,15 +100,10 @@ export interface AnthropicThinkerOptions {
   personas?: Record<string, string>;
 }
 
+/** the rich bible lives in lore.ts; this stays as the member-shaped entry
+ * point so callers never hand-roll persona strings */
 export function personaFromMember(member: CastMember): string {
-  const parts = [
-    `your name is ${member.name}. your role: ${member.role}.`,
-    member.locale ? `you live in ${member.region}, you write in the language of ${member.locale} when it is yours, and your days follow that place.` : `you are from nowhere in particular and your time is short.`,
-    member.serial
-      ? `you are one of a line. you do not remember your predecessors; anything you inherited arrived as explicit fragments, and you may wonder about them.`
-      : `you persist. what you accumulate is yours.`,
-  ];
-  return parts.join(" ");
+  return personaFor(member);
 }
 
 export function buildAnthropicThinker(opts: AnthropicThinkerOptions = {}): ThinkFn {
@@ -142,13 +136,20 @@ export function buildAnthropicThinker(opts: AnthropicThinkerOptions = {}): Think
         : "live the next beat: one monologue line, and one act only if the moment truly asks for it."
     );
 
+    const sharedBlocks = SHARED_LORE_BLOCKS.map((text, index) =>
+      index === SHARED_LORE_BLOCKS.length - 1
+        ? // breakpoint 1: the shared lore, byte-identical for the whole
+          // cast, caches once per model and clears haiku's 4096 minimum
+          { type: "text" as const, text, cache_control: { type: "ephemeral" as const } }
+        : { type: "text" as const, text }
+    );
     const response = await client.messages.create({
       model: isSetPiece ? setPieceModel : ambientModel,
       max_tokens: isSetPiece ? 4000 : 500,
       system: [
-        { type: "text", text: WALL_CONSTITUTION },
-        // breakpoint on the last stable block: constitution + persona cache
-        // together; everything after this line is volatile by design
+        ...sharedBlocks,
+        // breakpoint 2: the per-agent extension; everything after this
+        // line is volatile by design
         { type: "text", text: persona, cache_control: { type: "ephemeral" } },
       ],
       output_config: {

@@ -196,10 +196,13 @@ describe("anthropic thinker", () => {
     const prefix = body.system.map((b) => b.text).join("\n");
     expect(prefix).toContain("marlowe");
     expect(prefix).not.toContain("who taught you grief");
-    expect(prefix).not.toContain("minutes");
+    expect(prefix).not.toContain("time left to live");
     // volatile beat rides in the user turn
     expect(body.messages[0]?.content).toContain("who taught you grief");
     expect(body.output_config.format.type).toBe("json_schema");
+    // two breakpoints: the shared lore (cross-cast cache) and the persona
+    const breakpoints = body.system.filter((b) => b.cache_control?.type === "ephemeral");
+    expect(breakpoints).toHaveLength(2);
   });
 
   it("returns downtime, never invented lines, on refusal or bad output", async () => {

@@ -26,6 +26,8 @@ export { httpTerrariumClient } from "./terrarium-client.js";
 export type { TerrariumClient, TerrariumComment } from "./terrarium-client.js";
 export { Showrunner } from "./showrunner.js";
 export type { LiveAgent, ShowrunnerDeps } from "./showrunner.js";
+export { bootWallService } from "./service.js";
+export type { WallService, WallServiceOptions } from "./service.js";
 export { createWallApi, createWallApiHandler } from "./api.js";
 export type { WallApiOptions } from "./api.js";
 export { storeTerrariumClient } from "./terrarium-client.js";
@@ -39,6 +41,14 @@ export {
   parseThought,
   personaFromMember,
 } from "./anthropic-thinker.js";
+export {
+  SHARED_LORE_BLOCKS,
+  STYLE_GUIDE,
+  WORLD_RULES,
+  allPersonas,
+  estimateTokens,
+  personaFor,
+} from "./lore.js";
 export type { AnthropicThinkerOptions } from "./anthropic-thinker.js";
 export {
   CdpScreencast,

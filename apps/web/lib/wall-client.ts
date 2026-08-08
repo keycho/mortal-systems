@@ -18,6 +18,9 @@ export interface WallSnapshot {
   alive: number;
   events: WallEvent[];
   connected: boolean;
+  /** how live data is arriving right now; polling is the designed
+   * degradation when the sse cap is reached */
+  channel: "sse" | "poll";
   now: number;
 }
 
@@ -30,17 +33,23 @@ export interface AgentNowLive extends AgentNow {
 
 const EVENT_BUFFER = 400;
 const NOW_POLL_MS = 15_000;
+const EVENT_POLL_MS = 5_000;
+const SSE_RETRY_MS = 60_000;
 
 export function useWall(): WallSnapshot {
   const [agents, setAgents] = useState<AgentNowLive[]>([]);
   const [alive, setAlive] = useState(0);
   const [events, setEvents] = useState<WallEvent[]>([]);
   const [connected, setConnected] = useState(false);
+  const [channel, setChannel] = useState<"sse" | "poll">("sse");
   const [now, setNow] = useState(() => Date.now());
   const lastId = useRef<string | null>(null);
 
   useEffect(() => {
     let stopped = false;
+    let source: EventSource | null = null;
+    let eventPoll: ReturnType<typeof setInterval> | null = null;
+    let sseRetry: ReturnType<typeof setTimeout> | null = null;
 
     const pullNow = async (): Promise<void> => {
       try {
@@ -54,16 +63,8 @@ export function useWall(): WallSnapshot {
         if (!stopped) setConnected(false);
       }
     };
-    void pullNow();
-    const poll = setInterval(() => void pullNow(), NOW_POLL_MS);
 
-    const source = new EventSource(
-      `${WALL_API}/events${lastId.current ? `?after=${lastId.current}` : ""}`
-    );
-    source.onopen = () => setConnected(true);
-    source.onerror = () => setConnected(false);
-    source.onmessage = (message) => {
-      const event = JSON.parse(message.data as string) as WallEvent;
+    const ingest = (event: WallEvent): void => {
       lastId.current = event.id;
       setEvents((prior) => [...prior.slice(-(EVENT_BUFFER - 1)), event]);
       // lifecycle events change the snapshot immediately
@@ -72,16 +73,78 @@ export function useWall(): WallSnapshot {
       }
     };
 
+    const pullRecent = async (): Promise<void> => {
+      try {
+        const res = await fetch(
+          `${WALL_API}/recent${lastId.current ? `?after=${lastId.current}` : ""}`
+        );
+        if (!res.ok) throw new Error(String(res.status));
+        const body = (await res.json()) as { events: WallEvent[] };
+        if (stopped) return;
+        setConnected(true);
+        for (const event of body.events) ingest(event);
+      } catch {
+        if (!stopped) setConnected(false);
+      }
+    };
+
+    // the sse cap turning us away (or any stream failure) degrades to
+    // polling /recent; we quietly retry sse on a slow cadence so capacity
+    // freeing up upgrades viewers again
+    const startPolling = (): void => {
+      if (stopped || eventPoll) return;
+      setChannel("poll");
+      void pullRecent();
+      eventPoll = setInterval(() => void pullRecent(), EVENT_POLL_MS);
+      if (!sseRetry) {
+        sseRetry = setTimeout(() => {
+          sseRetry = null;
+          if (!stopped) startSse();
+        }, SSE_RETRY_MS);
+      }
+    };
+
+    const startSse = (): void => {
+      if (stopped) return;
+      source?.close();
+      source = new EventSource(
+        `${WALL_API}/events${lastId.current ? `?after=${lastId.current}` : ""}`
+      );
+      source.onopen = () => {
+        if (stopped) return;
+        setConnected(true);
+        setChannel("sse");
+        if (eventPoll) {
+          clearInterval(eventPoll);
+          eventPoll = null;
+        }
+      };
+      source.onerror = () => {
+        source?.close();
+        source = null;
+        if (!stopped) startPolling();
+      };
+      source.onmessage = (message) => {
+        ingest(JSON.parse(message.data as string) as WallEvent);
+      };
+    };
+
+    void pullNow();
+    const nowPoll = setInterval(() => void pullNow(), NOW_POLL_MS);
+    startSse();
+
     const clock = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       stopped = true;
-      clearInterval(poll);
+      clearInterval(nowPoll);
       clearInterval(clock);
-      source.close();
+      if (eventPoll) clearInterval(eventPoll);
+      if (sseRetry) clearTimeout(sseRetry);
+      source?.close();
     };
   }, []);
 
-  return { agents, alive, events, connected, now };
+  return { agents, alive, events, connected, channel, now };
 }
 
 /** live ttl derived from dies_at and the ticking clock */

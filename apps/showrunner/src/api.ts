@@ -22,10 +22,16 @@ import {
  *   GET /health         liveness for the deploy platform's healthcheck
  *   GET /now            agent_now snapshot (plus depth with its inputs)
  *   GET /wire           last 50 public events, humanized
- *   GET /events         sse: public events as they append
+ *   GET /events         sse: public events as they append (capped)
  *   GET /events?after=  backfill from a cursor, then live
+ *   GET /recent?after=  raw public events for polling clients
  *   GET /recap?since=   "while you were away", llm optional
  *   GET /graveyard      every dead identity's card data
+ *
+ * degradation is designed, not accidental: sse connections are capped
+ * (WALL_SSE_MAX) and an at-capacity request gets a 503 telling the client
+ * to poll /recent, so a traffic spike costs latency instead of the
+ * showrunner. /recent is a cheap cursor read a cdn can absorb.
  */
 
 export interface WallApiOptions {
@@ -44,6 +50,9 @@ export interface WallApiOptions {
   /** streaming phase one: generic hls playback url per agent, provider
    * details never cross this boundary */
   streamUrl?: (agentId: string) => string | null;
+  /** concurrent sse connections before new ones get 503 + poll advice;
+   * default 200, env WALL_SSE_MAX in serve */
+  maxSseConnections?: number;
 }
 
 /** the raw request handler, composable behind a shared port. returns true
@@ -53,6 +62,8 @@ export function createWallApiHandler(
 ): (req: IncomingMessage, res: ServerResponse) => boolean {
   const { store } = opts;
   const startedAt = Date.now();
+  const maxSse = opts.maxSseConnections ?? 200;
+  let sseOpen = 0;
   return (req, res) => {
     const url = new URL(req.url ?? "/", "http://wall.local");
     if (!WALL_ROUTES.has(url.pathname)) return false;
@@ -97,13 +108,42 @@ export function createWallApiHandler(
       return true;
     }
 
+    if (url.pathname === "/recent") {
+      const after = url.searchParams.get("after");
+      const events = store.list({
+        publicOnly: true,
+        ...(after ? { afterId: after } : {}),
+        limit: 120,
+      });
+      const latest =
+        events[events.length - 1]?.id ??
+        after ??
+        store.list({ publicOnly: true, newestFirst: true, limit: 1 })[0]?.id ??
+        null;
+      sendJson(res, 200, { events, latest_id: latest });
+      return true;
+    }
+
     if (url.pathname === "/events") {
+      if (sseOpen >= maxSse) {
+        res.writeHead(503, {
+          "content-type": "application/json; charset=utf-8",
+          "retry-after": "30",
+          "access-control-allow-origin": opts.corsOrigin ?? "*",
+        });
+        res.end(JSON.stringify({ error: "sse at capacity; poll /recent" }));
+        return true;
+      }
+      sseOpen += 1;
       res.writeHead(200, {
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
         connection: "keep-alive",
         "access-control-allow-origin": opts.corsOrigin ?? "*",
       });
+      // flush headers immediately even with an empty backfill, so clients
+      // (and proxies) see the stream open without waiting for an event
+      res.write(": connected\n\n");
       const after = url.searchParams.get("after");
       for (const event of store.list({ publicOnly: true, ...(after ? { afterId: after } : { }) })) {
         res.write(`id: ${event.id}\ndata: ${JSON.stringify(event)}\n\n`);
@@ -115,6 +155,7 @@ export function createWallApiHandler(
       const keepalive = setInterval(() => res.write(": keepalive\n\n"), 25_000);
       keepalive.unref();
       req.on("close", () => {
+        sseOpen -= 1;
         clearInterval(keepalive);
         unsubscribe();
       });
@@ -162,6 +203,7 @@ const WALL_ROUTES = new Set([
   "/now",
   "/wire",
   "/events",
+  "/recent",
   "/recap",
   "/graveyard",
 ]);

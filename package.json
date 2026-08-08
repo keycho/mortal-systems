@@ -23,6 +23,7 @@
     "check": "pnpm lint && turbo run typecheck && pnpm check:guarantees && pnpm check:cli && pnpm check:mortal-cli && pnpm check:mcp && pnpm check:brand",
     "check:guarantees": "tsx scripts/check-guarantees.ts",
     "check:cli": "turbo run build --filter=@mortal/runtime && node scripts/smoke-cli.mjs",
+    "smoke:death": "turbo run build --filter=showrunner && node scripts/smoke-death.mjs",
     "check:mortal-cli": "turbo run build --filter=@mortal/runtime --filter=@mortal/cli && node scripts/smoke-mortal-cli.mjs",
     "check:brand": "turbo run build --filter=web && node scripts/check-brand.mjs",
     "screenshots": "node scripts/screenshots.mjs",

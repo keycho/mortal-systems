@@ -85,21 +85,102 @@
   position: relative;
   background: var(--wall-surface);
   min-height: 140px;
+  overflow: hidden;
+}
+.wall-minigrid .wall-activity {
+  padding: 8px 10px;
+  gap: 3px;
+}
+.wall-minigrid .wall-activity .page-line,
+.wall-minigrid .wall-activity .action-line {
+  font-size: 10px;
+}
+.wall-minigrid .wall-activity .cursor {
+  width: 7px;
+  height: 13px;
+}
+.wall-minigrid .wall-activity .monologue-flash {
+  font-size: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 6px;
 }
 .wall-frame .state-word {
   font-size: 26px;
   letter-spacing: 0.06em;
   color: var(--wall-dim);
 }
-.wall-frame .state-word.active {
+
+/* ---- the activity view: the permanent cell renderer without video ---- */
+.wall-activity {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 18px;
+  overflow: hidden;
+}
+.wall-activity .state-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.wall-activity .state-line.active .state-word {
   color: var(--wall-text);
 }
-.wall-frame .no-feed {
-  position: absolute;
-  bottom: 8px;
-  right: 10px;
-  font-size: 10px;
+.wall-activity .cursor {
+  display: inline-block;
+  width: 11px;
+  height: 22px;
+  background: var(--wall-text);
+  animation: wall-cursor 1.1s steps(1) infinite;
+}
+.wall-activity .page-line {
+  font-size: 12px;
+  color: var(--wall-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wall-activity .action-line {
+  font-size: 11px;
   color: var(--wall-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wall-activity .monologue-flash {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  color: var(--wall-voice);
+  font-size: 13px;
+  animation: wall-flash 8s steps(1);
+}
+@keyframes wall-cursor {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes wall-flash {
+  0%,
+  87% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wall-activity .cursor {
+    animation: none;
+  }
+  .wall-activity .monologue-flash {
+    animation: none;
+  }
 }
 .wall-caption {
   position: absolute;

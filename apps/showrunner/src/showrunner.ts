@@ -6,7 +6,7 @@ import {
   type WallEvent,
 } from "@mortal/wall";
 import type { CastMember } from "./cast.js";
-import { isAsleep } from "./calendar.js";
+import { isAshSpawnSlot, isAsleep } from "./calendar.js";
 import {
   PolicyViolation,
   checkAction,
@@ -543,6 +543,25 @@ export class Showrunner {
     if (serial) {
       const predecessorId = this.lastSerialAgentId(serial);
       await this.spawn(serial, {
+        inherited_fragments: predecessorId ? this.chooseInheritance(predecessorId) : [],
+      });
+    }
+  }
+
+  /**
+   * the spawn calendar (spec section 7): serial successors arrive on the
+   * mon+thu peak slot so deaths land while people watch. the first
+   * incarnation is not calendar-gated — a fresh boot spawns it
+   * immediately (the launch ash lands off-calendar by design) — and a
+   * living incarnation blocks a duplicate for the whole slot hour.
+   */
+  async calendarTick(now: Date = this.now()): Promise<void> {
+    if (!isAshSpawnSlot(now)) return;
+    for (const member of this.serialMembersList) {
+      const hasLiving = [...this.live.values()].some((a) => a.member.agent_id === member.agent_id);
+      if (hasLiving) continue;
+      const predecessorId = this.lastSerialAgentId(member);
+      await this.spawn(member, {
         inherited_fragments: predecessorId ? this.chooseInheritance(predecessorId) : [],
       });
     }
