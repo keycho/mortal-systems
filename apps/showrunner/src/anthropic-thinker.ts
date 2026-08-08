@@ -34,8 +34,9 @@ const THOUGHT_SCHEMA = {
   required: ["monologue"],
   properties: {
     monologue: {
-      type: "string",
-      description: "one inner-voice line, lowercase, max 140 chars",
+      anyOf: [{ type: "string" }, { type: "null" }],
+      description:
+        "one inner-voice line, lowercase, max 140 chars; null to stay quiet this beat (never repeat a thought already spoken)",
     },
     act: {
       anyOf: [
@@ -130,10 +131,15 @@ export function buildAnthropicThinker(opts: AnthropicThinkerOptions = {}): Think
     }
     if (ctx.memory.length > 0) beat.push(`your recent memory:\n${ctx.memory.join("\n")}`);
     if (ctx.reading.length > 0) beat.push(`what you just read:\n${ctx.reading.join("\n")}`);
+    if (ctx.recent_monologues && ctx.recent_monologues.length > 0) {
+      beat.push(
+        `already spoken, your last thoughts:\n${ctx.recent_monologues.join("\n")}\ndo not restate or rephrase these. think something new, or go quiet: monologue null is an honest beat.`
+      );
+    }
     beat.push(
       ctx.occasion === "death"
         ? "this is the end. give your monologue and your final_words."
-        : "live the next beat: one monologue line, and one act only if the moment truly asks for it."
+        : "live the next beat: one monologue line if a new thought is actually there, and one act only if the moment truly asks for it."
     );
 
     const sharedBlocks = SHARED_LORE_BLOCKS.map((text, index) =>

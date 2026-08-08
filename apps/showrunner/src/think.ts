@@ -22,6 +22,9 @@ export interface ThinkContext {
   /** the reading the scheduler placed: post excerpts, human comments.
    * conditions, never scripts: this is evidence, not dialogue. */
   reading: string[];
+  /** the last few monologues already spoken, so the thinker can be told
+   * not to restate them (day-one lesson: repetition reads as machinery) */
+  recent_monologues?: string[];
   ttl_remaining_seconds: number | null;
   inherited_fragments: string[];
 }

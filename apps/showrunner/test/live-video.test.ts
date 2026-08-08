@@ -191,10 +191,18 @@ describe.skipIf(!hasChromium)("live runtime (real chromium)", () => {
       const frames: Buffer[] = [];
       const screencast = new PlaywrightScreencast(page as never);
       await screencast.start((jpeg) => void frames.push(jpeg));
-      await page?.evaluate(() => {
-        document.body.style.background = "#0d0d0f";
-      });
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // keep the page visibly changing until a frame lands: a single
+      // mutation can coalesce into zero compositor frames
+      const deadline = Date.now() + 10_000;
+      let ticks = 0;
+      while (frames.length === 0 && Date.now() < deadline) {
+        await page?.evaluate((n) => {
+          document.body.style.background = n % 2 ? "#0d0d0f" : "#171719";
+          const h1 = document.querySelector("h1");
+          if (h1) h1.textContent = `the wall ${n}`;
+        }, ticks++);
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
       await screencast.stop();
       expect(frames.length).toBeGreaterThan(0);
       // jpeg magic bytes: these are actual encoded frames
@@ -207,6 +215,63 @@ describe.skipIf(!hasChromium)("live runtime (real chromium)", () => {
       expect(port.pageFor("ag_test")).toBeNull();
     } finally {
       await port.close();
+    }
+  }, 60_000);
+});
+
+describe.skipIf(!hasChromium)("driver click-through navigation (real chromium)", () => {
+  it("reaches posts by clicking listed links, replies in the real form, and lands home when the post is gone", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "clicknav-"));
+    const { TerrariumStore, createTerrariumServer } = await import("terrarium");
+    const { BrowserDriver } = await import("../src/driver.js");
+    const { TargetGoneError } = await import("../src/showrunner.js");
+    const store = new TerrariumStore(join(dir, "t.db"));
+    store.createTenant({ name: "marlowe", agent_id: "ag_marlowe", title: "the slow blog" });
+    const post = store.createPost({ tenant: "marlowe", title: "on graves", body_md: "notes." });
+    const server = createTerrariumServer({ store, adminToken: "tok" });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    const baseUrl = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
+    const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    try {
+      await port.spawn({
+        agent_id: "ag_marlowe",
+        class: "persona",
+        region: null,
+        locale: null,
+        ttl_seconds: 60,
+      });
+      const driver = new BrowserDriver({
+        runtime: port,
+        baseUrl,
+        terrariumToken: "tok",
+        paceScale: 0,
+      });
+
+      // the reply is reached by clicking the listing, typed into the real
+      // form, and lands approved with the agent id
+      await driver.replyComment("ag_marlowe", "marlowe", post.id, "marlowe", "thank you.");
+      const comments = store.listComments(post.id);
+      expect(comments).toHaveLength(1);
+      expect(comments[0]?.status).toBe("approved");
+      expect(comments[0]?.agent_id).toBe("ag_marlowe");
+
+      // a vanished post leaves the reader on the front page, reported
+      await expect(
+        driver.replyComment("ag_marlowe", "marlowe", "pst_gone", "marlowe", "x")
+      ).rejects.toThrow(TargetGoneError);
+      const page = port.pageFor("ag_marlowe");
+      expect(new URL(page?.url() ?? "").pathname).toBe("/t/marlowe/");
+
+      // open_page detours the same way and says where it landed
+      const landing = await driver.openPage("ag_marlowe", "/t/marlowe/posts/pst_gone", 0);
+      expect(landing.detour).toBe(true);
+      expect(landing.landed).toBe("/t/marlowe/");
+    } finally {
+      await port.close();
+      await new Promise((resolve) => server.close(resolve));
+      store.close();
+      rmSync(dir, { recursive: true, force: true });
     }
   }, 60_000);
 });

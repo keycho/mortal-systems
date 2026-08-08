@@ -86,6 +86,20 @@ export function tenantHomePage(tenant: Tenant, posts: Post[], base: string): str
 }
 
 /**
+ * errors render in-world: an agent's browser is on camera, so a missing
+ * post is a dark mono page that says so plainly, never raw json. the
+ * back link goes to the blog when we know which one, else to the index.
+ */
+export function errorPage(message: string, backHref: string, backLabel: string): string {
+  return page(
+    "gone",
+    `<header><span class="dim">mortal systems</span></header>
+<p>${escapeHtml(message)}</p>
+<p><a href="${backHref}">${escapeHtml(backLabel)}</a></p>`
+  );
+}
+
+/**
  * the compose page: where a living identity actually writes. it is a real
  * form the agent's own browser types into at human speed; the POST is
  * token-gated so nobody else can publish as them. the token field is

@@ -41,6 +41,9 @@ export interface LiveAgent {
   warned: Set<"final_hour" | "final_10m">;
   post_count: number;
   last_post_id: string | null;
+  /** last few spoken monologues, fed back to the thinker as
+   * do-not-restate context */
+  monologues: string[];
 }
 
 export interface ShowrunnerDeps {
@@ -60,9 +63,19 @@ export interface ShowrunnerDeps {
  * on driver failure the act falls back to the transactional client so
  * the record continues while the visible life degrades honestly.
  */
+/** a link the driver went looking for that the rendered page no longer
+ * carries; the browser is left honestly on landedUrl */
+export class TargetGoneError extends Error {
+  readonly landedUrl: string;
+  constructor(message: string, landedUrl: string) {
+    super(message);
+    this.landedUrl = landedUrl;
+  }
+}
+
 export interface ActDriver {
   busy(agentId: string): boolean;
-  openPage(agentId: string, url: string): Promise<void>;
+  openPage(agentId: string, url: string): Promise<{ landed: string; detour: boolean }>;
   publishPost(
     agentId: string,
     tenant: string,
@@ -155,6 +168,7 @@ export class Showrunner {
       warned: new Set(),
       post_count: 0,
       last_post_id: null,
+      monologues: [],
     };
     this.live.set(agentId, agent);
     this.names[agentId] = name;
@@ -258,6 +272,7 @@ export class Showrunner {
 
       const own = record.filter((e) => e.agent_id === agent.agent_id);
       const memory: string[] = [...agent.inherited_fragments];
+      const spokenMonologues: string[] = [];
       let postCount = 0;
       let lastPostId: string | null = null;
       let readCursor = agent.spawned_at ?? new Date(0).toISOString();
@@ -265,6 +280,7 @@ export class Showrunner {
       for (const event of own) {
         if (event.kind === "monologue" && event.visibility === "public") {
           memory.push((event.payload as PayloadFor<"monologue">).text);
+          spokenMonologues.push((event.payload as PayloadFor<"monologue">).text);
         } else if (event.kind === "action") {
           const p = event.payload as PayloadFor<"action">;
           if (p.verb === "published_post") {
@@ -300,6 +316,7 @@ export class Showrunner {
         warned,
         post_count: postCount,
         last_post_id: lastPostId,
+        monologues: spokenMonologues.slice(-3),
       });
       this.names[agent.agent_id] = name;
       recovered.push(agent.agent_id);
@@ -393,6 +410,7 @@ export class Showrunner {
       occasion,
       memory: agent.memory.slice(-12),
       reading,
+      recent_monologues: agent.monologues.slice(-3),
       ttl_remaining_seconds: remaining,
       inherited_fragments: agent.memory.slice(0, MAX_INHERITED_FRAGMENTS),
     };
@@ -414,6 +432,8 @@ export class Showrunner {
         payload: { text: thought.monologue.slice(0, 140) },
       });
       agent.memory.push(thought.monologue);
+      agent.monologues.push(thought.monologue.slice(0, 140));
+      if (agent.monologues.length > 3) agent.monologues.shift();
     }
     if (thought.act && !dying) {
       await this.performAct(agent, thought.act);
@@ -434,6 +454,9 @@ export class Showrunner {
     try {
       return await throughBrowser();
     } catch (err) {
+      // a target that no longer exists is not a broken browser: acting on
+      // it through the client would fake what the world refused
+      if (err instanceof TargetGoneError) throw err;
       console.error(`driver act fell back for ${agentId}: ${String(err)}`);
       return throughClient();
     }
@@ -475,18 +498,39 @@ export class Showrunner {
           checkAction({ type: "comment", platform: "terrarium" }, this.flags);
           this.emitState(agent.agent_id, "replying");
           const author = this.names[agent.agent_id] ?? agent.member.name;
-          await this.actThroughDriver(
-            agent.agent_id,
-            () =>
-              (this.driver as ActDriver).replyComment(
-                agent.agent_id,
-                agent.tenant as string,
-                act.post_id,
-                author,
-                act.body
-              ),
-            () => this.terrarium.reply(act.post_id, agent.agent_id, author, act.body)
-          );
+          try {
+            await this.actThroughDriver(
+              agent.agent_id,
+              () =>
+                (this.driver as ActDriver).replyComment(
+                  agent.agent_id,
+                  agent.tenant as string,
+                  act.post_id,
+                  author,
+                  act.body
+                ),
+              () => this.terrarium.reply(act.post_id, agent.agent_id, author, act.body)
+            );
+          } catch (err) {
+            if (err instanceof TargetGoneError) {
+              // the post is gone: the reply cannot happen, and the record
+              // shows where the agent actually ended up instead
+              this.store.append({
+                agent_id: agent.agent_id,
+                kind: "action",
+                visibility: "public",
+                primitive: "driver.navigate()",
+                payload: {
+                  verb: "opened_page",
+                  target_url: err.landedUrl,
+                  title: "a page that was gone",
+                },
+              });
+              agent.memory.push("went to reply and the post was gone");
+              return;
+            }
+            throw err;
+          }
           agent.memory.push(`replied to a human`);
           this.store.append({
             agent_id: agent.agent_id,
@@ -521,19 +565,34 @@ export class Showrunner {
         case "open_page": {
           checkAction({ type: "browse", url: act.url }, this.flags);
           this.emitState(agent.agent_id, "reading", act.title);
+          let landedUrl = act.url;
+          let landedTitle = act.title;
           if (this.driver) {
-            await this.driver.openPage(agent.agent_id, act.url).catch((err: unknown) => {
-              console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
-            });
+            const landing = await this.driver
+              .openPage(agent.agent_id, act.url)
+              .catch((err: unknown) => {
+                console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
+                return null;
+              });
+            if (landing?.detour) {
+              // the link was gone; the record says where the reader
+              // actually ended up, never where they meant to go
+              landedUrl = landing.landed;
+              landedTitle = "a page that was gone";
+            }
           }
           this.store.append({
             agent_id: agent.agent_id,
             kind: "action",
             visibility: "public",
             primitive: "driver.navigate()",
-            payload: { verb: "opened_page", target_url: act.url, title: act.title },
+            payload: { verb: "opened_page", target_url: landedUrl, title: landedTitle },
           });
-          agent.memory.push(`read ${act.title}`);
+          agent.memory.push(
+            landedTitle === "a page that was gone"
+              ? `went looking for ${act.title}; the page was gone`
+              : `read ${act.title}`
+          );
           return;
         }
       }

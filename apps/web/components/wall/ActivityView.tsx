@@ -18,9 +18,13 @@ const MONOLOGUE_FLASH_MS = 8_000;
 export function ActivityView({
   agent,
   events,
+  muteFlash = false,
 }: {
   agent: AgentNowLive;
   events: WallEvent[];
+  /** true when the cell already carries a caption (the gate spotlight);
+   * one monologue per cell, never two layers of amber */
+  muteFlash?: boolean;
 }) {
   const [flash, setFlash] = useState<{ id: string; text: string } | null>(null);
   const seenRef = useRef<string | null>(null);
@@ -66,7 +70,7 @@ export function ActivityView({
       {!dead && lastAction ? (
         <div className="action-line">{humanizeEvent(lastAction, agent.name)}</div>
       ) : null}
-      {flash ? (
+      {flash && !muteFlash ? (
         <div key={flash.id} className="monologue-flash">
           {flash.text}
         </div>

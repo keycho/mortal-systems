@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { timingSafeEqual } from "node:crypto";
 import { FrozenTenantError, TerrariumStore, hashIp } from "./store.js";
 import { RATE_LIMIT, moderate } from "./moderation.js";
-import { composePage, postPage, tenantHomePage, tenantIndexPage } from "./html.js";
+import { composePage, errorPage, postPage, tenantHomePage, tenantIndexPage } from "./html.js";
 import { rssFeed } from "./rss.js";
 
 /**
@@ -37,6 +37,17 @@ export function createTerrariumHandler(
   return (req, res) => {
     void handle(req, res, opts).catch((err: unknown) => {
       const frozen = err instanceof FrozenTenantError;
+      if (wantsHtml(req)) {
+        return sendHtml(
+          res,
+          frozen ? 410 : 500,
+          errorPage(
+            frozen ? "the author is gone; the archive is read-only." : "something broke on our side.",
+            "/",
+            "back to the terrarium"
+          )
+        );
+      }
       sendJson(res, frozen ? 410 : 500, {
         error: frozen ? (err as Error).message : "internal error",
       });
@@ -84,11 +95,13 @@ async function handle(
     if (rest === "/" && method === "GET") {
       return sendHtml(res, 200, tenantIndexPage(opts.store.listTenants()));
     }
-    return sendJson(res, 404, { error: "not found" });
+    return sendError(req, res, 404, "this page does not exist.", "/", "back to the terrarium");
   }
 
   const tenant = opts.store.getTenant(tenantName);
-  if (!tenant) return sendJson(res, 404, { error: "no such tenant" });
+  if (!tenant) {
+    return sendError(req, res, 404, "nobody lives at this address.", "/", "back to the terrarium");
+  }
 
   if (method === "GET" && (rest === "/" || rest === "")) {
     return sendHtml(res, 200, tenantHomePage(tenant, opts.store.listPosts(tenant.name), base));
@@ -110,7 +123,9 @@ async function handle(
   // the publish itself happens through the form post, the same store path
   // as the api, so semantics never fork.
   if (rest === "/compose") {
-    if (tenant.frozen_at) return sendJson(res, 410, { error: "the archive is read-only" });
+    if (tenant.frozen_at) {
+      return sendError(req, res, 410, "the author is gone; the archive is read-only.", base + "/", "back to the blog");
+    }
     if (method === "GET") return sendHtml(res, 200, composePage(tenant, base));
     if (method === "POST") {
       const form = await readForm(req);
@@ -130,14 +145,20 @@ async function handle(
   const postMatch = /^\/posts\/([a-zA-Z0-9_]+)$/.exec(rest);
   if (method === "GET" && postMatch) {
     const post = opts.store.getPost(postMatch[1] as string);
-    if (!post || post.tenant !== tenant.name) return sendJson(res, 404, { error: "no such post" });
+    if (!post || post.tenant !== tenant.name) {
+      return sendError(req, res, 404, "this post does not exist.", base + "/", "back to the blog");
+    }
     return sendHtml(res, 200, postPage(tenant, post, opts.store.listComments(post.id), base));
   }
   const commentMatch = /^\/posts\/([a-zA-Z0-9_]+)\/comments$/.exec(rest);
   if (method === "POST" && commentMatch) {
     const post = opts.store.getPost(commentMatch[1] as string);
-    if (!post || post.tenant !== tenant.name) return sendJson(res, 404, { error: "no such post" });
-    if (tenant.frozen_at) return sendJson(res, 410, { error: "the archive is read-only" });
+    if (!post || post.tenant !== tenant.name) {
+      return sendError(req, res, 404, "this post does not exist.", base + "/", "back to the blog");
+    }
+    if (tenant.frozen_at) {
+      return sendError(req, res, 410, "the author is gone; comments are closed.", base + "/", "back to the archive");
+    }
 
     const form = await readForm(req);
     const author = (form.get("author") ?? "").trim().slice(0, 60) || "anon";
@@ -183,7 +204,7 @@ async function handle(
     return;
   }
 
-  return sendJson(res, 404, { error: "not found" });
+  return sendError(req, res, 404, "this page does not exist.", base + "/", "back to the blog");
 }
 
 async function api(
@@ -275,6 +296,24 @@ async function readForm(req: IncomingMessage): Promise<URLSearchParams> {
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
+}
+
+/** json only when the caller asked for json; everything a browser (an
+ * agent's, on camera, or a human's) sees renders in-world */
+function wantsHtml(req: IncomingMessage): boolean {
+  return !(req.headers.accept ?? "").includes("application/json");
+}
+
+function sendError(
+  req: IncomingMessage,
+  res: ServerResponse,
+  status: number,
+  message: string,
+  backHref: string,
+  backLabel: string
+): void {
+  if (wantsHtml(req)) return sendHtml(res, status, errorPage(message, backHref, backLabel));
+  sendJson(res, status, { error: message });
 }
 
 function sendHtml(res: ServerResponse, status: number, body: string): void {

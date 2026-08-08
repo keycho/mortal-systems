@@ -47,7 +47,7 @@ export function AgentCell({
         {agent.stream_url && agent.state !== "dead" ? (
           <HlsVideo src={streamSrc(agent.stream_url)} />
         ) : (
-          <ActivityView agent={agent} events={events} />
+          <ActivityView agent={agent} events={events} muteFlash={Boolean(caption)} />
         )}
       </div>
       {caption ? <div className="wall-caption">{caption}</div> : null}

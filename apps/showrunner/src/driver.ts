@@ -1,5 +1,6 @@
 import type { Page } from "playwright-core";
 import type { LiveRuntimePort } from "./runtime-live.js";
+import { TargetGoneError } from "./showrunner.js";
 
 /**
  * the driver: an agent's hands on its own browser. every visible act is
@@ -80,17 +81,74 @@ export class BrowserDriver {
     }
   }
 
-  /** open a page and dwell like a reader: settle, then drift down it */
-  async openPage(agentId: string, url: string, dwellMs = 20_000): Promise<void> {
+  /**
+   * navigation happens the way a person navigates: by clicking a link
+   * that is actually on the rendered page. urls are never constructed
+   * for posts. the front pages (a tenant's home, the terrarium index)
+   * are the addresses an agent knows by heart, so goto is honest there.
+   */
+  private async gotoFront(page: Page, tenant: string): Promise<void> {
+    await page.goto(`${this.opts.baseUrl}/t/${tenant}/`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30_000,
+    });
+  }
+
+  /** click the first rendered link whose href ends with the target path;
+   * false when no such link exists on the page */
+  private async clickLink(page: Page, pathSuffix: string): Promise<boolean> {
+    const link = page.locator(`a[href$="${pathSuffix}"]`).first();
+    if ((await link.count()) === 0) return false;
+    await this.pace(600 + Math.random() * 900); // finding the link takes a moment
+    await Promise.all([
+      page.waitForLoadState("domcontentloaded"),
+      link.click(),
+    ]);
+    return true;
+  }
+
+  /** reach a post the human way: land on the tenant's front page, find
+   * the post in the listing, click it. throws TargetGoneError, with the
+   * browser honestly left on the front page, when the post is not there. */
+  private async clickThroughToPost(page: Page, tenant: string, postId: string): Promise<void> {
+    await this.gotoFront(page, tenant);
+    const clicked = await this.clickLink(page, `/posts/${postId}`);
+    if (!clicked) {
+      throw new TargetGoneError(`post ${postId} is not on ${tenant}'s page`, `/t/${tenant}/`);
+    }
+  }
+
+  /** open a page and dwell like a reader: settle, then drift down it.
+   * terrarium post urls are reached by clicking through the listing;
+   * a vanished post leaves the reader on the front page, reported. */
+  async openPage(
+    agentId: string,
+    url: string,
+    dwellMs = 20_000
+  ): Promise<{ landed: string; detour: boolean }> {
     return this.withBusy(agentId, async () => {
       const page = this.page(agentId);
-      const target = url.startsWith("http") ? url : `${this.opts.baseUrl}${url}`;
-      await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      let landed = url;
+      let detour = false;
+      const postUrl = /^\/t\/([a-z0-9-]+)\/posts\/([A-Za-z0-9_]+)$/.exec(url);
+      if (postUrl) {
+        try {
+          await this.clickThroughToPost(page, postUrl[1] as string, postUrl[2] as string);
+        } catch (err) {
+          if (!(err instanceof TargetGoneError)) throw err;
+          landed = err.landedUrl;
+          detour = true;
+        }
+      } else {
+        const target = url.startsWith("http") ? url : `${this.opts.baseUrl}${url}`;
+        await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
+      }
       const steps = 6;
       for (let i = 0; i < steps; i++) {
         await this.pace(dwellMs / steps);
         await page.mouse.wheel(0, 120 + Math.random() * 160).catch(() => undefined);
       }
+      return { landed, detour };
     });
   }
 
@@ -125,7 +183,8 @@ export class BrowserDriver {
     });
   }
 
-  /** reply to a human in the real comment form on the real post page */
+  /** reply to a human in the real comment form on the real post page,
+   * reached by clicking through the listing like anyone else */
   async replyComment(
     agentId: string,
     tenant: string,
@@ -135,10 +194,7 @@ export class BrowserDriver {
   ): Promise<void> {
     return this.withBusy(agentId, async () => {
       const page = this.page(agentId);
-      await page.goto(`${this.opts.baseUrl}/t/${tenant}/posts/${postId}`, {
-        waitUntil: "domcontentloaded",
-        timeout: 30_000,
-      });
+      await this.clickThroughToPost(page, tenant, postId);
       // reread the thread before answering, like anyone decent
       await this.pace(2500 + Math.random() * 2500);
       await page.fill('input[name="author"]', author);
