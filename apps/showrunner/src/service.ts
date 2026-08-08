@@ -14,7 +14,7 @@ import {
   createTerrariumHandler,
   type TerrariumOptions,
 } from "terrarium";
-import { LAUNCH_CAST, castNames, type CastMember } from "./cast.js";
+import { castForWaves, castNames, wavesFromEnv, type CastMember } from "./cast.js";
 import { flagsFromEnv, type PolicyFlags } from "./policy.js";
 import { StubRuntimePort, type RuntimePort } from "./runtime-port.js";
 import { LiveRuntimePort } from "./runtime-live.js";
@@ -61,7 +61,7 @@ export interface WallService {
 export async function bootWallService(opts: WallServiceOptions): Promise<WallService> {
   const env = opts.env ?? process.env;
   const log = opts.log ?? console.log;
-  const cast = opts.cast ?? LAUNCH_CAST;
+  const cast = opts.cast ?? castForWaves(wavesFromEnv(env));
 
   // the state root is the life of the wall. a store that will not open
   // is fatal and must say exactly why: an operator reading this line

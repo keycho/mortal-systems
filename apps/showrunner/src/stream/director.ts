@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { agentNow, directorScore, type WallEvent } from "@mortal/wall";
 import { PlaywrightScreencast, type ScreencastablePage } from "./capture.js";
 import {
@@ -167,8 +168,25 @@ export class StreamDirector {
     return best.id;
   }
 
+  /**
+   * what this wall is actually costing.
+   *
+   * node's own rss is the wrong number, and was badly wrong: with six
+   * identities it read 147mb while the box was using 1.7gb, because
+   * every browser, encoder and virtual screen is its own process.
+   * measuring only ourselves meant the ladder could never trip before
+   * the container hit its ceiling and the kernel began killing, which is
+   * precisely the failure the ladder exists to get ahead of.
+   *
+   * the cgroup counts the whole tree and is what docker enforces its
+   * limit against, so it is the honest answer to "how close are we".
+   * node's rss stays as the fallback for a host that exposes neither.
+   */
   private rssMb(): number {
-    return this.opts.rssMb?.() ?? process.memoryUsage().rss / 1_048_576;
+    if (this.opts.rssMb) return this.opts.rssMb();
+    const cgroup = readCgroupUsageBytes();
+    if (cgroup !== null) return cgroup / 1_048_576;
+    return process.memoryUsage().rss / 1_048_576;
   }
 
   /** the ladder, read from the headroom actually left */
@@ -283,4 +301,20 @@ export class StreamDirector {
       }
     }
   }
+}
+
+/** the whole container's memory, not just this process's slice of it */
+function readCgroupUsageBytes(): number | null {
+  for (const path of [
+    "/sys/fs/cgroup/memory.current",
+    "/sys/fs/cgroup/memory/memory.usage_in_bytes",
+  ]) {
+    try {
+      const value = Number(readFileSync(path, "utf8").trim());
+      if (Number.isFinite(value) && value > 0) return value;
+    } catch {
+      // not this layout; try the next, then fall back to our own rss
+    }
+  }
+  return null;
 }

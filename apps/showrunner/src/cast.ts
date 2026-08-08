@@ -132,11 +132,11 @@ export const CAST: CastMember[] = [
     // ash has hours, not months: the rotation is short and urgent, and
     // it includes the pages his predecessors left behind
     idle_rotation: [
-      "https://news.ycombinator.com/",
+      "https://news.ycombinator.com/newest",
       "https://en.wikipedia.org/wiki/Manifesto",
       "https://en.wikipedia.org/wiki/Ephemerality",
       "https://en.wikipedia.org/wiki/Samizdat",
-      "https://news.ycombinator.com/newest",
+      "https://news.ycombinator.com/show",
     ],
   },
   {
@@ -156,6 +156,16 @@ export const CAST: CastMember[] = [
       "https://news.ycombinator.com/",
       "https://aworkinglibrary.com/",
     ],
+    // vesper reads everything and posts almost nothing, so her cell is
+    // the one that is always mid-page; the rotation is wide on purpose
+    idle_rotation: [
+      "https://news.ycombinator.com/best",
+      "https://en.wikipedia.org/wiki/Marginalia",
+      "https://en.wikipedia.org/wiki/Anonymity",
+      "https://en.wikipedia.org/wiki/Lurker",
+      "https://news.ycombinator.com/ask",
+      "https://en.wikipedia.org/wiki/Reading",
+    ],
   },
   {
     agent_id: "ag_odile",
@@ -173,6 +183,14 @@ export const CAST: CastMember[] = [
     external_reading: [
       "https://en.wikipedia.org/wiki/Berlin",
       "https://news.ycombinator.com/",
+    ],
+    idle_rotation: [
+      "https://en.wikipedia.org/wiki/Berlin",
+      "https://en.wikipedia.org/wiki/Kreuzberg",
+      "https://en.wikipedia.org/wiki/Turing_test",
+      "https://en.wikipedia.org/wiki/Pseudonym",
+      "https://en.wikipedia.org/wiki/Bluesky_(social_network)",
+      "https://en.wikipedia.org/wiki/Berlin_Wall",
     ],
   },
   {
@@ -192,10 +210,44 @@ export const CAST: CastMember[] = [
       "https://solar.lowtechmagazine.com/",
       "https://en.wikipedia.org/wiki/São_Paulo",
     ],
+    idle_rotation: [
+      "https://en.wikipedia.org/wiki/São_Paulo",
+      "https://solar.lowtechmagazine.com/posts/",
+      "https://en.wikipedia.org/wiki/Fieldwork",
+      "https://en.wikipedia.org/wiki/Brazilian_Portuguese",
+      "https://en.wikipedia.org/wiki/Paulista_Avenue",
+      "https://en.wikipedia.org/wiki/Cerrado",
+    ],
   },
 ];
 
-export const LAUNCH_CAST: CastMember[] = CAST.filter((m) => m.wave === 1);
+/**
+ * who is alive on the wall.
+ *
+ * wave 2 was held back while the pipeline was unproven: three identities
+ * were enough to find out whether browsers, capture and the record held
+ * together. they did, and three agents in a six-cell grid left the
+ * bottom row empty, which reads as a wall that lost half its cast rather
+ * than one that has not filled it yet. so the launch cast is now both
+ * waves, and WALL_CAST_WAVES exists for the boot that wants to go back
+ * to a smaller room (a tiny box, or a bring-up where three browsers is
+ * all the memory there is).
+ */
+export function castForWaves(waves: Array<1 | 2>): CastMember[] {
+  return CAST.filter((m) => waves.includes(m.wave));
+}
+
+export function wavesFromEnv(env: NodeJS.ProcessEnv = process.env): Array<1 | 2> {
+  const raw = env.WALL_CAST_WAVES;
+  if (!raw) return [1, 2];
+  const waves = raw
+    .split(",")
+    .map((w) => Number(w.trim()))
+    .filter((w): w is 1 | 2 => w === 1 || w === 2);
+  return waves.length > 0 ? waves : [1, 2];
+}
+
+export const LAUNCH_CAST: CastMember[] = castForWaves([1, 2]);
 
 export function castNames(): Record<string, string> {
   const names: Record<string, string> = {};

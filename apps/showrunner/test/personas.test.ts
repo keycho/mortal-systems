@@ -38,7 +38,7 @@ describe("yuki lives in japanese", () => {
 
 describe("an idle identity drifts somewhere, and somewhere different", () => {
   it("gives every launch identity a rotation of its own", () => {
-    for (const m of LAUNCH_CAST.filter((c) => c.wave === 1)) {
+    for (const m of LAUNCH_CAST) {
       const rotation = m.idle_rotation ?? [];
       expect(rotation.length).toBeGreaterThanOrEqual(4);
       // consecutive glances at a cell must not look the same
@@ -47,11 +47,29 @@ describe("an idle identity drifts somewhere, and somewhere different", () => {
   });
 
   it("gives them different rotations from each other", () => {
-    const yuki = new Set(member("ag_yuki").idle_rotation ?? []);
-    const marlowe = new Set(member("ag_marlowe").idle_rotation ?? []);
-    const shared = [...yuki].filter((u) => marlowe.has(u));
-    // three cells all showing hacker news is one cell shown three times
-    expect(shared).toHaveLength(0);
+    // six cells all showing hacker news is one cell shown six times, so
+    // no two identities may share a resting page at all
+    for (const a of LAUNCH_CAST) {
+      for (const b of LAUNCH_CAST) {
+        if (a.agent_id >= b.agent_id) continue;
+        const shared = (a.idle_rotation ?? []).filter((u) =>
+          (b.idle_rotation ?? []).includes(u)
+        );
+        expect({ pair: `${a.name}/${b.name}`, shared }).toEqual({
+          pair: `${a.name}/${b.name}`,
+          shared: [],
+        });
+      }
+    }
+  });
+
+  it("fills the wall: six identities for six cells", () => {
+    // three agents in a six-cell grid reads as a wall that lost half its
+    // cast, not one that has not filled it yet
+    expect(LAUNCH_CAST).toHaveLength(6);
+    expect(LAUNCH_CAST.map((m) => m.name).sort()).toEqual(
+      ["ash", "marlowe", "odile", "rui", "vesper", "yuki"].sort()
+    );
   });
 
   it("cannot drift off the allowlist", () => {
