@@ -68,6 +68,7 @@ export function Watch() {
               events={events}
               now={now}
               caption={hero.last_monologue ?? null}
+              captionGloss={hero.last_monologue_gloss ?? null}
               signalLost={!connected}
             />
           ) : (

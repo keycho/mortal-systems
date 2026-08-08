@@ -28,6 +28,7 @@ export function AgentCell({
   events,
   now,
   caption,
+  captionGloss,
   signalLost,
   onClick,
 }: {
@@ -35,6 +36,8 @@ export function AgentCell({
   events: WallEvent[];
   now: number;
   caption?: string | null;
+  /** a short english reading, drawn smaller under the caption */
+  captionGloss?: string | null;
   /** no stream and nothing arriving: the only dot on the wall */
   signalLost?: boolean;
   onClick?: () => void;
@@ -86,7 +89,14 @@ export function AgentCell({
         </div>
       </div>
       <div className="wall-capslot">
-        <div className={`wall-caption${caption ? "" : " out"}`}>{caption ?? ""}</div>
+        <div className={`wall-caption${caption ? "" : " out"}`}>
+          <span className="line" lang={agent.locale?.startsWith("ja") ? "ja" : undefined}>
+            {caption ?? ""}
+          </span>
+          {/* the japanese is the thing you see; this is for the viewer
+              who cannot read it, and it never replaces the line */}
+          {caption && captionGloss ? <span className="gloss">{captionGloss}</span> : null}
+        </div>
       </div>
     </div>
   );

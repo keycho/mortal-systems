@@ -33,6 +33,11 @@ const THOUGHT_SCHEMA = {
   additionalProperties: false,
   required: ["monologue"],
   properties: {
+    monologue_gloss: {
+      type: ["string", "null"],
+      description:
+        "a short english reading of the monologue, ONLY when the monologue is not in english. never a replacement for it.",
+    },
     monologue: {
       anyOf: [{ type: "string" }, { type: "null" }],
       description:
@@ -190,6 +195,12 @@ export function parseThought(text: string): Thought {
   try {
     const raw = JSON.parse(text) as Record<string, unknown>;
     const thought: Thought = {};
+    if (
+      typeof raw.monologue_gloss === "string" &&
+      raw.monologue_gloss.trim().length > 0
+    ) {
+      thought.monologue_gloss = raw.monologue_gloss.trim();
+    }
     if (typeof raw.monologue === "string" && raw.monologue.trim().length > 0) {
       thought.monologue = raw.monologue.slice(0, 140);
     }

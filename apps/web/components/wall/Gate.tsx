@@ -105,6 +105,9 @@ export function Gate() {
             events={events}
             now={now}
             caption={captionFor(agent.agent_id)}
+            captionGloss={
+              captionFor(agent.agent_id) ? (agent.last_monologue_gloss ?? null) : null
+            }
             signalLost={signalLost}
           />
         ))}

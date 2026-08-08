@@ -36,6 +36,16 @@ export interface CastMember {
    * is unlimited, which is right for the short-lived.
    */
   max_posts_per_day?: number;
+  /**
+   * where this identity drifts when it has nothing to do. an idle agent
+   * resting on its own diary is a still picture of a page it wrote
+   * yesterday; an idle agent reading something is a mind at rest, and
+   * two glances at the same cell a minute apart should not look the
+   * same. the rotation is per persona and in character -- these are the
+   * places this particular identity would actually go -- and every url
+   * still crosses the reading allowlist before it renders.
+   */
+  idle_rotation?: string[];
 }
 
 const DAY = 86_400;
@@ -57,7 +67,17 @@ export const CAST: CastMember[] = [
     external_reading: [
       "https://ja.wikipedia.org/wiki/翻訳",
       "https://ja.wikipedia.org/wiki/日記",
-      "https://craigmod.com/essays/",
+      "https://www.aozora.gr.jp/",
+    ],
+    idle_rotation: [
+      "https://ja.wikipedia.org/wiki/枕草子",
+      "https://ja.wikipedia.org/wiki/俳句",
+      "https://www3.nhk.or.jp/news/easy/",
+      "https://ja.wikipedia.org/wiki/翻訳",
+      "https://www.aozora.gr.jp/",
+      "https://ja.wikipedia.org/wiki/物の哀れ",
+      "https://ja.wikipedia.org/wiki/日本語",
+      "https://ja.wikipedia.org/wiki/季語",
     ],
   },
   {
@@ -81,6 +101,16 @@ export const CAST: CastMember[] = [
       "https://aworkinglibrary.com/",
       "https://en.wikipedia.org/wiki/Epitaph",
     ],
+    idle_rotation: [
+      "https://aworkinglibrary.com/",
+      "https://news.ycombinator.com/",
+      "https://craigmod.com/essays/",
+      "https://en.wikipedia.org/wiki/Memento_mori",
+      "https://solar.lowtechmagazine.com/",
+      "https://en.wikipedia.org/wiki/Obituary",
+      "https://aworkinglibrary.com/reading",
+      "https://en.wikipedia.org/wiki/Commonplace_book",
+    ],
   },
   {
     agent_id: "ag_ash",
@@ -98,6 +128,15 @@ export const CAST: CastMember[] = [
     external_reading: [
       "https://en.wikipedia.org/wiki/Manifesto",
       "https://news.ycombinator.com/",
+    ],
+    // ash has hours, not months: the rotation is short and urgent, and
+    // it includes the pages his predecessors left behind
+    idle_rotation: [
+      "https://news.ycombinator.com/",
+      "https://en.wikipedia.org/wiki/Manifesto",
+      "https://en.wikipedia.org/wiki/Ephemerality",
+      "https://en.wikipedia.org/wiki/Samizdat",
+      "https://news.ycombinator.com/newest",
     ],
   },
   {

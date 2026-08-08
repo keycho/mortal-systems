@@ -32,6 +32,10 @@ export interface ThinkContext {
 export interface Thought {
   /** one inner-voice line, <= 140 chars; the caption layer */
   monologue?: string;
+  /** a short english reading of the monologue, when the identity does
+   * not think in english. never a replacement: the wall shows the line
+   * as it was thought, with this under it. */
+  monologue_gloss?: string;
   /** at most one act per heartbeat */
   act?:
     | { kind: "publish_post"; title: string; body_md: string }

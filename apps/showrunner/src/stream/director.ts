@@ -48,6 +48,14 @@ export interface StreamDirectorOptions {
   sourceFor?: (page: ScreencastablePage, profile: StreamProfile) => FrameSource;
 }
 
+/** states where something is visibly happening in the frame: a page
+ * being scrolled, a draft being typed. these are what the wall is for. */
+const DYNAMIC_STATES = new Set(["writing", "replying", "reading"]);
+
+/** how long the camera will hold a motionless cell before going to find
+ * something that is actually moving */
+export const DWELL_MAX_MS = 20_000;
+
 /** what the wall gives up, in the order it gives it up */
 export type Pressure = "none" | "grid_slow" | "grid_dark" | "hero_low";
 
@@ -56,6 +64,8 @@ export class StreamDirector {
   private hero: string | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastCutReason = "boot";
+  private heroSince = 0;
+  private heroStateKey = "";
   private pressure: Pressure = "none";
 
   constructor(opts: StreamDirectorOptions) {
@@ -109,19 +119,52 @@ export class StreamDirector {
     };
   }
 
-  /** the pick: fold agent_now from events, score, take the hottest agent
-   * that still has a living browser */
+  /**
+   * the pick: fold agent_now from events, score, take the hottest agent
+   * that still has a living browser -- and refuse to sit on a still
+   * picture.
+   *
+   * a fully rendered page nobody is scrolling is the least watchable
+   * thing the wall can show, and the score alone will happily hold a cut
+   * there forever if that agent happens to outrank everyone. so a hero
+   * that has not changed state for DWELL_MAX_MS loses to anyone who is
+   * actually reading or writing at that moment. the wall is not a
+   * screenshot gallery; if something is moving, the camera goes there.
+   */
   pick(now: Date = new Date()): string | null {
     const events = this.opts.events();
     const agents = agentNow(events);
     let best: { id: string; score: number } | null = null;
+    let mover: { id: string; score: number } | null = null;
     for (const agent of agents) {
       if (!this.opts.pageFor(agent.agent_id)) continue;
       const score = directorScore(agent, events, now);
       if (score < 0) continue;
       if (!best || score > best.score) best = { id: agent.agent_id, score };
+      if (DYNAMIC_STATES.has(agent.state) && (!mover || score > mover.score)) {
+        mover = { id: agent.agent_id, score };
+      }
     }
-    return best?.id ?? null;
+    if (!best) return null;
+
+    // has the hero done anything since we cut to it?
+    const heroAgent = agents.find((a) => a.agent_id === this.hero);
+    const key = heroAgent ? `${heroAgent.state}:${heroAgent.last_event_id ?? ""}` : "";
+    if (key !== this.heroStateKey) {
+      this.heroStateKey = key;
+      this.heroSince = now.getTime();
+    }
+    const stillFor = now.getTime() - this.heroSince;
+    if (
+      this.hero !== null &&
+      mover !== null &&
+      mover.id !== this.hero &&
+      !DYNAMIC_STATES.has(heroAgent?.state ?? "") &&
+      stillFor > DWELL_MAX_MS
+    ) {
+      return mover.id;
+    }
+    return best.id;
   }
 
   private rssMb(): number {

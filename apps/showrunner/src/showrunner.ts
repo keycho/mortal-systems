@@ -44,6 +44,8 @@ export interface LiveAgent {
   /** publishes today, and which day that is, for the cast's daily ceiling */
   posts_today: number;
   posts_today_date: string;
+  /** how far through its idle rotation this identity has drifted */
+  drift_index: number;
   /** last few spoken monologues, fed back to the thinker as
    * do-not-restate context */
   monologues: string[];
@@ -175,6 +177,7 @@ export class Showrunner {
       identity_id: spawned.identity_id,
       spawned_at: ts,
       dies_at: Date.parse(ts) + member.ttl_seconds * 1000,
+      drift_index: 0,
       memory: [...fragments],
       reading: [],
       read_cursor: ts,
@@ -338,6 +341,8 @@ export class Showrunner {
         post_count: postCount,
         posts_today: postsToday,
         posts_today_date: today,
+        // a restart should not put every identity back on the same page
+        drift_index: postCount,
         last_post_id: lastPostId,
         monologues: spokenMonologues.slice(-3),
       });
@@ -445,7 +450,7 @@ export class Showrunner {
       // a failed model call is downtime, not silence forever
       if (!dying) {
         this.emitState(agent.agent_id, "idle");
-        this.restAtOwnBlog(agent.agent_id);
+        void this.driftWhileIdle(agent).catch(() => undefined);
       }
       return null;
     }
@@ -455,7 +460,13 @@ export class Showrunner {
         agent_id: agent.agent_id,
         kind: "monologue",
         visibility: "public",
-        payload: { text: thought.monologue.slice(0, 140) },
+        payload: {
+          text: thought.monologue.slice(0, 140),
+          // the line stays as it was thought; the gloss rides beneath it
+          ...(thought.monologue_gloss
+            ? { gloss: thought.monologue_gloss.slice(0, 140) }
+            : {}),
+        },
       });
       agent.memory.push(thought.monologue);
       agent.monologues.push(thought.monologue.slice(0, 140));
@@ -466,7 +477,7 @@ export class Showrunner {
     }
     if (!dying) {
       this.emitState(agent.agent_id, "idle");
-      this.restAtOwnBlog(agent.agent_id);
+      void this.driftWhileIdle(agent).catch(() => undefined);
     }
     return thought;
   }
@@ -891,8 +902,47 @@ export class Showrunner {
    * a browser rests must not be able to hold up a beat.
    */
   private restAtOwnBlog(agentId: string): void {
+    // (see driftWhileIdle: this is the fallback, not the resting place)
     const runtime = this.runtime as { restAtHome?: (id: string) => Promise<void> };
     void runtime.restAtHome?.(agentId).catch(() => undefined);
+  }
+
+  /**
+   * where an identity drifts when it has nothing to say.
+   *
+   * resting on its own diary was a still picture of a page it wrote
+   * yesterday: two glances at that cell a minute apart looked identical,
+   * and a wall of those is a screenshot, not a live room. so an idle
+   * agent goes out to the next page in its own rotation instead --
+   * different every time, in character, and a real page being read.
+   *
+   * this is a read like any other: it crosses the policy chokepoint, so
+   * it cannot reach a domain the allowlist does not name and cannot
+   * happen at all while the sandbox probe has external browsing gated
+   * off. when it cannot, the agent falls back to its own archive, which
+   * is at least its own.
+   */
+  private async driftWhileIdle(agent: LiveAgent): Promise<void> {
+    const rotation = agent.member.idle_rotation ?? [];
+    if (rotation.length === 0 || !this.driver) {
+      this.restAtOwnBlog(agent.agent_id);
+      return;
+    }
+    const url = rotation[agent.drift_index % rotation.length] as string;
+    agent.drift_index += 1;
+    try {
+      checkAction({ type: "browse", url }, this.flags);
+    } catch {
+      // external reading is off, or this url is not on the list. the
+      // refusal is not news -- the scheduler's real reads already
+      // surface it -- so the agent simply stays home.
+      this.restAtOwnBlog(agent.agent_id);
+      return;
+    }
+    const title = titleFromUrl(url);
+    await this.performAct(agent, { kind: "open_page", url, title }).catch(() =>
+      this.restAtOwnBlog(agent.agent_id)
+    );
   }
 
   private emitState(agentId: string, state: string, detail?: string): void {
@@ -910,5 +960,18 @@ export class Showrunner {
     const agent = this.live.get(agentId);
     if (!agent) throw new Error(`no live agent ${agentId}`);
     return agent;
+  }
+}
+
+/** a human label for a url the scheduler chose. the wire says "yuki is
+ * reading ja.wikipedia.org: 枕草子", so the last path segment, decoded,
+ * is nearly always the right words. */
+function titleFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const last = parsed.pathname.split("/").filter(Boolean).pop();
+    return last ? decodeURIComponent(last).replace(/_/g, " ") : parsed.hostname;
+  } catch {
+    return url;
   }
 }

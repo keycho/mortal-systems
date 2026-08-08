@@ -34,6 +34,12 @@ export interface PolicyFlags {
 export const READING_ALLOWLIST_DEFAULT = [
   "en.wikipedia.org",
   "ja.wikipedia.org",
+  // yuki reads and writes in japanese, so she needs somewhere japanese
+  // to read: aozora is the public-domain literature archive, and nhk's
+  // easy-japanese news is written for readers still learning the
+  // language, which is exactly her translation project's material
+  "www.aozora.gr.jp",
+  "www3.nhk.or.jp",
   "news.ycombinator.com",
   "aworkinglibrary.com",
   "craigmod.com",

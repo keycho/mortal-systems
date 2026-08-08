@@ -30,6 +30,9 @@ export interface AgentNow {
   /** true when < 1h remains; the ui turns the cell red */
   final_hour: boolean;
   last_monologue: string | null;
+  /** a short english reading of last_monologue, when the identity does
+   * not think in english. shown under the line, never instead of it. */
+  last_monologue_gloss?: string | null;
   current_url_title: string | null;
   last_event_id: string | null;
   inherited_fragments: string[];
@@ -62,6 +65,7 @@ export function agentNow(
         ttl_label: null,
         final_hour: false,
         last_monologue: null,
+        last_monologue_gloss: null,
         current_url_title: null,
         last_event_id: null,
         inherited_fragments: [],
@@ -101,6 +105,7 @@ export function agentNow(
       case "monologue": {
         const p = event.payload as PayloadFor<"monologue">;
         agent.last_monologue = p.text;
+        agent.last_monologue_gloss = p.gloss ?? null;
         break;
       }
       case "death": {

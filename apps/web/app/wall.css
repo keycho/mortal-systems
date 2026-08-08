@@ -251,6 +251,21 @@
   margin-top: 9px;
   overflow: hidden;
 }
+/* a caption is a line and, when the identity does not think in english,
+   a smaller reading under it. the line keeps the amber and the size: a
+   japanese cell should read as japanese at a glance, which is the whole
+   visual point of having a tokyo identity at all. */
+.wall-caption .line {
+  display: block;
+}
+.wall-caption .gloss {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--w-dim);
+  opacity: 0.85;
+}
 .wall-caption {
   font-size: 12px;
   line-height: 1.5;
@@ -628,7 +643,22 @@
   .wall-wirestrip .track {
     animation: none;
   }
-  .wall-caption {
+  /* a caption is a line and, when the identity does not think in english,
+   a smaller reading under it. the line keeps the amber and the size: a
+   japanese cell should read as japanese at a glance, which is the whole
+   visual point of having a tokyo identity at all. */
+.wall-caption .line {
+  display: block;
+}
+.wall-caption .gloss {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--w-dim);
+  opacity: 0.85;
+}
+.wall-caption {
     transition: none;
   }
 }
@@ -664,7 +694,22 @@
   .wall-activity .at-line {
     font-size: 10.5px;
   }
-  .wall-caption {
+  /* a caption is a line and, when the identity does not think in english,
+   a smaller reading under it. the line keeps the amber and the size: a
+   japanese cell should read as japanese at a glance, which is the whole
+   visual point of having a tokyo identity at all. */
+.wall-caption .line {
+  display: block;
+}
+.wall-caption .gloss {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--w-dim);
+  opacity: 0.85;
+}
+.wall-caption {
     font-size: 11.5px;
   }
   .wall-more {

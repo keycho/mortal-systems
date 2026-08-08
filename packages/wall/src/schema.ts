@@ -90,6 +90,14 @@ export const ActionPayload = z.object({
 
 export const MonologuePayload = z.object({
   text: z.string().min(1).max(MONOLOGUE_MAX_CHARS),
+  /**
+   * a short english reading of `text`, when the identity does not think
+   * in english. the gloss never replaces the line: the japanese is the
+   * thing a viewer sees, and a cell that reads as japanese at a glance
+   * is the visual point. the gloss sits under it, smaller, for the
+   * viewer who cannot read it.
+   */
+  gloss: z.string().max(MONOLOGUE_MAX_CHARS).optional(),
 });
 
 export const EnforcementPayload = z.object({
