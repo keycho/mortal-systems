@@ -1,0 +1,34 @@
+{
+  "name": "@mortal/wall",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "the wall's single source of truth: the append-only WallEvent stream, its store, and every read model (agent_now, ticker, depth, recap, director cut). everything on screen renders from here; if an event has no runtime primitive behind it, it does not exist.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
