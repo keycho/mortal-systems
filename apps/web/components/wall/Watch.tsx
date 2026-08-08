@@ -62,22 +62,23 @@ export function Watch() {
         <div className="wall-offline">the wall is unreachable from here right now</div>
       ) : null}
       <div className="wall-watch">
-        {/* the hero: one frame, given the room a director's cut deserves */}
-        <section className="wall-stage">
+        {/* the hero row: surface A large and dominant, surface B the
+            reasoning rail beside it. the two never mix: the frame is the
+            captured browser, the rail is drawn from the event feed. */}
+        <section className={`wall-stagerow${hero ? "" : " solo"}`}>
+          <div className="wall-stagecell">
+            {hero ? (
+              <AgentCell agent={hero} events={events} now={now} signalLost={!connected} />
+            ) : (
+              <div className="wall-frame wall-frame-empty">nobody is on camera yet</div>
+            )}
+          </div>
           {hero ? (
-            <AgentCell agent={hero} events={events} now={now} signalLost={!connected} />
-          ) : (
-            <div className="wall-frame wall-frame-empty">nobody is on camera yet</div>
-          )}
+            <div className="wall-stagerail">
+              <ReasoningPanel agent={hero} events={events} />
+            </div>
+          ) : null}
         </section>
-
-        {/* surface B, under the hero's cell: the NOW intent line and the
-            tagged record. the side-by-side layout is a later checkpoint */}
-        {hero ? (
-          <section className="wall-panelrow">
-            <ReasoningPanel agent={hero} events={events} />
-          </section>
-        ) : null}
 
         <div className="wall-stagebar">
           <button className={showMachine ? "on" : ""} onClick={() => setShowMachine((v) => !v)}>

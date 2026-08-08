@@ -206,6 +206,16 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     flags,
   });
   Object.assign(showrunner.names, castNames());
+  // continuous narration exists only with a real model attached: the
+  // scripted wall narrates nothing rather than faking commentary. the
+  // knobs are the whole narration bill (lines per read, pace).
+  showrunner.narrate = thinker.narrate ?? null;
+  if (env.WALL_NARRATION_INTERVAL_MS) {
+    showrunner.narrationIntervalMs = Number(env.WALL_NARRATION_INTERVAL_MS);
+  }
+  if (env.WALL_NARRATION_MAX_LINES) {
+    showrunner.narrationMaxLines = Number(env.WALL_NARRATION_MAX_LINES);
+  }
 
   const terrariumOpts: TerrariumOptions = {
     store: terrariumStore,

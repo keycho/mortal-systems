@@ -14,9 +14,15 @@ import { AgentCell, VacantCell } from "./AgentCell";
  * never drawn on a frame); the count line is live; everything else is
  * chrome. the frames themselves render the product site's light world,
  * and that contrast is the point.
+ *
+ * the grid sizes to the cast: exactly one cell per agent, columns capped
+ * at three, so a three-agent wall is one full row instead of a row of
+ * life over a row of vacant filler. the drifting vacant form appears
+ * only when the room is empty.
  */
 
-const GRID_SLOTS = 6;
+/** the empty room: one row of the drifting form, never a label */
+const EMPTY_ROOM_SLOTS = 3;
 
 const COUNT_WORDS = [
   "no identities are",
@@ -85,7 +91,7 @@ export function Gate() {
       }));
   }, [events, agents]);
 
-  const vacants = Math.max(0, GRID_SLOTS - sorted.length);
+  const cols = Math.min(3, Math.max(1, sorted.length));
   const countLine =
     alive <= 6 ? `${COUNT_WORDS[alive]} alive right now` : `${alive} identities are alive right now`;
   const hidden = Math.max(0, sorted.length - 1);
@@ -101,7 +107,7 @@ export function Gate() {
       {!connected && agents.length === 0 ? (
         <div className="wall-offline">the wall is unreachable from here right now</div>
       ) : null}
-      <div className="wall-grid">
+      <div className="wall-grid" data-cols={sorted.length === 0 ? EMPTY_ROOM_SLOTS : cols}>
         {sorted.map((agent) => (
           <AgentCell
             key={agent.agent_id}
@@ -111,9 +117,9 @@ export function Gate() {
             signalLost={signalLost}
           />
         ))}
-        {Array.from({ length: vacants }, (_, i) => (
-          <VacantCell key={`vacant-${i}`} />
-        ))}
+        {sorted.length === 0
+          ? Array.from({ length: EMPTY_ROOM_SLOTS }, (_, i) => <VacantCell key={`vacant-${i}`} />)
+          : null}
       </div>
       {/* surface B on the gate: the spotlight bar. the slot is always
           present at a fixed height, so a caption arriving or leaving

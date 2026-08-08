@@ -37,10 +37,22 @@ export {
   AMBIENT_MODEL_DEFAULT,
   SET_PIECE_MODEL_DEFAULT,
   WALL_CONSTITUTION,
+  buildAnthropicNarrator,
   buildAnthropicThinker,
+  parseNarration,
   parseThought,
   personaFromMember,
 } from "./anthropic-thinker.js";
+export {
+  NARRATION_EXCERPT_MAX,
+  NARRATION_INTERVAL_MS,
+  NARRATION_LINE_TIMEOUT_MS,
+  NARRATION_MAX_LINES,
+  NARRATION_SETTLE_MS,
+  visibleExcerpt,
+  waitWhile,
+} from "./narrator.js";
+export type { NarratablePage, NarrateFn, NarrationBeat } from "./narrator.js";
 export {
   SHARED_LORE_BLOCKS,
   STYLE_GUIDE,

@@ -85,6 +85,19 @@
   gap: var(--w-gap);
   padding: 64px var(--w-margin-x) 0;
 }
+/* the grid sizes to the cast (data-cols = min(3, live cells)): a small
+   cast fills its row instead of sitting beside vacant filler. one or
+   two alive get the width a two-column cell would, centered, so the
+   capture's crop stays in the same regime as the full grid. :where()
+   keeps specificity level with .wall-grid so the mobile rule still
+   wins. */
+.wall-grid:where([data-cols="1"]) {
+  grid-template-columns: minmax(0, 704px);
+  justify-content: center;
+}
+.wall-grid:where([data-cols="2"]) {
+  grid-template-columns: repeat(2, 1fr);
+}
 
 /* ---- a cell: the frame, and only the frame ---- */
 .wall-cell {
@@ -369,24 +382,49 @@
   --w-stage: min(100%, 1040px);
   padding: 56px var(--w-margin-x) 0;
 }
-.wall-stage {
-  display: flex;
-  justify-content: center;
+/* the hero row: surface A large on the left, surface B the reasoning
+   rail beside it (the reference's structure, the wall's own grammar).
+   the browser stays dominant; the row's height comes from the hero's
+   aspect ratio, and the rail's record scrolls inside that height. */
+.wall-stagerow {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--w-gap);
+  width: var(--w-stage);
+  margin: 0 auto;
+}
+.wall-stagerow.solo {
+  grid-template-columns: 1fr;
 }
 /* the hero keeps the frame's proportions rather than a fixed height, so
    the browser inside it is never letterboxed or cropped */
-.wall-stage .wall-cell {
-  width: var(--w-stage);
-}
-.wall-stage .wall-frame {
+.wall-stagerow .wall-frame {
   height: auto;
   aspect-ratio: 416 / 250;
+}
+.wall-stagerail {
+  position: relative;
+  min-height: 0;
+}
+/* the panel fills exactly the hero's height: absolute inside the rail so
+   a long record can never stretch the row, only scroll */
+.wall-stagerail .wall-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wall-stagerail .wall-record {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 .wall-frame-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--w-stage);
   aspect-ratio: 416 / 250;
   border: 1px solid var(--w-hair);
   background: var(--w-frame);
@@ -419,14 +457,9 @@
 }
 /* ---- surface B: the reasoning panel (watch) ----
    the NOW intent line over a dense timestamped record of READ / WENT /
-   THOUGHT / WROTE lines, under the hero's frame and never inside it.
+   THOUGHT / WROTE lines, beside the hero's frame and never inside it.
    mortal-gate tokens only; spend and every other operating figure stay
    in /health, off this surface. */
-.wall-panelrow {
-  display: flex;
-  justify-content: center;
-  margin-top: 12px;
-}
 .wall-panel {
   position: relative;
   z-index: 2; /* above the page grain, like every other text surface */
@@ -562,6 +595,19 @@
   }
   .wall-grid-rest {
     margin-top: 28px;
+  }
+  /* the rail stacks under the hero: surface B stays beside-or-under,
+     never on the frame */
+  .wall-stagerow {
+    grid-template-columns: 1fr;
+  }
+  .wall-stagerail .wall-panel {
+    position: static;
+    inset: auto;
+    display: block;
+  }
+  .wall-stagerail .wall-record {
+    max-height: 300px;
   }
 }
 

@@ -1,5 +1,6 @@
 import {
   MAX_INHERITED_FRAGMENTS,
+  NARRATION_MAX_CHARS,
   WallStore,
   agentNow,
   type PayloadFor,
@@ -7,6 +8,16 @@ import {
 } from "@mortal/wall";
 import type { CastMember } from "./cast.js";
 import { isAshSpawnSlot, isAsleep } from "./calendar.js";
+import {
+  NARRATION_INTERVAL_MS,
+  NARRATION_LINE_TIMEOUT_MS,
+  NARRATION_MAX_LINES,
+  NARRATION_SETTLE_MS,
+  visibleExcerpt,
+  waitWhile,
+  type NarratablePage,
+  type NarrateFn,
+} from "./narrator.js";
 import {
   PolicyViolation,
   checkAction,
@@ -381,6 +392,15 @@ export class Showrunner {
    * on the transactional client path */
   driver: ActDriver | null = null;
 
+  /** set at boot only when a real model thinker is attached: the
+   * scripted wall narrates nothing rather than presenting hand-written
+   * lines as running commentary */
+  narrate: NarrateFn | null = null;
+  narrationSettleMs = NARRATION_SETTLE_MS;
+  narrationIntervalMs = NARRATION_INTERVAL_MS;
+  narrationMaxLines = NARRATION_MAX_LINES;
+  narrationLineTimeoutMs = NARRATION_LINE_TIMEOUT_MS;
+
   async heartbeat(agentId: string, opts: { occasion?: string } = {}): Promise<Thought | null> {
     // an agent mid-act (typing a post at human speed) skips its beat; the
     // wall shows writing the whole while, which is exactly the truth
@@ -439,6 +459,7 @@ export class Showrunner {
       memory: agent.memory.slice(-12),
       reading,
       recent_monologues: agent.monologues.slice(-3),
+      idle_rotation: agent.member.idle_rotation ?? [],
       ttl_remaining_seconds: remaining,
       inherited_fragments: agent.memory.slice(0, MAX_INHERITED_FRAGMENTS),
     };
@@ -472,10 +493,16 @@ export class Showrunner {
       agent.monologues.push(thought.monologue.slice(0, 140));
       if (agent.monologues.length > 3) agent.monologues.shift();
     }
+    let acted = false;
     if (thought.act && !dying) {
-      await this.performAct(agent, thought.act);
+      acted = await this.performAct(agent, thought.act);
     }
     if (!dying) {
+      // browse-forward: an open_page act that actually happened already
+      // took the agent out to a page; drifting now would immediately
+      // walk away from it. the beat ends there, in the reading state,
+      // exactly as a drift-read would. a refused read still drifts.
+      if (acted && thought.act?.kind === "open_page") return thought;
       this.emitState(agent.agent_id, "idle");
       void this.driftWhileIdle(agent).catch(() => undefined);
     }
@@ -519,13 +546,14 @@ export class Showrunner {
   }
 
   /** every act crosses the policy chokepoint; refusals become public
-   * enforcement events with receipts */
-  private async performAct(agent: LiveAgent, act: NonNullable<Thought["act"]>): Promise<void> {
+   * enforcement events with receipts. returns true when the act was
+   * performed, false when policy refused it. */
+  private async performAct(agent: LiveAgent, act: NonNullable<Thought["act"]>): Promise<boolean> {
     try {
       switch (act.kind) {
         case "publish_post": {
           checkAction({ type: "post", platform: "terrarium" }, this.flags);
-          if (!agent.tenant) return;
+          if (!agent.tenant) return false;
           this.emitState(agent.agent_id, "writing", act.title);
           // the daily ceiling is a publishing limit, not a writing one:
           // the draft happens either way, at full length and on camera,
@@ -552,7 +580,7 @@ export class Showrunner {
             // must not imply otherwise. the wall shows the writing
             // through the state it is already in.
             this.emitState(agent.agent_id, "writing", act.title);
-            return;
+            return true;
           }
           const post = await this.actThroughDriver(
             agent.agent_id,
@@ -576,7 +604,7 @@ export class Showrunner {
             primitive: "terrarium.posts.create()",
             payload: { verb: "published_post", target_url: post.url, title: act.title },
           });
-          return;
+          return true;
         }
         case "reply_comment": {
           checkAction({ type: "comment", platform: "terrarium" }, this.flags);
@@ -611,7 +639,7 @@ export class Showrunner {
                 },
               });
               agent.memory.push("went to reply and the post was gone");
-              return;
+              return true;
             }
             throw err;
           }
@@ -623,7 +651,7 @@ export class Showrunner {
             primitive: "terrarium.comments.reply()",
             payload: { verb: "left_comment" },
           });
-          return;
+          return true;
         }
         case "send_letter": {
           // internal mail: the act is public, the body never is
@@ -644,7 +672,7 @@ export class Showrunner {
             payload: { verb: "sent_letter", target_agent: act.to_agent, title: act.body.slice(0, 500) },
           });
           agent.memory.push(`wrote to ${this.names[act.to_agent] ?? act.to_agent}`);
-          return;
+          return true;
         }
         case "external_post": {
           // tier 2, dark: this checkAction refuses with tier2.dark until
@@ -671,7 +699,7 @@ export class Showrunner {
             },
           });
           agent.memory.push(`posted on ${act.domain}`);
-          return;
+          return true;
         }
         case "external_reply": {
           checkAction({ type: "external_reply", domain: act.domain }, this.flags);
@@ -684,7 +712,7 @@ export class Showrunner {
             payload: { verb: "left_comment", target_url: act.target_url },
           });
           agent.memory.push(`replied on ${act.domain}`);
-          return;
+          return true;
         }
         case "open_page": {
           checkAction({ type: "browse", url: act.url }, this.flags);
@@ -692,12 +720,23 @@ export class Showrunner {
           let landedUrl = act.url;
           let landedTitle = act.title;
           if (this.driver) {
-            const landing = await this.driver
+            // surface B fills while surface A reads: the narrator
+            // speaks over the dwell and stops the moment the read ends
+            let readInProgress = true;
+            const opening = this.driver
               .openPage(agent.agent_id, act.url)
               .catch((err: unknown) => {
                 console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
                 return null;
+              })
+              .finally(() => {
+                readInProgress = false;
               });
+            const narrated = this.narrateDuringRead(agent, () => readInProgress).catch(
+              () => undefined
+            );
+            const landing = await opening;
+            await narrated;
             if (landing?.detour) {
               // the link was gone; the record says where the reader
               // actually ended up, never where they meant to go
@@ -727,9 +766,10 @@ export class Showrunner {
               ? `went looking for ${act.title}; the page was gone`
               : `read ${act.title}`
           );
-          return;
+          return true;
         }
       }
+      return false;
     } catch (err) {
       if (err instanceof PolicyViolation) {
         this.store.append({
@@ -743,9 +783,72 @@ export class Showrunner {
             attempted_action: act.kind,
           },
         });
-        return;
+        return false;
       }
       throw err;
+    }
+  }
+
+  /**
+   * the running commentary (surface B): while the driver dwells on a
+   * page, extract what is visible on screen and let the model say one
+   * short line about it, appended as a public `narration` event, until
+   * the read ends or the per-read cap is hit. requires a model narrator
+   * and a live page: the scripted wall and the stub runtime narrate
+   * nothing. narration is commentary, not memory; the read's own
+   * material already reaches the agent via `reading`, so these lines do
+   * not crowd the memory window.
+   */
+  private async narrateDuringRead(
+    agent: LiveAgent,
+    stillReading: () => boolean
+  ): Promise<void> {
+    const narrate = this.narrate;
+    if (!narrate) return;
+    const runtime = this.runtime as { pageFor?: (id: string) => NarratablePage | null };
+    const page = runtime.pageFor?.call(this.runtime, agent.agent_id);
+    if (!page) return;
+    const prior: string[] = [];
+    await waitWhile(this.narrationSettleMs, stillReading);
+    while (stillReading() && prior.length < this.narrationMaxLines) {
+      const screen = await visibleExcerpt(page).catch(() => null);
+      if (!screen || !stillReading()) break;
+      // a hung model call may not hold the heartbeat hostage: past the
+      // per-line timeout the line is skipped and the read carries on
+      const line = await Promise.race([
+        narrate({
+          agent_id: agent.agent_id,
+          name: this.names[agent.agent_id] ?? agent.member.name,
+          locale: agent.member.locale,
+          url: screen.url,
+          title: screen.title,
+          excerpt: screen.excerpt,
+          prior: [...prior],
+        }).catch(() => null),
+        new Promise<null>((resolve) => {
+          const timer = setTimeout(() => resolve(null), this.narrationLineTimeoutMs);
+          timer.unref?.();
+        }),
+      ]);
+      const text = line?.text.trim();
+      if (text) {
+        this.store.append({
+          agent_id: agent.agent_id,
+          kind: "narration",
+          visibility: "public",
+          payload: {
+            text: text.slice(0, NARRATION_MAX_CHARS),
+            ...(line?.gloss?.trim()
+              ? { gloss: line.gloss.trim().slice(0, NARRATION_MAX_CHARS) }
+              : {}),
+            // the panel ties the line to what surface A was showing: the
+            // url actually on screen when the excerpt was taken
+            about_url: screen.url,
+          },
+        });
+        prior.push(text);
+      }
+      await waitWhile(this.narrationIntervalMs, stillReading);
     }
   }
 

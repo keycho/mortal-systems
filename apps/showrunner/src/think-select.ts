@@ -1,5 +1,10 @@
 import { CAST } from "./cast.js";
-import { buildAnthropicThinker, personaFromMember } from "./anthropic-thinker.js";
+import {
+  buildAnthropicNarrator,
+  buildAnthropicThinker,
+  personaFromMember,
+} from "./anthropic-thinker.js";
+import type { NarrateFn } from "./narrator.js";
 import type { ThinkFn } from "./think.js";
 
 /**
@@ -14,6 +19,10 @@ import type { ThinkFn } from "./think.js";
 export interface SelectedThinker {
   label: string;
   think: ThinkFn;
+  /** present only when a real model is attached: the scripted wall
+   * narrates nothing rather than presenting hand-written lines as
+   * running commentary */
+  narrate?: NarrateFn;
 }
 
 export function selectThinker(env: NodeJS.ProcessEnv, scripted: ThinkFn): SelectedThinker {
@@ -34,6 +43,13 @@ export function selectThinker(env: NodeJS.ProcessEnv, scripted: ThinkFn): Select
         apiKey: env.ANTHROPIC_API_KEY,
         ...(ambientModel ? { ambientModel } : {}),
         ...(setPieceModel ? { setPieceModel } : {}),
+        personas,
+      }),
+      // narration is ambient by construction: it runs while anyone
+      // reads, so it stays on the haiku-class model whatever the beat
+      narrate: buildAnthropicNarrator({
+        apiKey: env.ANTHROPIC_API_KEY,
+        ...(ambientModel ? { ambientModel } : {}),
         personas,
       }),
     };

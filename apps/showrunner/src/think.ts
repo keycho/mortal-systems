@@ -25,6 +25,9 @@ export interface ThinkContext {
   /** the last few monologues already spoken, so the thinker can be told
    * not to restate them (day-one lesson: repetition reads as machinery) */
   recent_monologues?: string[];
+  /** the identity's own resting pages (disjoint per persona), so the
+   * thinker can choose reading deliberately instead of only drifting */
+  idle_rotation?: string[];
   ttl_remaining_seconds: number | null;
   inherited_fragments: string[];
 }
@@ -75,12 +78,16 @@ export const scriptedThinker: ThinkFn = async (ctx) => {
       monologue: truncate(`someone wrote: ${line}`, 140),
     };
   }
-  if (beat % 3 === 0 && ctx.role.includes("blog")) {
+  // browse-forward: composing is the occasional act, not the default.
+  // the first beat still publishes (a fresh blog earns one entry), then
+  // roughly every seventh; the beats between end idle, where the drift
+  // takes the identity out to a real page.
+  if (beat % 7 === 0 && ctx.role.includes("blog")) {
     return {
       monologue: "a sentence wants writing",
       act: {
         kind: "publish_post",
-        title: `entry ${Math.floor(beat / 3) + 1}`,
+        title: `entry ${Math.floor(beat / 7) + 1}`,
         body_md: `notes from ${ctx.name}, ${new Date().toISOString().slice(0, 10)}.\n\n${ctx.memory.at(-1) ?? "beginning again."}`,
       },
     };
