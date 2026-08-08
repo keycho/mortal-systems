@@ -6,9 +6,15 @@ import type { WallEvent, PayloadFor } from "./schema.js";
  * functions shared by the watch page and the gate so both screens cut the
  * same way and can be tested without a browser.
  *
- * auto-cut priority (spec §6):
- *   death imminent > human_contact > enforcement > action(published)
- *   > writing > reading > idle
+ * auto-cut priority:
+ *   death imminent > human_contact > enforcement > WRITING > published
+ *   > reading > idle
+ *
+ * writing sits above publishing on purpose. a published post is a thing
+ * that already happened and can be read at leisure; an identity composing
+ * one is the only moment the wall exists to show, and it is happening
+ * now, in a real form, at typing speed. the older order cut away from a
+ * draft to feature the announcement of somebody else's finished one.
  */
 
 const STATE_RANK: Record<string, number> = {
@@ -19,6 +25,10 @@ const STATE_RANK: Record<string, number> = {
   idle: 1,
   sleeping: 0,
 };
+
+/** an agent at the keyboard outranks a finished post (400) and yields
+ * only to enforcement (600), human contact (800) and an imminent death */
+export const WRITING_BOOST = 500;
 
 /** recent-event boosts decay after this window */
 export const DIRECTOR_EVENT_WINDOW_MS = 5 * 60_000;
@@ -33,6 +43,8 @@ export function directorScore(
   if (agent.ttl_remaining_seconds !== null && agent.ttl_remaining_seconds < 3600) {
     return 1000 + Math.max(0, 3600 - agent.ttl_remaining_seconds) / 10;
   }
+  // composing, on camera, in the real form: the priority shot
+  if (agent.state === "writing") return WRITING_BOOST + (STATE_RANK.writing ?? 0);
   const cutoff = now.getTime() - DIRECTOR_EVENT_WINDOW_MS;
   let boost = 0;
   for (const event of recentEvents) {

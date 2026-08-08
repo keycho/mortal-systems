@@ -329,6 +329,35 @@ export class BrowserDriver {
 
   /** write and publish a post through the real compose form; the browser
    * is the actor and the redirect tells us what was made */
+  /**
+   * write the post into the real compose form and leave it there,
+   * unpublished. this is what a day at the ceiling looks like: the
+   * identity still composes, on camera, in the same form, at the same
+   * typing speed -- the draft simply does not get submitted. nothing
+   * about the world changes, which is the point: a draft is not a lie,
+   * it is work that has not been published yet.
+   */
+  async draftPost(
+    agentId: string,
+    tenant: string,
+    title: string,
+    bodyMd: string
+  ): Promise<void> {
+    return this.withBusy(agentId, async () => {
+      const page = this.page(agentId);
+      await page.goto(`${this.opts.baseUrl}/t/${tenant}/compose`, {
+        waitUntil: "domcontentloaded",
+        timeout: 30_000,
+      });
+      await this.humanType(page, 'input[name="title"]', title);
+      await this.pace(700 + Math.random() * 800);
+      await this.humanType(page, 'textarea[name="body_md"]', bodyMd);
+      // the reread, and then nothing. the cursor stays in the body and
+      // the wall keeps showing writing until the next act moves it.
+      await this.pace(2000 + Math.random() * 2500);
+    });
+  }
+
   async publishPost(
     agentId: string,
     tenant: string,

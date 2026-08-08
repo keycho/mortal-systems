@@ -27,6 +27,15 @@ export interface CastMember {
   /** in-character tier-1 reading (allowlisted domains); the scheduler
    * assigns 1-2 of these a day when external browsing is on */
   external_reading?: string[];
+  /**
+   * how many posts this identity may publish in a day. a slow blog that
+   * publishes six times before lunch is not a slow blog, and the wall
+   * has watched marlowe do it. reaching the ceiling does not stop him
+   * writing: the draft still happens, on camera, at typing speed -- it
+   * simply does not end in a publish. an identity with no ceiling here
+   * is unlimited, which is right for the short-lived.
+   */
+  max_posts_per_day?: number;
 }
 
 const DAY = 86_400;
@@ -64,6 +73,8 @@ export const CAST: CastMember[] = [
     runtime_feature: "identity persistence, depth accretion",
     wave: 1,
     tenant: "marlowe",
+    // the slow blog, kept slow
+    max_posts_per_day: 1,
     external_reading: [
       "https://news.ycombinator.com/",
       "https://en.wikipedia.org/wiki/Eulogy",

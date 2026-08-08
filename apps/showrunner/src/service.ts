@@ -174,8 +174,12 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
         // suite should not silently start X servers
         headfulScreens: env.WALL_HEADFUL === "1",
         displayBase: Number(env.WALL_XVFB_BASE ?? 99),
-        screenWidth: Number(env.WALL_SCREEN_WIDTH ?? 1280),
-        screenHeight: Number(env.WALL_SCREEN_HEIGHT ?? 720),
+        // a small window drawn at 2x: the page lays out for 480x300 css
+        // pixels and renders at 960x600, so text stays legible all the
+        // way down into a 416px cell
+        screenWidth: Number(env.WALL_SCREEN_WIDTH ?? 960),
+        screenHeight: Number(env.WALL_SCREEN_HEIGHT ?? 600),
+        pageScale: Number(env.WALL_PAGE_SCALE ?? 2),
         // tier 2: operator-provisioned session state; agents never see a
         // login form because the session arrives signed in or not at all
         sessionStateDir: env.WALL_SESSIONS_DIR ?? join(opts.root, "sessions"),
@@ -280,7 +284,14 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   // the driver needs the service's own origin, so it attaches after listen:
   // from here acts go through real browsers on real pages at human speed
   if (liveRuntime) {
-    liveRuntime.setHome(`http://127.0.0.1:${port}/`);
+    // an identity at rest sits on its own blog, not the shared lobby: an
+    // idle cell should show a life's work rather than a directory
+    liveRuntime.setHome(`http://127.0.0.1:${port}/`, (agentId) => {
+      const tenant = showrunner.live.get(agentId)?.tenant;
+      return tenant
+        ? `http://127.0.0.1:${port}/t/${tenant}/`
+        : `http://127.0.0.1:${port}/`;
+    });
     showrunner.driver = new BrowserDriver({
       runtime: liveRuntime,
       baseUrl: `http://127.0.0.1:${port}`,

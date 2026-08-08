@@ -66,6 +66,14 @@ export interface LiveRuntimeOptions {
   /** the screen size, which is also the capture frame */
   screenWidth?: number;
   screenHeight?: number;
+  /**
+   * device pixel ratio for every page. this is the legibility knob: at 2
+   * the browser lays a 960x600 window out as a 480x300 page and draws it
+   * at twice the resolution, so text is twice as tall in the captured
+   * frame and survives the trip into a 416px cell. the page is not
+   * zoomed; it genuinely renders at 2x for its css width.
+   */
+  pageScale?: number;
 }
 
 /** how an identity ended up being drawn, and why if it is not the ideal */
@@ -99,6 +107,7 @@ export class LiveRuntimePort implements RuntimePort {
   private counter = 0;
   private displaySeq = 0;
   private homeUrl: string | null = null;
+  private homeForAgent: ((agentId: string) => string) | null = null;
   private homeOrigin: string | null = null;
 
   constructor(opts: LiveRuntimeOptions = {}) {
@@ -121,17 +130,40 @@ export class LiveRuntimePort implements RuntimePort {
     return [...this.byAgent.keys()];
   }
 
-  setHome(url: string): void {
+  setHome(url: string, homeFor?: (agentId: string) => string): void {
     this.homeUrl = url;
     this.homeOrigin = new URL(url).origin;
+    if (homeFor) this.homeForAgent = homeFor;
     // browsers spawned before the server was listening catch up
     for (const identity of this.live.values()) {
       if (identity.page.url() === "about:blank") {
         void identity.page
-          .goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 })
+          .goto(this.homeUrlFor(identity.agent_id), { waitUntil: "domcontentloaded", timeout: 15_000 })
           .catch(() => undefined);
       }
     }
+  }
+
+  /**
+   * where this identity rests. an agent at rest sits on its OWN blog --
+   * the writing it has published -- rather than the terrarium's shared
+   * lobby. an idle cell should show a life's work, not a directory, and
+   * a viewer landing on the wall should be able to read what that
+   * identity has actually made.
+   */
+  homeUrlFor(agentId: string): string {
+    return this.homeForAgent?.(agentId) ?? this.homeUrl ?? "about:blank";
+  }
+
+  /** send an idle identity back to its own blog, if it has drifted */
+  async restAtHome(agentId: string): Promise<void> {
+    const identity = this.byAgent.get(agentId);
+    if (!identity) return;
+    const home = this.homeUrlFor(agentId);
+    if (identity.page.url().startsWith(home)) return;
+    await identity.page
+      .goto(home, { waitUntil: "domcontentloaded", timeout: 15_000 })
+      .catch(() => undefined);
   }
 
   private async launchBrowser(
@@ -150,6 +182,7 @@ export class LiveRuntimePort implements RuntimePort {
         ...(this.opts.launchArgs ?? ["--disable-dev-shm-usage", "--disable-gpu"]),
         "--hide-scrollbars",
         `--window-size=${width},${height}`,
+        `--force-device-scale-factor=${this.opts.pageScale ?? 2}`,
         ...(screen ? ["--window-position=0,0"] : []),
       ],
     });
@@ -218,8 +251,15 @@ export class LiveRuntimePort implements RuntimePort {
       : null;
     const hasSession = storageStatePath !== null && existsSync(storageStatePath);
     if (hasSession) console.log(`runtime-live: ${spec.agent_id} wakes with provisioned session state`);
+    const scale = this.opts.pageScale ?? 2;
     const context = await browser.newContext({
-      viewport: { width: 1280, height: 720 },
+      // css pixels, not device pixels: the same layout the headful window
+      // gets, rendered at the same density
+      viewport: {
+        width: Math.round((this.opts.screenWidth ?? 960) / scale),
+        height: Math.round((this.opts.screenHeight ?? 600) / scale),
+      },
+      deviceScaleFactor: scale,
       ...(spec.locale ? { locale: spec.locale } : {}),
       ...(hasSession ? { storageState: storageStatePath as string } : {}),
       userAgent: `mortal-wall/${spec.agent_id} (autonomous identity; mortal.systems)`,

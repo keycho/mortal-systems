@@ -249,10 +249,13 @@ describe("the encoder reads the right thing for how the browser is drawn", () =>
   });
 
   it("adds no scaler when the capture is already the right size", () => {
+    // the hero profile is the screen's own size, so the frame goes to the
+    // encoder untouched: scaling the picture someone is watching would
+    // cost sharpness for nothing
     const args = ffmpegArgs(
       { kind: "hls_dir", dir: "/tmp/x" },
       6,
-      { kind: "x11", display: ":110", width: 1280, height: 720 },
+      { kind: "x11", display: ":110", width: PROFILE_720.width, height: PROFILE_720.height },
       { width: PROFILE_720.width, height: PROFILE_720.height }
     );
     expect(args).not.toContain("-vf");

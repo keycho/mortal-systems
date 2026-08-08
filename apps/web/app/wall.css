@@ -335,51 +335,113 @@
 }
 
 /* ---- watch page ---- */
+/* ---- /watch: the same room as the gate, with one frame given the floor ----
+   the old layout was a 2fr/1fr split with the wire crammed into a sidebar,
+   which made the hero narrow, the other cells uneven, and the wire
+   unreadable. the wall has one grammar: framed cells, even gaps, generous
+   margins, and the wire in a strip of its own. /watch now speaks it. */
 .wall-watch {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
-  gap: var(--w-gap);
-  padding: 64px var(--w-margin-x) 0;
-  align-items: start;
+  /* one column, and everything in the page sits inside it: the hero, the
+     rest of the cast and the wire all share an edge, which is most of
+     what "even" means on a page like this */
+  --w-stage: min(100%, 1040px);
+  padding: 56px var(--w-margin-x) 0;
 }
-.wall-hero .wall-frame {
-  height: 430px;
+.wall-stage {
+  display: flex;
+  justify-content: center;
 }
-.wall-hero .wall-activity .state-word {
-  font-size: 30px;
+/* the hero keeps the frame's proportions rather than a fixed height, so
+   the browser inside it is never letterboxed or cropped */
+.wall-stage .wall-cell {
+  width: var(--w-stage);
 }
-.wall-side {
+.wall-stage .wall-frame {
+  height: auto;
+  aspect-ratio: 416 / 250;
+}
+.wall-frame-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--w-stage);
+  aspect-ratio: 416 / 250;
+  border: 1px solid var(--w-hair);
+  background: var(--w-frame);
+  color: var(--w-dim);
+  font-size: 12px;
+}
+.wall-stagebar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: var(--w-stage);
+  margin: 14px auto 0;
+  font-size: 11px;
+  color: var(--w-dim);
+}
+.wall-stagebar .spacer {
+  flex: 1;
+}
+.wall-stagebar button {
+  background: none;
+  border: 1px solid var(--w-hair);
+  color: var(--w-dim);
+  font: inherit;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.wall-stagebar button.on {
+  color: var(--w-bone);
+  border-color: var(--w-bone);
+}
+/* the rest of the cast, on the gate's grid: even columns, even gaps */
+.wall-grid-rest {
+  width: var(--w-stage);
+  margin: 44px auto 0;
+}
+/* the wire, full width, in its own strip */
+.wall-wirefeed {
+  width: min(calc(100% - 2 * var(--w-margin-x)), 1040px);
+  margin: 44px auto 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--w-hair);
   display: flex;
   flex-direction: column;
-  gap: var(--w-gap);
-  min-width: 0;
+  gap: 7px;
+  max-height: 210px;
+  overflow: hidden;
 }
-.wall-minigrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--w-gap);
+.wall-watchfoot {
+  display: flex;
+  gap: 24px;
+  width: min(calc(100% - 2 * var(--w-margin-x)), 1040px);
+  margin: 26px auto 56px;
+  font-size: 11px;
 }
-.wall-minigrid .wall-frame {
-  height: 148px;
+.wall-watchfoot a {
+  color: var(--w-dim);
+  text-decoration: none;
 }
-.wall-minigrid .wall-activity {
-  padding: 12px 13px 0;
-  gap: 6px;
+.wall-watchfoot a:hover {
+  color: var(--w-bone);
 }
-.wall-minigrid .wall-activity .state-word {
-  font-size: 15px;
-}
-.wall-minigrid .wall-activity .cursor {
-  height: 13px;
-  width: 6px;
-}
-.wall-minigrid .wall-status {
-  padding: 9px 11px;
-}
-.wall-minigrid .wall-capslot {
-  display: none;
+@media (max-width: 900px) {
+  .wall-watch {
+    padding-top: 32px;
+  }
+  .wall-grid-rest {
+    margin-top: 28px;
+  }
 }
 
+/* the rest-grid reuses .wall-grid, whose padding already belongs to a
+   full page; inside /watch the margins come from .wall-watch */
+.wall-grid-rest {
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 0;
+}
 /* ---- the wire list (watch) ---- */
 .wall-wire {
   position: relative;
@@ -422,8 +484,6 @@
   color: var(--w-at);
   padding: 0 var(--w-margin-x);
 }
-.wall-watch .wall-toolbar,
-.wall-side .wall-toolbar,
 .wall-graveyard .wall-toolbar {
   padding: 0;
 }
@@ -637,9 +697,6 @@
   .wall-watch {
     grid-template-columns: 1fr;
     padding: 28px var(--w-margin-x) 0;
-  }
-  .wall-hero .wall-frame {
-    height: 224px;
   }
   .wall-graveyard {
     padding: 40px 16px;

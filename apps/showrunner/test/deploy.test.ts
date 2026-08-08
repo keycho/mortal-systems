@@ -339,7 +339,7 @@ describe("streaming phase one", () => {
     const url = await manager.startAgent("ag_marlowe", fakeSource, PROFILE_720);
     expect(url).toBe("https://cdn.example/agent.m3u8");
     expect(manager.playbackUrl("ag_marlowe")).toBe(url);
-    expect(manager.capturing()).toEqual({ agent_id: "ag_marlowe", profile: "720p6" });
+    expect(manager.capturing()).toEqual({ agent_id: "ag_marlowe", profile: PROFILE_720.name });
     // one frame in; the pacer re-feeds it at the profile's fps so a
     // static page still produces a continuous stream
     (emit as unknown as (jpeg: Buffer) => void)(Buffer.from("jpeg1"));

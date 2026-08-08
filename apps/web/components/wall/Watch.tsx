@@ -60,41 +60,41 @@ export function Watch() {
         <div className="wall-offline">the wall is unreachable from here right now</div>
       ) : null}
       <div className="wall-watch">
-        <section className="wall-hero">
+        {/* the hero: one frame, given the room a director's cut deserves */}
+        <section className="wall-stage">
           {hero ? (
-            <>
-              <AgentCell
-                agent={hero}
-                events={events}
-                now={now}
-                caption={hero.last_monologue ?? null}
-                signalLost={!connected}
-              />
-            </>
+            <AgentCell
+              agent={hero}
+              events={events}
+              now={now}
+              caption={hero.last_monologue ?? null}
+              signalLost={!connected}
+            />
           ) : (
-            <div className="wall-empty" style={{ padding: 40 }}>
-              nobody is on camera yet
-            </div>
+            <div className="wall-frame wall-frame-empty">nobody is on camera yet</div>
           )}
-          <div className="wall-toolbar">
-            <button className={showMachine ? "on" : ""} onClick={() => setShowMachine((v) => !v)}>
-              show the machine
-            </button>
-            {pinnedId ? (
-              <button onClick={() => setPinnedId(null)}>release pin</button>
-            ) : (
-              <span>auto-cut</span>
-            )}
-            <span style={{ flex: 1 }} />
-            {hero ? (
-              <a className="wall-spawnlink" href={spawnHref}>
-                spawn one like {hero.name} ▸
-              </a>
-            ) : null}
-          </div>
         </section>
-        <aside className="wall-side">
-          <div className="wall-minigrid">
+
+        <div className="wall-stagebar">
+          <button className={showMachine ? "on" : ""} onClick={() => setShowMachine((v) => !v)}>
+            show the machine
+          </button>
+          {pinnedId ? (
+            <button onClick={() => setPinnedId(null)}>release pin</button>
+          ) : (
+            <span className="mode">auto-cut</span>
+          )}
+          <span className="spacer" />
+          {hero ? (
+            <a className="wall-spawnlink" href={spawnHref}>
+              spawn one like {hero.name} ▸
+            </a>
+          ) : null}
+        </div>
+
+        {/* everyone else, on the gate's own grid: even cells, even gaps */}
+        {rest.length > 0 ? (
+          <section className="wall-grid wall-grid-rest">
             {rest.map((agent) => (
               <AgentCell
                 key={agent.agent_id}
@@ -105,17 +105,20 @@ export function Watch() {
                 onClick={() => setPinnedId(agent.agent_id)}
               />
             ))}
-          </div>
-          <div className="wall-wire">
-            {wire.map((event) => (
-              <WireLine key={event.id} event={event} showMachine={showMachine} agents={living} />
-            ))}
-          </div>
-          <div className="wall-toolbar">
-            <a href="/graveyard">graveyard</a>
-            <a href="/">the gate</a>
-          </div>
-        </aside>
+          </section>
+        ) : null}
+      </div>
+
+      {/* the wire gets its own strip, full width, the way the gate has it */}
+      <div className="wall-wirefeed">
+        {wire.map((event) => (
+          <WireLine key={event.id} event={event} showMachine={showMachine} agents={living} />
+        ))}
+      </div>
+
+      <div className="wall-watchfoot">
+        <a href="/graveyard">graveyard</a>
+        <a href="/">the gate</a>
       </div>
     </main>
   );

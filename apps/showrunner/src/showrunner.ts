@@ -41,6 +41,9 @@ export interface LiveAgent {
   warned: Set<"final_hour" | "final_10m">;
   post_count: number;
   last_post_id: string | null;
+  /** publishes today, and which day that is, for the cast's daily ceiling */
+  posts_today: number;
+  posts_today_date: string;
   /** last few spoken monologues, fed back to the thinker as
    * do-not-restate context */
   monologues: string[];
@@ -74,6 +77,9 @@ export class TargetGoneError extends Error {
 }
 
 export interface ActDriver {
+  /** optional: write the post into the real form and leave it there,
+   * unpublished. a driver without it simply does not draft on camera. */
+  draftPost?(agentId: string, tenant: string, title: string, bodyMd: string): Promise<void>;
   busy(agentId: string): boolean;
   openPage(
     agentId: string,
@@ -175,6 +181,8 @@ export class Showrunner {
       warned: new Set(),
       post_count: 0,
       last_post_id: null,
+      posts_today: 0,
+      posts_today_date: "",
       monologues: [],
     };
     this.live.set(agentId, agent);
@@ -281,6 +289,8 @@ export class Showrunner {
       const memory: string[] = [...agent.inherited_fragments];
       const spokenMonologues: string[] = [];
       let postCount = 0;
+      let postsToday = 0;
+      const today = new Date().toISOString().slice(0, 10);
       let lastPostId: string | null = null;
       let readCursor = agent.spawned_at ?? new Date(0).toISOString();
       const warned = new Set<"final_hour" | "final_10m">();
@@ -292,6 +302,10 @@ export class Showrunner {
           const p = event.payload as PayloadFor<"action">;
           if (p.verb === "published_post") {
             postCount += 1;
+            // the daily ceiling is counted from the record, not from
+            // process uptime: restarting must not hand an identity a
+            // fresh allowance it has already spent
+            if (event.ts.slice(0, 10) === today) postsToday += 1;
             memory.push(`published "${p.title ?? ""}"`);
             const idMatch = /\/posts\/([A-Za-z0-9_]+)$/.exec(p.target_url ?? "");
             lastPostId = idMatch?.[1] ?? lastPostId;
@@ -322,6 +336,8 @@ export class Showrunner {
         read_cursor: readCursor,
         warned,
         post_count: postCount,
+        posts_today: postsToday,
+        posts_today_date: today,
         last_post_id: lastPostId,
         monologues: spokenMonologues.slice(-3),
       });
@@ -427,7 +443,10 @@ export class Showrunner {
       thought = await this.think(context);
     } catch {
       // a failed model call is downtime, not silence forever
-      if (!dying) this.emitState(agent.agent_id, "idle");
+      if (!dying) {
+        this.emitState(agent.agent_id, "idle");
+        this.restAtOwnBlog(agent.agent_id);
+      }
       return null;
     }
 
@@ -445,7 +464,10 @@ export class Showrunner {
     if (thought.act && !dying) {
       await this.performAct(agent, thought.act);
     }
-    if (!dying) this.emitState(agent.agent_id, "idle");
+    if (!dying) {
+      this.emitState(agent.agent_id, "idle");
+      this.restAtOwnBlog(agent.agent_id);
+    }
     return thought;
   }
 
@@ -469,6 +491,22 @@ export class Showrunner {
     }
   }
 
+  /**
+   * the cast's daily publishing ceiling, rolled over on the identity's
+   * own calendar day. absent means unlimited, which is right for the
+   * short-lived: an identity with hours left should not be rationed.
+   */
+  private mayPublishToday(agent: LiveAgent): boolean {
+    const ceiling = agent.member.max_posts_per_day;
+    if (ceiling === undefined) return true;
+    const today = new Date().toISOString().slice(0, 10);
+    if (agent.posts_today_date !== today) {
+      agent.posts_today_date = today;
+      agent.posts_today = 0;
+    }
+    return agent.posts_today < ceiling;
+  }
+
   /** every act crosses the policy chokepoint; refusals become public
    * enforcement events with receipts */
   private async performAct(agent: LiveAgent, act: NonNullable<Thought["act"]>): Promise<void> {
@@ -478,6 +516,33 @@ export class Showrunner {
           checkAction({ type: "post", platform: "terrarium" }, this.flags);
           if (!agent.tenant) return;
           this.emitState(agent.agent_id, "writing", act.title);
+          // the daily ceiling is a publishing limit, not a writing one:
+          // the draft happens either way, at full length and on camera,
+          // and only the submit is withheld. an identity that has said
+          // its piece for the day is still an identity at work.
+          if (!this.mayPublishToday(agent)) {
+            const draft = (this.driver as ActDriver | null)?.draftPost;
+            if (draft) {
+              await this.actThroughDriver(
+                agent.agent_id,
+                () =>
+                  draft.call(
+                    this.driver as ActDriver,
+                    agent.agent_id,
+                    agent.tenant as string,
+                    act.title,
+                    act.body_md
+                  ),
+                async () => undefined
+              ).catch(() => undefined);
+            }
+            agent.memory.push(`drafted "${act.title}" (not published; daily ceiling)`);
+            // no action event: nothing was published, and the record
+            // must not imply otherwise. the wall shows the writing
+            // through the state it is already in.
+            this.emitState(agent.agent_id, "writing", act.title);
+            return;
+          }
           const post = await this.actThroughDriver(
             agent.agent_id,
             () =>
@@ -490,6 +555,7 @@ export class Showrunner {
             () => this.terrarium.publishPost(agent.tenant as string, act.title, act.body_md)
           );
           agent.post_count += 1;
+          agent.posts_today += 1;
           agent.last_post_id = post.id;
           agent.memory.push(`published "${act.title}"`);
           this.store.append({
@@ -816,6 +882,18 @@ export class Showrunner {
   }
 
   // ---- helpers ----
+
+  /**
+   * an identity at rest sits on its own blog. the terrarium's lobby is a
+   * directory, and a cell showing a directory tells a viewer nothing
+   * about the life in it; the same cell showing that identity's own
+   * published writing is the show. best-effort and never awaited: where
+   * a browser rests must not be able to hold up a beat.
+   */
+  private restAtOwnBlog(agentId: string): void {
+    const runtime = this.runtime as { restAtHome?: (id: string) => Promise<void> };
+    void runtime.restAtHome?.(agentId).catch(() => undefined);
+  }
 
   private emitState(agentId: string, state: string, detail?: string): void {
     this.store.append({

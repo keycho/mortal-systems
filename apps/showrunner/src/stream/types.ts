@@ -71,37 +71,47 @@ export interface StreamProfile {
   jpegQuality: number;
 }
 
+/**
+ * the profiles are sized to the cell they land in, not to a video preset.
+ * a 416px-wide cell showing a 1280px capture scales text by 0.33, which
+ * turned every page an agent read into grey noise. so the browser window
+ * is small and its pages are rendered at 2x device scale: the frame is
+ * 960x600 with text drawn twice as large, and a grid cell receives 480px
+ * for a 416px slot -- near 1:1, and readable.
+ */
 export const PROFILE_720: StreamProfile = {
-  name: "720p6",
-  width: 1280,
-  height: 720,
+  name: "hero-960x600@6",
+  width: 960,
+  height: 600,
   fps: 6,
-  jpegQuality: 60,
+  jpegQuality: 68,
 };
 
 /** the grid cells: small and slow, because there are as many of them as
  * there are living agents and they are 416px wide on the wall */
 export const PROFILE_GRID: StreamProfile = {
-  name: "360p3",
-  width: 640,
-  height: 360,
+  name: "grid-480x300@3",
+  width: 480,
+  height: 300,
   fps: 3,
-  jpegQuality: 45,
+  jpegQuality: 58,
 };
 
 /** the first thing memory pressure costs: the same picture, slower */
 export const PROFILE_GRID_LOW: StreamProfile = {
-  name: "360p2",
-  width: 640,
-  height: 360,
+  name: "grid-480x300@2",
+  width: 480,
+  height: 300,
   fps: 2,
-  jpegQuality: 40,
+  jpegQuality: 52,
 };
 
+/** the hero under memory pressure: same frame shape, fewer pixels and
+ * beats, so nothing in the cell moves when it drops */
 export const PROFILE_480: StreamProfile = {
-  name: "480p4",
-  width: 854,
-  height: 480,
+  name: "hero-720x450@4",
+  width: 720,
+  height: 450,
   fps: 4,
-  jpegQuality: 50,
+  jpegQuality: 60,
 };
