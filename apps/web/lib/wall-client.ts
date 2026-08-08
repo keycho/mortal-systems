@@ -173,6 +173,14 @@ export function countdownLabel(seconds: number | null): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
+/** the final hour reads hh:mm:ss and ticks every second (handoff §2) */
+export function finalHourLabel(seconds: number | null): string {
+  if (seconds === null) return "";
+  const s = Math.max(0, seconds);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+}
+
 /** "while you were away": cookie-gated, dismissible */
 export function useRecap(): { text: string | null; dismiss: () => void } {
   const [text, setText] = useState<string | null>(null);

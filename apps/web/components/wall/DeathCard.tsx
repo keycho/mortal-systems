@@ -1,6 +1,7 @@
 "use client";
 
 import { humanizeSeconds, shortReceipt } from "@mortal/wall/browser";
+import { Wordmark } from "../Wordmark";
 
 export interface DeadIdentity {
   agent_id: string;
@@ -33,7 +34,9 @@ export function DeathCard({ dead }: { dead: DeadIdentity }) {
       <div className="receipt" title={dead.receipt ?? undefined}>
         teardown receipt {dead.receipt ? shortReceipt(dead.receipt) : "missing"}
       </div>
-      <div className="mark">mortal systems</div>
+      <div className="mark">
+        <Wordmark variant="wall" />
+      </div>
     </div>
   );
 }

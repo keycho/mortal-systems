@@ -35,6 +35,14 @@ const VARIANTS = {
     bar: "rgba(242,239,231,.2)",
     fill: "rgba(242,239,231,.5)",
   },
+  /** the wall's footer band: same treatment, the gate handoff's sizes */
+  wall: {
+    font: "500 13px var(--font-mono)",
+    color: "#f2efe7",
+    dash: { width: 24, height: 2.5, margin: "0 10px" },
+    bar: "rgba(242,239,231,.25)",
+    fill: "#f2efe7",
+  },
 } as const;
 
 export function Wordmark({

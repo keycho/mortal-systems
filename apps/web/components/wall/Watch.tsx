@@ -63,8 +63,13 @@ export function Watch() {
         <section className="wall-hero">
           {hero ? (
             <>
-              <AgentCell agent={hero} events={events} now={now} />
-              <div className="wall-voicebar">{hero.last_monologue ?? ""}</div>
+              <AgentCell
+                agent={hero}
+                events={events}
+                now={now}
+                caption={hero.last_monologue ?? null}
+                signalLost={!connected}
+              />
             </>
           ) : (
             <div className="wall-empty" style={{ padding: 40 }}>
@@ -96,6 +101,7 @@ export function Watch() {
                 agent={agent}
                 events={events}
                 now={now}
+                signalLost={!connected}
                 onClick={() => setPinnedId(agent.agent_id)}
               />
             ))}
