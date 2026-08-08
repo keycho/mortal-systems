@@ -38,6 +38,20 @@ ssh root@BOX 'cat /proc/sys/user/max_user_namespaces; \
 A non-zero `max_user_namespaces` is what you want. If the AppArmor knob
 exists and reads `1`, the bootstrap sets it to `0` and persists it.
 
+**The host allowing user namespaces is necessary but not sufficient**, and
+this was confirmed the hard way on the box: with both host knobs already
+set, the probe still failed with `userns_denied` from inside the
+container. Docker's `docker-default` AppArmor profile re-restricts user
+namespaces regardless of the host setting, and its default seccomp
+profile independently allows `clone()` only when no `CLONE_NEW*` flag is
+set — which is Chromium's very first sandbox call. So
+`docker-compose.yml` carries
+`security_opt: [apparmor=unconfined, seccomp=unconfined]`: unconfining
+the **outer** profile is what lets Chromium build its **inner** sandbox,
+and that inner sandbox is the protection that actually matters — it is
+what stands between a hostile page and this box. The container still runs
+unprivileged and adds no capabilities. `--no-sandbox` remains refused.
+
 ---
 
 ## 1. bootstrap the box
@@ -170,8 +184,30 @@ Expect:
 `sandbox` is false, read `.sandbox.reason`, `.sandbox.environment` and
 `.sandbox.attempts[].stderr` — the probe records Chromium's own words for
 every flag combination it tried, so the reason is in the response rather
-than in a shell on the box. A `userns_denied` here would mean the sysctls
-did not take; re-run the bootstrap and reboot.
+than in a shell on the box.
+
+A `userns_denied` here has two possible causes, and the response differs:
+
+- **the host sysctls did not take** — check
+  `cat /proc/sys/user/max_user_namespaces` and
+  `cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns` on the box
+  itself, then re-run the bootstrap and reboot;
+- **the container's own restrictions are back** — confirm both
+  `security_opt` entries actually applied:
+
+  ```bash
+  docker inspect mortal-wall-showrunner-1 \
+    --format '{{.HostConfig.SecurityOpt}}'
+  ```
+
+  It should list `apparmor=unconfined` and `seccomp=unconfined`. If it
+  does not, the container predates the compose change: `docker compose up
+  -d --force-recreate showrunner`, since security options are set at
+  container creation and a restart alone will not change them.
+
+Whatever the cause, `.sandbox.attempts[].stderr` has Chromium's own words
+for each flag combination tried. Read those before widening anything: the
+one thing that is never the answer is `--no-sandbox`.
 
 ### 4b. every identity has a live camera, and they look like browsers
 

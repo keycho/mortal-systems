@@ -47,6 +47,49 @@ services:
     # chromium wants real shared memory; the 64mb docker default is what
     # sends the sandbox probe walking its ladder looking for a way around
     shm_size: "1gb"
+    # the host allows unprivileged user namespaces; docker takes them away
+    # again inside the container, and chromium's sandbox needs them back.
+    # confirmed on the box: with the host's own knobs already set
+    # (unprivileged_userns_clone=1, apparmor_restrict_unprivileged_userns=0)
+    # the probe still failed with userns_denied until both of these were
+    # added, after which it passed and external reading came up.
+    #
+    #   apparmor=unconfined  the named cause. docker applies its
+    #                        docker-default profile to every container, and
+    #                        that profile re-restricts user namespaces and
+    #                        denies the mount and pivot_root chromium
+    #                        performs while building its sandbox. apparmor
+    #                        mediates per process, not per namespace, so it
+    #                        refuses them even though chromium is inside a
+    #                        namespace where it legitimately holds those
+    #                        capabilities.
+    #
+    #   seccomp=unconfined   docker's default profile independently allows
+    #                        clone() only when no CLONE_NEW* flag is set (an
+    #                        arg filter masking 0x7E020000) and answers
+    #                        clone3 with ENOSYS. chromium's first sandbox
+    #                        call is clone(CLONE_NEWUSER|...), so it is
+    #                        refused there too.
+    #
+    # this unconfines the OUTER profile so chromium can build its INNER
+    # one, and the inner sandbox is the protection that actually matters:
+    # it is what stands between a hostile page and this box. the container
+    # still runs unprivileged, adds no capabilities, and is not privileged;
+    # what is given up is the runtime's syscall and mac filtering on a
+    # process that then confines itself far more tightly.
+    #
+    # --no-sandbox remains refused. it is the one thing the wall will not
+    # do: external pages never render in an unsandboxed browser, and a
+    # failed probe gates external navigation off entirely rather than
+    # lowering that bar.
+    #
+    # to narrow this later: infra/box/seccomp-chromium.json is docker's own
+    # default with just the namespace syscalls ungated, and should be able
+    # to replace seccomp=unconfined. it is NOT the configuration verified
+    # on the box, so try it deliberately and check /health afterwards.
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
     # a box with headroom: the ceiling below is the container's, and
     # WALL_STREAM_MEM_MB (in .env) is the softer line the director starts
     # giving up grid quality at, well before the kernel starts killing.
