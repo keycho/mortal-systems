@@ -52,10 +52,20 @@ export class StreamDirector {
     this.target = null;
   }
 
+  /**
+   * what the wall may say about its own camera. the director's intent is
+   * not evidence: it once reported "capturing ag_marlowe" for as long as
+   * the process lived while the encoder had died and /hls answered "no
+   * such stream". so ok, and the name of the agent being captured, come
+   * from the manager's reading of the segments on disk; the director
+   * contributes only why it last cut.
+   */
   status(): Record<string, unknown> {
+    const health = this.opts.manager.health();
     return {
-      capturing: this.target,
-      profile: this.profile.name,
+      ...health,
+      intended: this.target,
+      profile: health.profile ?? this.profile.name,
       last_cut: this.lastCutReason,
       ...(this.opts.manager.lastError() ? { last_error: this.opts.manager.lastError() } : {}),
     };
@@ -86,6 +96,31 @@ export class StreamDirector {
       console.warn(
         `stream director: rss ${Math.round(rss)}mb over ${limit}mb, dropping to ${wantedProfile.name}`
       );
+    }
+
+    // a capture can end without the director asking: an encoder death
+    // drops the channel from under it. holding the old target would make
+    // the next tick a no-op ("already on him") and strand the wall
+    // without a camera for the rest of the boot.
+    if (this.target) {
+      const health = this.opts.manager.health();
+      // "lost" is the manager no longer running it at all (an encoder
+      // death dropped the channel); "stalled" is an encoder that is alive
+      // and producing nothing. a capture inside its startup window is
+      // neither -- the first segment cannot exist before hls_time seconds
+      // of frames, and cutting there would restart forever.
+      const lost = health.capturing !== this.target;
+      const stalled =
+        !lost && !health.ok && !(health.reason ?? "").includes("startup window");
+      if (lost || stalled) {
+        const dropped = this.target;
+        await this.opts.manager.stopAgent(dropped);
+        this.target = null;
+        this.lastCutReason = `capture on ${dropped} ended: ${
+          health.reason ?? this.opts.manager.lastError() ?? "no playlist"
+        }`;
+        console.error(`stream director: ${this.lastCutReason}`);
+      }
     }
 
     const next = this.pick(now);

@@ -84,7 +84,14 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   }
 
   const thinker = opts.thinker ?? selectThinker(env, scriptedThinker);
+  // the hls root is state too, and the sqlite incident taught what a
+  // directory that opens but cannot be written costs: ffmpeg would spawn,
+  // fail to write a playlist, and the wall would report a stream nobody
+  // could play. prove it at boot, in the same voice as the stores.
   const hlsRoot = join(opts.root, "hls");
+  if ((env.STREAM_PROVIDER ?? "none").toLowerCase() === "ffmpeg") {
+    openStore("hls", hlsRoot, (dir) => dir, opts.root);
+  }
   const streamProvider = selectStreamProvider(env, { hlsRoot });
   const streams = streamProvider ? new StreamManager(streamProvider, env) : null;
 

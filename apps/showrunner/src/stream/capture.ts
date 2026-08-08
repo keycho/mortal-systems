@@ -96,6 +96,11 @@ interface CdpClientLike {
   detach(): Promise<void>;
 }
 
+/** how long a silent screencast may go before we photograph the page
+ * ourselves. chromium sends a screencast frame only when the compositor
+ * produces one, so a page nobody is touching sends nothing at all. */
+const STILL_FRAME_MS = 1000;
+
 /**
  * screencast over an existing playwright page: the live runtime already
  * owns the browser, so capture attaches a cdp session to the page the
@@ -106,20 +111,34 @@ export class PlaywrightScreencast implements FrameSource {
   private readonly page: ScreencastablePage;
   private readonly profile: StreamProfile;
   private session: CdpClientLike | null = null;
+  private stills: ReturnType<typeof setInterval> | null = null;
+  private lastFrameAt = 0;
+  private framesSeen = 0;
 
   constructor(page: ScreencastablePage, profile: StreamProfile = PROFILE_720) {
     this.page = page;
     this.profile = profile;
   }
 
+  /** frames delivered so far; the manager uses this to tell a capture
+   * that is quiet from one that never started */
+  get frameCount(): number {
+    return this.framesSeen;
+  }
+
   async start(onFrame: (jpeg: Buffer) => void): Promise<void> {
     const session = await this.page.context().newCDPSession(this.page);
     this.session = session;
+    const deliver = (jpeg: Buffer): void => {
+      this.lastFrameAt = Date.now();
+      this.framesSeen += 1;
+      onFrame(jpeg);
+    };
     session.on("Page.screencastFrame", (params) => {
       void session
         .send("Page.screencastFrameAck", { sessionId: params.sessionId })
         .catch(() => undefined);
-      onFrame(Buffer.from(params.data, "base64"));
+      deliver(Buffer.from(params.data, "base64"));
     });
     await session.send("Page.startScreencast", {
       format: "jpeg",
@@ -128,9 +147,37 @@ export class PlaywrightScreencast implements FrameSource {
       maxHeight: this.profile.height,
       everyNthFrame: this.profile.fps >= 6 ? 2 : 3,
     });
+
+    // a screencast alone is not a camera. chromium emits a frame only
+    // when the compositor produces one, so an agent who is reading, or
+    // thinking, or asleep sends nothing at all, and the encoder waits on
+    // an input that never comes: no segments, no playlist, and a wall
+    // that reports it is capturing a stream nobody can play. so when the
+    // screencast goes quiet we photograph the page ourselves. this is
+    // still the agent's real screen at that moment, never a placeholder
+    // and never a repeat of something that has stopped being true.
+    const still = async (): Promise<void> => {
+      if (Date.now() - this.lastFrameAt < STILL_FRAME_MS) return;
+      try {
+        const shot = (await session.send("Page.captureScreenshot", {
+          format: "jpeg",
+          quality: this.profile.jpegQuality,
+        })) as { data?: string };
+        if (shot?.data) deliver(Buffer.from(shot.data, "base64"));
+      } catch {
+        // the page is gone or navigating; the manager notices the drought
+      }
+    };
+    // one immediately, so the encoder has a real frame before the first
+    // segment window closes rather than after the first thing moves
+    await still();
+    this.stills = setInterval(() => void still(), STILL_FRAME_MS);
+    this.stills.unref();
   }
 
   async stop(): Promise<void> {
+    if (this.stills) clearInterval(this.stills);
+    this.stills = null;
     if (!this.session) return;
     await this.session.send("Page.stopScreencast").catch(() => undefined);
     await this.session.detach().catch(() => undefined);

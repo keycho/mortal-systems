@@ -32,6 +32,8 @@ export interface Encoder {
   /** fires when the encoder dies outside of stop(); the manager drops the
    * channel so cells fall back to the activity view honestly */
   onExit?(cb: (reason: string) => void): void;
+  /** the encoder's own last words, for /health to quote */
+  lastStderr?(): string;
 }
 
 export type EncoderFactory = (target: EncodeTarget, profile?: StreamProfile) => Encoder;
