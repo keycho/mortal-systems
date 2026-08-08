@@ -135,7 +135,7 @@ export const MACOS_ALPHA_DMG_URL =
  * deliberately unsigned (no apple developer enrollment until demonstrated
  * interest), and hiding that would be a lie of omission. */
 export const ALPHA_INSTALL_NOTE =
-  "alpha · unsigned build. after downloading, right-click the app and choose Open to bypass the macOS unidentified-developer warning.";
+  "alpha · unsigned macOS build. after downloading, right-click the app → Open to bypass the unidentified-developer warning.";
 
 /** a card flips to a solid button only when a real artifact url lands in
  * its href; null renders the dashed "coming" state (never a dead button).
