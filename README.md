@@ -76,3 +76,6 @@ v1 tools — exactly six, deliberately: `identity_create` · `identity_launch` �
 hard safety properties (tested in `packages/mcp/test`): an agent can only attach to identities mortal launched — no api enumerates or reaches the operator's browser; no tool extends a lifetime (expiry is the runtime scheduler's); every permission in every result carries its enforcement level so agent code can feature-detect (`capabilities` also lists mortal's explicit non-guarantees); destruction is scoped and journaled.
 
 `pnpm demo:agent` runs the flagship loop end to end against a throwaway root: scoped identity created with a 15m lifetime → cdp endpoint for that one browser → real work → destruction receipt handed back → a persistent identity untouched throughout. receipt signing lands in a later phase; until then the receipt is real but unsigned, and the demo says so.
+
+
+
