@@ -29,9 +29,12 @@ export interface StreamProvider {
 export interface Encoder {
   writeFrame(jpeg: Buffer): void;
   stop(): Promise<void>;
+  /** fires when the encoder dies outside of stop(); the manager drops the
+   * channel so cells fall back to the activity view honestly */
+  onExit?(cb: (reason: string) => void): void;
 }
 
-export type EncoderFactory = (target: EncodeTarget) => Encoder;
+export type EncoderFactory = (target: EncodeTarget, profile?: StreamProfile) => Encoder;
 
 /** a source of jpeg frames; cdp screencast in production, fakes in tests */
 export interface FrameSource {
@@ -40,3 +43,28 @@ export interface FrameSource {
 }
 
 export class StreamNotImplementedError extends Error {}
+
+/** capture quality; the director drops a level under memory pressure */
+export interface StreamProfile {
+  name: string;
+  width: number;
+  height: number;
+  fps: number;
+  jpegQuality: number;
+}
+
+export const PROFILE_720: StreamProfile = {
+  name: "720p6",
+  width: 1280,
+  height: 720,
+  fps: 6,
+  jpegQuality: 60,
+};
+
+export const PROFILE_480: StreamProfile = {
+  name: "480p4",
+  width: 854,
+  height: 480,
+  fps: 4,
+  jpegQuality: 50,
+};

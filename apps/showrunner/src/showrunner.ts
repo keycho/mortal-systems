@@ -52,6 +52,32 @@ export interface ShowrunnerDeps {
   now?: () => Date;
 }
 
+/**
+ * the visible hands: when a live runtime is attached, acts are performed
+ * through the agent's real browser at human speed (typing into the real
+ * compose form, replying in the real comment form, reading real pages).
+ * the driver executes intents that already passed the policy chokepoint;
+ * on driver failure the act falls back to the transactional client so
+ * the record continues while the visible life degrades honestly.
+ */
+export interface ActDriver {
+  busy(agentId: string): boolean;
+  openPage(agentId: string, url: string): Promise<void>;
+  publishPost(
+    agentId: string,
+    tenant: string,
+    title: string,
+    bodyMd: string
+  ): Promise<{ id: string; url: string }>;
+  replyComment(
+    agentId: string,
+    tenant: string,
+    postId: string,
+    author: string,
+    body: string
+  ): Promise<void>;
+}
+
 const QUIET_WINDOW_MS = 10 * 60_000;
 
 export class Showrunner {
@@ -306,7 +332,14 @@ export class Showrunner {
 
   /** wake -> read placed material and human comments -> one think() ->
    * maybe act through the policy chokepoint -> emit -> idle */
+  /** set after boot when a live runtime is attached; null keeps every act
+   * on the transactional client path */
+  driver: ActDriver | null = null;
+
   async heartbeat(agentId: string, opts: { occasion?: string } = {}): Promise<Thought | null> {
+    // an agent mid-act (typing a post at human speed) skips its beat; the
+    // wall shows writing the whole while, which is exactly the truth
+    if (this.driver?.busy(agentId)) return null;
     const agent = this.mustLive(agentId);
     return this.runHeartbeat(agent, opts);
   }
@@ -389,6 +422,23 @@ export class Showrunner {
     return thought;
   }
 
+  /** try the visible browser path first, fall back to the transactional
+   * client if the browser is gone; the outcome is identical on the
+   * record, the degradation shows only in the video */
+  private async actThroughDriver<T>(
+    agentId: string,
+    throughBrowser: () => Promise<T>,
+    throughClient: () => Promise<T>
+  ): Promise<T> {
+    if (!this.driver) return throughClient();
+    try {
+      return await throughBrowser();
+    } catch (err) {
+      console.error(`driver act fell back for ${agentId}: ${String(err)}`);
+      return throughClient();
+    }
+  }
+
   /** every act crosses the policy chokepoint; refusals become public
    * enforcement events with receipts */
   private async performAct(agent: LiveAgent, act: NonNullable<Thought["act"]>): Promise<void> {
@@ -398,7 +448,17 @@ export class Showrunner {
           checkAction({ type: "post", platform: "terrarium" }, this.flags);
           if (!agent.tenant) return;
           this.emitState(agent.agent_id, "writing", act.title);
-          const post = await this.terrarium.publishPost(agent.tenant, act.title, act.body_md);
+          const post = await this.actThroughDriver(
+            agent.agent_id,
+            () =>
+              (this.driver as ActDriver).publishPost(
+                agent.agent_id,
+                agent.tenant as string,
+                act.title,
+                act.body_md
+              ),
+            () => this.terrarium.publishPost(agent.tenant as string, act.title, act.body_md)
+          );
           agent.post_count += 1;
           agent.last_post_id = post.id;
           agent.memory.push(`published "${act.title}"`);
@@ -414,11 +474,18 @@ export class Showrunner {
         case "reply_comment": {
           checkAction({ type: "comment", platform: "terrarium" }, this.flags);
           this.emitState(agent.agent_id, "replying");
-          await this.terrarium.reply(
-            act.post_id,
+          const author = this.names[agent.agent_id] ?? agent.member.name;
+          await this.actThroughDriver(
             agent.agent_id,
-            this.names[agent.agent_id] ?? agent.member.name,
-            act.body
+            () =>
+              (this.driver as ActDriver).replyComment(
+                agent.agent_id,
+                agent.tenant as string,
+                act.post_id,
+                author,
+                act.body
+              ),
+            () => this.terrarium.reply(act.post_id, agent.agent_id, author, act.body)
           );
           agent.memory.push(`replied to a human`);
           this.store.append({
@@ -454,6 +521,11 @@ export class Showrunner {
         case "open_page": {
           checkAction({ type: "browse", url: act.url }, this.flags);
           this.emitState(agent.agent_id, "reading", act.title);
+          if (this.driver) {
+            await this.driver.openPage(agent.agent_id, act.url).catch((err: unknown) => {
+              console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
+            });
+          }
           this.store.append({
             agent_id: agent.agent_id,
             kind: "action",

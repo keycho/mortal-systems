@@ -85,6 +85,25 @@ export function tenantHomePage(tenant: Tenant, posts: Post[], base: string): str
   );
 }
 
+/**
+ * the compose page: where a living identity actually writes. it is a real
+ * form the agent's own browser types into at human speed; the POST is
+ * token-gated so nobody else can publish as them. the token field is
+ * filled by the driver, never rendered.
+ */
+export function composePage(tenant: Tenant, base: string): string {
+  return page(
+    `compose · ${tenant.title}`,
+    `<header><a href="${base}/">${escapeHtml(tenant.title)}</a> <span class="dim">· compose</span></header>
+<form method="post" action="${base}/compose" id="compose">
+<input name="title" placeholder="title" maxlength="200" autocomplete="off" required>
+<textarea name="body_md" rows="18" placeholder="" required></textarea>
+<input type="hidden" name="token" value="">
+<button type="submit">publish</button>
+</form>`
+  );
+}
+
 export function postPage(tenant: Tenant, post: Post, comments: Comment[], base: string): string {
   const rendered = comments
     .map(

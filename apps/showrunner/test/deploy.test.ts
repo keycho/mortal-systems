@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -10,7 +10,7 @@ import {
   SelfHostedHlsProvider,
   Showrunner,
   StreamManager,
-  StreamNotImplementedError,
+  PROFILE_720,
   StubRuntimePort,
   buildAnthropicThinker,
   castNames,
@@ -246,22 +246,39 @@ describe("anthropic thinker", () => {
 });
 
 describe("streaming phase one", () => {
-  it("selects providers from env and stubs the self-hosted exit honestly", async () => {
+  it("selects providers from env; the self-hosted provider makes real segment dirs", async () => {
     expect(selectStreamProvider({} as NodeJS.ProcessEnv)).toBeNull();
     expect(() => selectStreamProvider({ STREAM_PROVIDER: "mux" } as NodeJS.ProcessEnv)).toThrow(
       /MUX_TOKEN_ID/
     );
-    const mux = selectStreamProvider({
-      STREAM_PROVIDER: "mux",
-      MUX_TOKEN_ID: "id",
-      MUX_TOKEN_SECRET: "secret",
-    } as NodeJS.ProcessEnv);
-    expect(mux?.name).toBe("mux");
-    const stub = selectStreamProvider({ STREAM_PROVIDER: "ffmpeg" } as NodeJS.ProcessEnv);
-    expect(stub).toBeInstanceOf(SelfHostedHlsProvider);
-    await expect((stub as SelfHostedHlsProvider).createChannel()).rejects.toThrow(
-      StreamNotImplementedError
+    const mux = selectStreamProvider(
+      {
+        STREAM_PROVIDER: "mux",
+        MUX_TOKEN_ID: "id",
+        MUX_TOKEN_SECRET: "secret",
+      } as NodeJS.ProcessEnv,
+      {}
     );
+    expect(mux?.name).toBe("mux");
+    expect(() => selectStreamProvider({ STREAM_PROVIDER: "ffmpeg" } as NodeJS.ProcessEnv)).toThrow(
+      /hls root/
+    );
+    const hlsRoot = mkdtempSync(join(tmpdir(), "hls-"));
+    try {
+      const provider = selectStreamProvider(
+        { STREAM_PROVIDER: "ffmpeg" } as NodeJS.ProcessEnv,
+        { hlsRoot }
+      ) as SelfHostedHlsProvider;
+      expect(provider).toBeInstanceOf(SelfHostedHlsProvider);
+      const channel = await provider.createChannel("ag_marlowe");
+      expect(channel.playback_url).toBe("/hls/ag_marlowe/index.m3u8");
+      expect(channel.ingest).toEqual({ kind: "hls_dir", dir: join(hlsRoot, "ag_marlowe") });
+      expect(existsSync(join(hlsRoot, "ag_marlowe"))).toBe(true);
+      await provider.destroyChannel("ag_marlowe");
+      expect(existsSync(join(hlsRoot, "ag_marlowe"))).toBe(false);
+    } finally {
+      rmSync(hlsRoot, { recursive: true, force: true });
+    }
   });
 
   it("mux stays inside the provider: generic hls out, rtmp ingest, clean teardown", async () => {
@@ -294,7 +311,7 @@ describe("streaming phase one", () => {
     expect(calls[1]?.init?.method).toBe("DELETE");
   });
 
-  it("the manager wires capture to encoder and answers a generic playback url", async () => {
+  it("the manager paces frames to the encoder and answers a generic playback url", async () => {
     const frames: Buffer[] = [];
     let stopped = 0;
     const fakeEncoder: Encoder = {
@@ -317,16 +334,48 @@ describe("streaming phase one", () => {
         destroyChannel: async () => undefined,
       },
       {} as NodeJS.ProcessEnv,
-      { encoderFactory: () => fakeEncoder, sourceFactory: () => fakeSource }
+      { encoderFactory: () => fakeEncoder }
     );
-    const url = await manager.startAgent("ag_marlowe", "ws://cdp");
+    const url = await manager.startAgent("ag_marlowe", fakeSource, PROFILE_720);
     expect(url).toBe("https://cdn.example/agent.m3u8");
     expect(manager.playbackUrl("ag_marlowe")).toBe(url);
+    expect(manager.capturing()).toEqual({ agent_id: "ag_marlowe", profile: "720p6" });
+    // one frame in; the pacer re-feeds it at the profile's fps so a
+    // static page still produces a continuous stream
     (emit as unknown as (jpeg: Buffer) => void)(Buffer.from("jpeg1"));
-    expect(frames).toHaveLength(1);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(frames.length).toBeGreaterThanOrEqual(2);
     await manager.stopAgent("ag_marlowe");
     expect(stopped).toBe(2);
     expect(manager.playbackUrl("ag_marlowe")).toBeNull();
+  });
+
+  it("an encoder death drops the channel and records the reason", async () => {
+    let exitCb: ((reason: string) => void) | null = null;
+    const dyingEncoder: Encoder = {
+      writeFrame: () => undefined,
+      stop: async () => undefined,
+      onExit: (cb) => void (exitCb = cb),
+    };
+    const manager = new StreamManager(
+      {
+        name: "fake",
+        createChannel: async (agentId) => ({
+          agent_id: agentId,
+          ingest: { kind: "rtmp", url: "rtmp://x" },
+          playback_url: "https://cdn.example/a.m3u8",
+        }),
+        destroyChannel: async () => undefined,
+      },
+      {} as NodeJS.ProcessEnv,
+      { encoderFactory: () => dyingEncoder }
+    );
+    const noopSource: FrameSource = { start: async () => undefined, stop: async () => undefined };
+    await manager.startAgent("ag_x", noopSource);
+    (exitCb as unknown as (reason: string) => void)("ffmpeg exited unexpectedly (code 1)");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(manager.playbackUrl("ag_x")).toBeNull();
+    expect(manager.lastError()).toContain("unexpectedly");
   });
 
   it("ffmpeg args encode both targets without provider assumptions", () => {

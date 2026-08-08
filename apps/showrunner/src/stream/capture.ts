@@ -1,4 +1,4 @@
-import type { FrameSource } from "./types.js";
+import { PROFILE_720, type FrameSource, type StreamProfile } from "./types.js";
 
 /**
  * per-agent capture via cdp Page.startScreencast: 720p max, jpeg, ~5-8
@@ -77,5 +77,63 @@ export class CdpScreencast implements FrameSource {
 
   private send(socket: CdpSocketLike, method: string, params: Record<string, unknown>): void {
     socket.send(JSON.stringify({ id: ++this.commandId, method, params }));
+  }
+}
+
+/** the slice of a playwright page the screencast needs; structural so
+ * tests fake it and the stream layer never hard-imports playwright.
+ * the parameter is unknown on purpose: playwright's own newCDPSession
+ * takes its Page type, and method bivariance lets both satisfy this. */
+export interface ScreencastablePage {
+  context(): {
+    newCDPSession(page: unknown): Promise<CdpClientLike>;
+  };
+}
+
+interface CdpClientLike {
+  send(method: string, params?: Record<string, unknown>): Promise<unknown>;
+  on(event: string, listener: (params: { data: string; sessionId: number }) => void): void;
+  detach(): Promise<void>;
+}
+
+/**
+ * screencast over an existing playwright page: the live runtime already
+ * owns the browser, so capture attaches a cdp session to the page the
+ * agent is actually using instead of opening a second socket. ack-first,
+ * like the raw variant, or chromium stops sending.
+ */
+export class PlaywrightScreencast implements FrameSource {
+  private readonly page: ScreencastablePage;
+  private readonly profile: StreamProfile;
+  private session: CdpClientLike | null = null;
+
+  constructor(page: ScreencastablePage, profile: StreamProfile = PROFILE_720) {
+    this.page = page;
+    this.profile = profile;
+  }
+
+  async start(onFrame: (jpeg: Buffer) => void): Promise<void> {
+    const session = await this.page.context().newCDPSession(this.page);
+    this.session = session;
+    session.on("Page.screencastFrame", (params) => {
+      void session
+        .send("Page.screencastFrameAck", { sessionId: params.sessionId })
+        .catch(() => undefined);
+      onFrame(Buffer.from(params.data, "base64"));
+    });
+    await session.send("Page.startScreencast", {
+      format: "jpeg",
+      quality: this.profile.jpegQuality,
+      maxWidth: this.profile.width,
+      maxHeight: this.profile.height,
+      everyNthFrame: this.profile.fps >= 6 ? 2 : 3,
+    });
+  }
+
+  async stop(): Promise<void> {
+    if (!this.session) return;
+    await this.session.send("Page.stopScreencast").catch(() => undefined);
+    await this.session.detach().catch(() => undefined);
+    this.session = null;
   }
 }

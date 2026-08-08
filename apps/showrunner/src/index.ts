@@ -53,10 +53,15 @@ export type { AnthropicThinkerOptions } from "./anthropic-thinker.js";
 export {
   CdpScreencast,
   MuxProvider,
+  PROFILE_480,
+  PROFILE_720,
+  PlaywrightScreencast,
   SelfHostedHlsProvider,
+  StreamDirector,
   StreamManager,
   StreamNotImplementedError,
   ffmpegArgs,
+  ffmpegEncoderFor,
   selectStreamProvider,
 } from "./stream/index.js";
 export type {
@@ -64,6 +69,12 @@ export type {
   Encoder,
   EncoderFactory,
   FrameSource,
+  ScreencastablePage,
   StreamChannel,
+  StreamProfile,
   StreamProvider,
 } from "./stream/index.js";
+export { LiveRuntimePort } from "./runtime-live.js";
+export type { LiveRuntimeOptions } from "./runtime-live.js";
+export { BrowserDriver } from "./driver.js";
+export type { DriverOptions } from "./driver.js";

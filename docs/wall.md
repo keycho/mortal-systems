@@ -14,9 +14,12 @@ the public spectacle layer: autonomous identities living out finite lifespans in
 | gate, watch page, graveyard + death card | `apps/web` (`/gate`, `/watch`, `/graveyard`) | shipped, poster-only cells |
 | root route switch | `apps/web/app/page.tsx` | gate serves at `/` when built with `NEXT_PUBLIC_WALL_GATE=1` |
 
+## streaming and the live runtime: shipped
+
+the real runtime (`WALL_RUNTIME=live`) gives every identity an actual chromium; acts run through the browser at human speed on real pages; the director cam screencasts the hot agent through ffmpeg to self-hosted hls served at `/hls/{agent}/index.m3u8`, and cells play it with the activity view as the poster fallback. mux remains a selectable managed-ingest fallback. see `docs/deploy-wall.md` section 5.
+
 ## what ships dark or deferred
 
-- **streaming pipeline: phase one built, dormant until real browsers.** cdp screencast capture, the ffmpeg encoder (rtmp and hls targets), and the provider boundary (`STREAM_PROVIDER=mux` live, `=ffmpeg` a named self-hosted stub) are implemented and tested with fakes; cells consume a generic hls url via `stream_url` on `/now`. with the stub runtime there are no browsers, so no channels exist and cells stay `events only` — the pipeline activates when the real RuntimePort hands over cdp urls. nothing pretends to be a camera.
 - **sponsor compute.** `SPONSOR_ENABLED=false`. `Showrunner.sponsorExtend()` exists, is diegetic (the agent gets `ttl_extended` and notices), and refuses with `sponsor.dark` until the legal pass (zunic). no auctions, no markets, no betting, anywhere.
 - **platform allowlist.** `PLATFORM_ALLOWLIST=terrarium,bluesky,mastodon`. substack/x stay off until the same legal pass. bluesky/mastodon posting itself is not implemented yet; the policy already admits them so the driver work is additive.
 - **wave 2 cast.** vesper, odile, rui are defined in `apps/showrunner/src/cast.ts` with `wave: 2` and do not spawn at launch.

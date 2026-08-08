@@ -13,6 +13,12 @@ import type { AgentNow, WallEvent } from "@mortal/wall/browser";
 export const WALL_API =
   process.env.NEXT_PUBLIC_WALL_API_URL ?? "http://127.0.0.1:4925";
 
+/** hls playback urls arrive provider-generic; self-hosted ones are
+ * service-relative and resolve against the wall api origin */
+export function streamSrc(url: string): string {
+  return url.startsWith("http") ? url : `${WALL_API}${url}`;
+}
+
 export interface WallSnapshot {
   agents: AgentNowLive[];
   alive: number;

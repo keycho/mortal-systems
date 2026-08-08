@@ -1,7 +1,12 @@
 "use client";
 
 import { humanizeEvent, type WallEvent } from "@mortal/wall/browser";
-import { countdownLabel, remainingSeconds, type AgentNowLive } from "../../lib/wall-client";
+import {
+  countdownLabel,
+  remainingSeconds,
+  streamSrc,
+  type AgentNowLive,
+} from "../../lib/wall-client";
 import { ActivityView } from "./ActivityView";
 import { HlsVideo } from "./HlsVideo";
 
@@ -40,7 +45,7 @@ export function AgentCell({
     >
       <div className="wall-frame">
         {agent.stream_url && agent.state !== "dead" ? (
-          <HlsVideo src={agent.stream_url} />
+          <HlsVideo src={streamSrc(agent.stream_url)} />
         ) : (
           <ActivityView agent={agent} events={events} />
         )}

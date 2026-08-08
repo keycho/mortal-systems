@@ -1,8 +1,6 @@
-import {
-  StreamNotImplementedError,
-  type StreamChannel,
-  type StreamProvider,
-} from "./types.js";
+import { mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { type StreamChannel, type StreamProvider } from "./types.js";
 
 /**
  * the two providers. mux is validation-week only: it exists so the show
@@ -71,23 +69,42 @@ export class MuxProvider implements StreamProvider {
   }
 }
 
-/** the exit, stubbed: self-hosted ffmpeg -> hls segments served behind
- * cloudflare. selectable now so nothing else changes when it ships. */
+/**
+ * the self-hosted exit, now real: ffmpeg segments hls to disk under the
+ * service's own state root and the service serves the files at
+ * /hls/{agent}/index.m3u8 (a cdn in front absorbs viewers). channel
+ * teardown deletes the segment dir: video is live-only, the archive that
+ * outlives an identity is its writing, never its footage.
+ */
 export class SelfHostedHlsProvider implements StreamProvider {
   readonly name = "ffmpeg";
+  private readonly rootDir: string;
 
-  async createChannel(): Promise<StreamChannel> {
-    throw new StreamNotImplementedError(
-      "STREAM_PROVIDER=ffmpeg is the planned self-hosted exit (ffmpeg to hls behind cloudflare); not implemented yet, use STREAM_PROVIDER=mux for validation week"
-    );
+  constructor(opts: { rootDir: string }) {
+    this.rootDir = opts.rootDir;
   }
 
-  async destroyChannel(): Promise<void> {
-    // nothing to destroy in the stub
+  async createChannel(agentId: string): Promise<StreamChannel> {
+    const safe = agentId.replace(/[^a-zA-Z0-9_-]/g, "");
+    const dir = join(this.rootDir, safe);
+    mkdirSync(dir, { recursive: true });
+    return {
+      agent_id: agentId,
+      ingest: { kind: "hls_dir", dir },
+      playback_url: `/hls/${safe}/index.m3u8`,
+    };
+  }
+
+  async destroyChannel(agentId: string): Promise<void> {
+    const safe = agentId.replace(/[^a-zA-Z0-9_-]/g, "");
+    rmSync(join(this.rootDir, safe), { recursive: true, force: true });
   }
 }
 
-export function selectStreamProvider(env: NodeJS.ProcessEnv): StreamProvider | null {
+export function selectStreamProvider(
+  env: NodeJS.ProcessEnv,
+  opts: { hlsRoot?: string } = {}
+): StreamProvider | null {
   const wanted = (env.STREAM_PROVIDER ?? "none").toLowerCase();
   if (wanted === "none" || wanted === "") return null;
   if (wanted === "mux") {
@@ -96,6 +113,9 @@ export function selectStreamProvider(env: NodeJS.ProcessEnv): StreamProvider | n
     }
     return new MuxProvider({ tokenId: env.MUX_TOKEN_ID, tokenSecret: env.MUX_TOKEN_SECRET });
   }
-  if (wanted === "ffmpeg") return new SelfHostedHlsProvider();
+  if (wanted === "ffmpeg") {
+    if (!opts.hlsRoot) throw new Error("STREAM_PROVIDER=ffmpeg needs an hls root directory");
+    return new SelfHostedHlsProvider({ rootDir: opts.hlsRoot });
+  }
   throw new Error(`unknown STREAM_PROVIDER "${wanted}" (mux | ffmpeg | none)`);
 }

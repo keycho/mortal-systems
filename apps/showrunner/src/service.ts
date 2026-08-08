@@ -1,5 +1,5 @@
-import { createServer, type Server } from "node:http";
-import { mkdirSync } from "node:fs";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { WallStore } from "@mortal/wall";
 import {
@@ -10,12 +10,14 @@ import {
 import { LAUNCH_CAST, castNames, type CastMember } from "./cast.js";
 import { flagsFromEnv, type PolicyFlags } from "./policy.js";
 import { StubRuntimePort, type RuntimePort } from "./runtime-port.js";
+import { LiveRuntimePort } from "./runtime-live.js";
+import { BrowserDriver } from "./driver.js";
 import { scriptedThinker } from "./think.js";
 import { selectThinker, type SelectedThinker } from "./think-select.js";
 import { storeTerrariumClient } from "./terrarium-client.js";
 import { Showrunner } from "./showrunner.js";
 import { createWallApiHandler } from "./api.js";
-import { StreamManager, selectStreamProvider } from "./stream/index.js";
+import { StreamDirector, StreamManager, selectStreamProvider } from "./stream/index.js";
 
 /**
  * the whole wall service as one composable boot: stores, showrunner,
@@ -64,14 +66,26 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   }
 
   const thinker = opts.thinker ?? selectThinker(env, scriptedThinker);
-  const streamProvider = selectStreamProvider(env);
+  const hlsRoot = join(opts.root, "hls");
+  const streamProvider = selectStreamProvider(env, { hlsRoot });
   const streams = streamProvider ? new StreamManager(streamProvider, env) : null;
+
+  // WALL_RUNTIME=live gives every identity an actual chrome instance;
+  // the stub remains the dev/test default and says so in /health
+  const liveRuntime =
+    !opts.runtime && (env.WALL_RUNTIME ?? "stub").toLowerCase() === "live"
+      ? new LiveRuntimePort({
+          executablePath: env.CHROME_PATH,
+          sandbox: env.CHROME_SANDBOX === "1",
+        })
+      : null;
+  const runtime = opts.runtime ?? liveRuntime ?? new StubRuntimePort();
+  const runtimeLabel =
+    (runtime as { label?: string }).label ?? (opts.runtime ? "custom" : "stub");
 
   const showrunner = new Showrunner({
     store: wallStore,
-    // the stub keeps honest books but launches no browsers; the real
-    // RuntimePort replaces this when the launcher-side integration lands
-    runtime: opts.runtime ?? new StubRuntimePort(),
+    runtime,
     // in-process store client: same store the public routes serve, same
     // frozen-tenant refusals; the http client remains for split deployments
     terrarium: storeTerrariumClient(terrariumStore),
@@ -87,6 +101,7 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     publicBase: env.TERRARIUM_PUBLIC_BASE,
   };
   const terrariumHandler = createTerrariumHandler(terrariumOpts);
+  let director: StreamDirector | null = null;
   const wallHandler = createWallApiHandler({
     store: wallStore,
     names: () => showrunner.names,
@@ -107,11 +122,14 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       agents_live: showrunner.live.size,
       thinker: thinker.label,
       stream_provider: streamProvider?.name ?? "none",
-      runtime_port: opts.runtime ? "custom" : "stub",
+      runtime_port: runtimeLabel,
+      ...(liveRuntime ? { runtime: liveRuntime.health() } : {}),
+      ...(director ? { stream: director.status() } : {}),
     }),
   });
 
   const server = createServer((req, res) => {
+    if (req.url?.startsWith("/hls/")) return serveHls(hlsRoot, req, res);
     if (wallHandler(req, res)) return;
     terrariumHandler(req, res);
   });
@@ -119,8 +137,19 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   const address = server.address();
   const port = typeof address === "object" && address ? address.port : opts.port;
   log(
-    `wall service on :${port} (root ${opts.root}, thinker ${thinker.label}, stream ${streamProvider?.name ?? "none"}, runtime ${opts.runtime ? "custom" : "stub"})`
+    `wall service on :${port} (root ${opts.root}, thinker ${thinker.label}, stream ${streamProvider?.name ?? "none"}, runtime ${runtimeLabel})`
   );
+
+  // the driver needs the service's own origin, so it attaches after listen:
+  // from here acts go through real browsers on real pages at human speed
+  if (liveRuntime) {
+    liveRuntime.setHome(`http://127.0.0.1:${port}/`);
+    showrunner.driver = new BrowserDriver({
+      runtime: liveRuntime,
+      baseUrl: `http://127.0.0.1:${port}`,
+      terrariumToken,
+    });
+  }
 
   // restart continuity first, fresh spawns only for lives never lived
   const { recovered, unspawned } = await showrunner.resume(cast);
@@ -135,6 +164,19 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     } else {
       await showrunner.spawn(member);
     }
+  }
+
+  // the director cam points the one camera at the hot agent; it needs
+  // both a stream manager and real browsers to point at
+  if (streams && liveRuntime) {
+    director = new StreamDirector({
+      manager: streams,
+      events: () => wallStore.list({ publicOnly: true, newestFirst: true, limit: 200 }).reverse(),
+      pageFor: (agentId) => liveRuntime.pageFor(agentId),
+      memoryLimitMb: Number(env.WALL_STREAM_MEM_MB ?? 1800),
+      intervalMs: Number(env.WALL_DIRECTOR_INTERVAL_MS ?? 10_000),
+    });
+    director.start();
   }
 
   const tickSeconds = opts.tickSeconds ?? Number(env.TICK_SECONDS ?? 30);
@@ -164,9 +206,46 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     async stop(): Promise<void> {
       clearInterval(tick);
       clearInterval(heartbeat);
+      await director?.stop();
+      await streams?.stopAll();
+      await liveRuntime?.close();
       await new Promise((resolve) => server.close(resolve));
       wallStore.close();
       terrariumStore.close();
     },
   };
+}
+
+const HLS_TYPES: Record<string, string> = {
+  ".m3u8": "application/vnd.apple.mpegurl",
+  ".ts": "video/mp2t",
+  ".m4s": "video/iso.segment",
+  ".mp4": "video/mp4",
+};
+
+/** live-only video files under the state root; playlists never cache,
+ * segments cache briefly so a cdn in front can absorb the viewers */
+function serveHls(hlsRoot: string, req: IncomingMessage, res: ServerResponse): void {
+  const url = new URL(req.url ?? "/", "http://wall.local");
+  const match = /^\/hls\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+\.(?:m3u8|ts|m4s|mp4))$/.exec(
+    url.pathname
+  );
+  if (!match) {
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "not found" }));
+    return;
+  }
+  const file = join(hlsRoot, match[1] as string, match[2] as string);
+  if (!existsSync(file) || !statSync(file).isFile()) {
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "no such stream" }));
+    return;
+  }
+  const ext = (match[2] as string).slice((match[2] as string).lastIndexOf("."));
+  res.writeHead(200, {
+    "content-type": HLS_TYPES[ext] ?? "application/octet-stream",
+    "cache-control": ext === ".m3u8" ? "no-store" : "public, max-age=60",
+    "access-control-allow-origin": "*",
+  });
+  createReadStream(file).pipe(res);
 }

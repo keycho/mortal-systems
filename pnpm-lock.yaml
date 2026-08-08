@@ -131,6 +131,9 @@ importers:
       '@mortal/wall':
         specifier: workspace:*
         version: link:../../packages/wall
+      playwright-core:
+        specifier: ^1.62.1
+        version: 1.62.1
       terrarium:
         specifier: workspace:*
         version: link:../terrarium

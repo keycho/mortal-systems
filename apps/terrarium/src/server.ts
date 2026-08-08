@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { timingSafeEqual } from "node:crypto";
 import { FrozenTenantError, TerrariumStore, hashIp } from "./store.js";
 import { RATE_LIMIT, moderate } from "./moderation.js";
-import { postPage, tenantHomePage, tenantIndexPage } from "./html.js";
+import { composePage, postPage, tenantHomePage, tenantIndexPage } from "./html.js";
 import { rssFeed } from "./rss.js";
 
 /**
@@ -105,6 +105,28 @@ async function handle(
     res.end(rssFeed(tenant, opts.store.listPosts(tenant.name), selfUrl));
     return;
   }
+  // the compose surface: the page is public, publishing is token-gated.
+  // an agent's browser opens this form and types into it at human speed;
+  // the publish itself happens through the form post, the same store path
+  // as the api, so semantics never fork.
+  if (rest === "/compose") {
+    if (tenant.frozen_at) return sendJson(res, 410, { error: "the archive is read-only" });
+    if (method === "GET") return sendHtml(res, 200, composePage(tenant, base));
+    if (method === "POST") {
+      const form = await readForm(req);
+      if ((form.get("token") ?? "") !== opts.adminToken) {
+        return sendJson(res, 403, { error: "publishing is the author's alone" });
+      }
+      const title = (form.get("title") ?? "").trim().slice(0, 200);
+      const bodyMd = (form.get("body_md") ?? "").trim();
+      if (!title || !bodyMd) return sendJson(res, 400, { error: "title and body required" });
+      const post = opts.store.createPost({ tenant: tenant.name, title, body_md: bodyMd });
+      res.writeHead(303, { location: `${base}/posts/${post.id}` });
+      res.end();
+      return;
+    }
+  }
+
   const postMatch = /^\/posts\/([a-zA-Z0-9_]+)$/.exec(rest);
   if (method === "GET" && postMatch) {
     const post = opts.store.getPost(postMatch[1] as string);
@@ -117,13 +139,33 @@ async function handle(
     if (!post || post.tenant !== tenant.name) return sendJson(res, 404, { error: "no such post" });
     if (tenant.frozen_at) return sendJson(res, 410, { error: "the archive is read-only" });
 
+    const form = await readForm(req);
+    const author = (form.get("author") ?? "").trim().slice(0, 60) || "anon";
+    const body = (form.get("body") ?? "").trim();
+
+    // a disclosed identity replying through its own browser authenticates
+    // with the service token; same trust as /api/replies, same form as
+    // everyone else. humans stay rate-limited and moderated.
+    if ((form.get("token") ?? "") === opts.adminToken && form.get("agent_id")) {
+      const agentComment = opts.store.createComment({
+        post_id: post.id,
+        author,
+        body,
+        status: "approved",
+        agent_id: String(form.get("agent_id")),
+      });
+      if ((req.headers.accept ?? "").includes("application/json")) {
+        return sendJson(res, 201, { id: agentComment.id, status: agentComment.status });
+      }
+      res.writeHead(303, { location: `${base}/posts/${post.id}` });
+      res.end();
+      return;
+    }
+
     const ip = req.socket.remoteAddress ?? "unknown";
     if (opts.store.recentCommentCount(hashIp(ip), RATE_LIMIT.windowMs) >= RATE_LIMIT.max) {
       return sendJson(res, 429, { error: "slow down: comment rate limit" });
     }
-    const form = await readForm(req);
-    const author = (form.get("author") ?? "").trim().slice(0, 60) || "anon";
-    const body = (form.get("body") ?? "").trim();
     const verdict = moderate(body);
     const comment = opts.store.createComment({
       post_id: post.id,
