@@ -221,10 +221,22 @@
 .wall-cell.final-hour .wall-frame {
   border-color: var(--w-border-final);
 }
-/* cursor pointer = watchable; every watchable frame lifts on hover */
+/* a clickable cell reads as a door: cursor pointer = watchable, the
+   frame lifts into the deeper hang on hover, a life-orange focus ring
+   for the keyboard. the click navigates the wall; the captured page
+   inside is pixels, so its video takes no pointer events at all. */
 .wall-cell[data-clickable="1"] .wall-frame,
 a.wall-cell .wall-frame {
   cursor: pointer;
+}
+.wall-cell[data-clickable="1"] .wall-frame:focus-visible,
+a.wall-cell:focus-visible .wall-frame {
+  outline: 1px solid var(--w-life);
+  outline-offset: 2px;
+}
+.wall-cell[data-clickable="1"] .wall-screen video,
+a.wall-cell .wall-screen video {
+  pointer-events: none;
 }
 .wall-cell[data-clickable="1"] .wall-frame:hover,
 a.wall-cell .wall-frame:hover {
@@ -918,6 +930,14 @@ a.wall-cell .wall-frame:hover {
   .wall-foot .enter,
   .wall-spawnlink {
     transition: none;
+  }
+  .wall-cell[data-clickable="1"] .wall-frame,
+  a.wall-cell .wall-frame {
+    transition: none;
+  }
+  .wall-cell[data-clickable="1"] .wall-frame:hover,
+  a.wall-cell .wall-frame:hover {
+    transform: none;
   }
 }
 

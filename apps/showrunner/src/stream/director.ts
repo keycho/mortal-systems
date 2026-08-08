@@ -74,7 +74,7 @@ export class StreamDirector {
   }
 
   start(): void {
-    const interval = this.opts.intervalMs ?? 10_000;
+    const interval = this.opts.intervalMs ?? 5_000;
     this.timer = setInterval(() => void this.tick().catch(console.error), interval);
     this.timer.unref();
     void this.tick().catch(console.error);
@@ -260,7 +260,11 @@ export class StreamDirector {
 
     const gridProfile = this.gridProfile();
     let started = 0;
-    const budget = this.opts.startsPerTick ?? 1;
+    // measured with the whole six-cell room running: chromium, xvfb and
+    // six encoders together sit near 5% of four cores, so two encoder
+    // spawns a tick is caution, not appetite. one-per-ten-seconds made
+    // the sixth cell wait nearly a minute for its first frame at boot.
+    const budget = this.opts.startsPerTick ?? 2;
 
     for (const agentId of alive) {
       const isHero = agentId === this.hero;
@@ -303,17 +307,52 @@ export class StreamDirector {
   }
 }
 
-/** the whole container's memory, not just this process's slice of it */
+/**
+ * the whole container's memory, not just this process's slice of it --
+ * and the WORKING SET, not the raw counter. memory.current /
+ * usage_in_bytes include the page cache, and hls segment churn plus
+ * sqlite plus browser file io grow inactive file cache without bound
+ * until the kernel bothers to reclaim it. measured here: a wall whose
+ * processes held ~1.3gb read 2.5gb raw, tripped the ladder to hero_low,
+ * and took five healthy grid cells dark. subtracting inactive_file is
+ * exactly what `docker stats` reports and what the kernel will hand
+ * back before it kills anything, so it is the honest "how close are we".
+ */
 function readCgroupUsageBytes(): number | null {
-  for (const path of [
-    "/sys/fs/cgroup/memory.current",
-    "/sys/fs/cgroup/memory/memory.usage_in_bytes",
-  ]) {
+  const layouts = [
+    { usage: "/sys/fs/cgroup/memory.current", stat: "/sys/fs/cgroup/memory.stat", key: "inactive_file" },
+    {
+      usage: "/sys/fs/cgroup/memory/memory.usage_in_bytes",
+      stat: "/sys/fs/cgroup/memory/memory.stat",
+      key: "total_inactive_file",
+    },
+  ];
+  for (const layout of layouts) {
     try {
-      const value = Number(readFileSync(path, "utf8").trim());
-      if (Number.isFinite(value) && value > 0) return value;
+      const usage = Number(readFileSync(layout.usage, "utf8").trim());
+      if (!Number.isFinite(usage) || usage <= 0) continue;
+      let inactive = 0;
+      try {
+        inactive = parseCgroupStat(readFileSync(layout.stat, "utf8"), layout.key) ?? 0;
+      } catch {
+        // no stat file: the raw counter is still better than our own rss
+      }
+      return Math.max(0, usage - inactive);
     } catch {
       // not this layout; try the next, then fall back to our own rss
+    }
+  }
+  return null;
+}
+
+/** first exact-key line of a cgroup stat file, e.g. "inactive_file 123";
+ * "total_inactive_file" must not match a query for "inactive_file" */
+export function parseCgroupStat(content: string, key: string): number | null {
+  for (const line of content.split("\n")) {
+    const [k, v] = line.trim().split(/\s+/);
+    if (k === key) {
+      const value = Number(v);
+      return Number.isFinite(value) ? value : null;
     }
   }
   return null;

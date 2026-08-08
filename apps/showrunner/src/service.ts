@@ -388,8 +388,8 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
           : { kind: "frames" };
       },
       memoryLimitMb: Number(env.WALL_STREAM_MEM_MB ?? 1800),
-      intervalMs: Number(env.WALL_DIRECTOR_INTERVAL_MS ?? 10_000),
-      startsPerTick: Number(env.WALL_STREAM_STARTS_PER_TICK ?? 1),
+      intervalMs: Number(env.WALL_DIRECTOR_INTERVAL_MS ?? 5_000),
+      startsPerTick: Number(env.WALL_STREAM_STARTS_PER_TICK ?? 2),
     });
     director.start();
   }

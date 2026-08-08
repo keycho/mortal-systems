@@ -51,7 +51,11 @@ export function ffmpegArgs(
     "-preset", "veryfast",
     "-tune", "zerolatency",
     "-pix_fmt", "yuv420p",
-    "-g", String(fps * 2),
+    // one keyframe per second: the hls muxer can only cut at keyframes,
+    // so the gop is the floor under both the first segment's latency and
+    // every join. at these resolutions the extra keyframes are cheap;
+    // what they buy is a playlist that exists ~1s after the encoder does.
+    "-g", String(fps),
   ];
   if (target.kind === "rtmp") {
     return [...input, "-f", "flv", target.url];
@@ -59,9 +63,20 @@ export function ffmpegArgs(
   return [
     ...input,
     "-f", "hls",
-    "-hls_time", "4",
-    "-hls_list_size", "6",
-    "-hls_flags", "delete_segments+independent_segments",
+    // a short first segment gets the playlist on disk fast (nothing can
+    // play before it exists), then 2s segments keep joins quick; the
+    // window stays ~20s so a viewer 3 target-durations behind live is
+    // still comfortably inside it
+    "-hls_time", "2",
+    "-hls_init_time", "1",
+    "-hls_list_size", "10",
+    // epoch sequence numbers: a profile change restarts the encoder into
+    // the SAME dir, and monotonic numbering across restarts is what lets
+    // players ride through it instead of rewinding a reused sequence.
+    // omit_endlist keeps a stopped encoder from declaring the live
+    // stream finished to everyone watching it.
+    "-hls_start_number_source", "epoch",
+    "-hls_flags", "delete_segments+independent_segments+omit_endlist",
     `${target.dir}/index.m3u8`,
   ];
 }
@@ -132,13 +147,21 @@ export function ffmpegEncoderFor(
     },
     async stop(): Promise<void> {
       stopping = true;
-      child.stdin.end();
+      // an x11 encoder has no stdin to close: waiting out a grace period
+      // before the kill just held every profile change for 3 silent
+      // seconds. sigkill is clean for hls -- the playlist only ever
+      // references completed segments, so a torn write cannot be listed.
+      if (source.kind === "x11") {
+        child.kill("SIGKILL");
+      } else {
+        child.stdin.end();
+      }
       await new Promise<void>((resolve) => {
         child.once("close", () => resolve());
         setTimeout(() => {
           child.kill("SIGKILL");
           resolve();
-        }, 3000).unref();
+        }, 1500).unref();
       });
     },
   };

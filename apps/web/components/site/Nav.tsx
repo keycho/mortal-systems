@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MACOS_ALPHA_DMG_URL } from "../../lib/site-data";
 import { Wordmark } from "../Wordmark";
 
 /**
@@ -28,7 +29,7 @@ export function Nav({ home = false }: { home?: boolean }) {
         </a>
       </div>
       <a
-        href={anchor("download")}
+        href={MACOS_ALPHA_DMG_URL}
         style={{
           font: "500 13px var(--font-mono)",
           border: "1px solid rgba(25,23,19,.4)",

@@ -143,13 +143,17 @@ export function Gate() {
       </div>
       <div className="wall-grid" data-cols={sorted.length === 0 ? EMPTY_ROOM_SLOTS : cols}>
         {sorted.map((agent) => (
+          // a cell is a door: clicking it walks through to the watch
+          // page with this identity pinned as the hero. the click
+          // navigates the wall, never the page inside the frame.
           <AgentCell
             key={agent.agent_id}
             agent={agent}
             events={events}
             now={now}
             signalLost={signalLost}
-            href={`/watch?pin=${encodeURIComponent(agent.agent_id)}`}
+            href={`/watch?agent=${encodeURIComponent(agent.agent_id)}`}
+            clickLabel={`watch ${agent.name} live`}
             caption={speaker?.agent_id === agent.agent_id ? caption : null}
             mobileHero={mobileHero?.agent_id === agent.agent_id}
           />

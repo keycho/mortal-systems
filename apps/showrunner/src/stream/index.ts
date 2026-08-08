@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { readdirSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { ffmpegEncoderFactory } from "./encoder.js";
 import {
@@ -78,9 +78,14 @@ export class StreamManager {
   }
 
   /**
-   * change an agent's quality without losing its cell for longer than a
-   * segment: hls players recover from a restarted playlist, and the wall
-   * would rather blink than lie about what it is showing.
+   * change an agent's quality without losing its cell: the encoder
+   * restarts into the SAME segment dir, so the old playlist keeps
+   * serving while the new encoder's first segment lands and players
+   * ride through on epoch sequence numbers instead of hitting a deleted
+   * playlist. the blink used to be a teardown: rm -rf on the segments,
+   * a 3s kill grace, and a playlist 404 window long enough to take a
+   * cell dark on every director cut. (an rtmp channel has no local dir;
+   * it still tears the provider channel down.)
    */
   async setProfile(
     agentId: string,
@@ -90,7 +95,7 @@ export class StreamManager {
   ): Promise<string | null> {
     const existing = this.running.get(agentId);
     if (existing && existing.profile.name === profile.name) return existing.playbackUrl;
-    if (existing) await this.stopAgent(agentId);
+    if (existing) await this.stopEntry(agentId, { destroyChannel: existing.dir === null });
     return this.startAgent(agentId, source, profile, input);
   }
 
@@ -137,13 +142,28 @@ export class StreamManager {
   }
 
   async stopAgent(agentId: string): Promise<void> {
+    return this.stopEntry(agentId, { destroyChannel: true });
+  }
+
+  private async stopEntry(
+    agentId: string,
+    opts: { destroyChannel: boolean }
+  ): Promise<void> {
     const entry = this.running.get(agentId);
     if (!entry) return;
     this.running.delete(agentId);
     if (entry.pacer) clearInterval(entry.pacer);
     await entry.source.stop().catch(() => undefined);
     await entry.encoder.stop().catch(() => undefined);
-    await this.provider.destroyChannel(agentId).catch(() => undefined);
+    if (opts.destroyChannel) {
+      await this.provider.destroyChannel(agentId).catch(() => undefined);
+    } else if (entry.dir) {
+      // the dir survives so the old playlist bridges the restart, but a
+      // dead encoder's segments are invisible to the next one's
+      // delete_segments; sweep everything old enough to be outside any
+      // viewer's window so profile changes cannot slowly fill the disk
+      sweepStaleSegments(entry.dir, 120);
+    }
   }
 
   async stopAll(): Promise<void> {
@@ -273,6 +293,24 @@ export class StreamManager {
   }
 }
 
+/** unlink segment files older than maxAgeSeconds; best-effort, and never
+ * the playlist itself (the bridge a restart is keeping alive) */
+function sweepStaleSegments(dir: string, maxAgeSeconds: number): void {
+  try {
+    const cutoff = Date.now() - maxAgeSeconds * 1000;
+    for (const name of readdirSync(dir)) {
+      if (!/\.(ts|m4s|mp4)$/.test(name)) continue;
+      try {
+        if (statSync(join(dir, name)).mtimeMs < cutoff) unlinkSync(join(dir, name));
+      } catch {
+        // a segment the encoder deleted between listing and stat
+      }
+    }
+  } catch {
+    // the dir itself went away; nothing to sweep
+  }
+}
+
 export { CdpScreencast, PlaywrightScreencast } from "./capture.js";
 export type { ScreencastablePage } from "./capture.js";
 export { ffmpegArgs, ffmpegEncoderFactory, ffmpegEncoderFor } from "./encoder.js";
@@ -284,7 +322,7 @@ export {
   PROFILE_GRID_LOW,
   StreamNotImplementedError,
 } from "./types.js";
-export { StreamDirector } from "./director.js";
+export { StreamDirector, parseCgroupStat } from "./director.js";
 export type { StreamDirectorOptions } from "./director.js";
 export type { Pressure } from "./director.js";
 export type {

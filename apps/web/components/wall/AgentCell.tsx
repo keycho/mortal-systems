@@ -38,6 +38,7 @@ export function AgentCell({
   now,
   signalLost,
   onClick,
+  clickLabel,
   href,
   caption,
   mobileHero,
@@ -48,6 +49,8 @@ export function AgentCell({
   /** no stream and nothing arriving: the only dot on the wall */
   signalLost?: boolean;
   onClick?: () => void;
+  /** what the click does, for assistive tech ("watch yuki live") */
+  clickLabel?: string;
   /** where the frame leads; a frame you can click is a frame you can watch */
   href?: string;
   /** the wall's caption slot: pass null to reserve the slot, undefined
@@ -80,7 +83,25 @@ export function AgentCell({
       <VacantForm />
     </div>
   ) : (
-    <div className="wall-frame" onClick={href ? undefined : onClick}>
+    <div
+      className="wall-frame"
+      onClick={href ? undefined : onClick}
+      // a clickable frame is a control: reachable by keyboard, named
+      // for what it does. the video inside stays pixels either way.
+      role={onClick && !href ? "button" : undefined}
+      tabIndex={onClick && !href ? 0 : undefined}
+      aria-label={onClick && !href ? (clickLabel ?? `watch ${agent.name}`) : undefined}
+      onKeyDown={
+        onClick && !href
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <div className="wall-screen">
         {streaming ? (
           <HlsVideo src={streamSrc(agent.stream_url as string)} />
@@ -122,6 +143,7 @@ export function AgentCell({
         data-clickable="1"
         data-mobile-hero={hero}
         href={href}
+        aria-label={clickLabel ?? `watch ${agent.name} live`}
       >
         {body}
       </a>

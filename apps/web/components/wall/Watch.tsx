@@ -28,8 +28,8 @@ import { WallChrome } from "./WallChrome";
  * smaller frames below, the wire, and the plate border naming who is on
  * camera. director cam with the tested auto-cut priority; clicking a
  * small cell pins it, and the wall's frames arrive here already pinned
- * via ?pin=. "show the machine" prints the runtime primitive and receipt
- * behind each wire line.
+ * via ?agent=. "show the machine" prints the runtime primitive and
+ * receipt behind each wire line.
  */
 
 const WIRE_LINES = 20;
@@ -41,13 +41,22 @@ export function Watch() {
   const [mounted, setMounted] = useState(false);
   const recap = useRecap();
 
-  // a frame clicked on the wall arrives pinned; the query string is the
-  // whole handshake, so the page stays a static export
+  // a wall cell links here as /watch?agent=<id>: that agent arrives
+  // pinned as the hero. read on mount (this page is fully
+  // client-rendered; a static export has no request to read from), and
+  // keep the url honest as pins change so the address stays shareable.
   useEffect(() => {
     setMounted(true);
-    const pin = new URLSearchParams(window.location.search).get("pin");
-    if (pin) setPinnedId(pin);
+    const wanted = new URLSearchParams(window.location.search).get("agent");
+    if (wanted && /^ag_[a-z0-9_-]+$/.test(wanted)) setPinnedId(wanted);
   }, []);
+  const pin = (agentId: string | null): void => {
+    setPinnedId(agentId);
+    const url = new URL(window.location.href);
+    if (agentId) url.searchParams.set("agent", agentId);
+    else url.searchParams.delete("agent");
+    window.history.replaceState(null, "", url);
+  };
 
   const living = useMemo(() => agents.filter((a) => a.state !== "unborn"), [agents]);
   // directorPick returns the read model's AgentNow; resolve it back into
@@ -135,7 +144,7 @@ export function Watch() {
             show the machine
           </button>
           {pinnedId ? (
-            <button onClick={() => setPinnedId(null)}>release pin</button>
+            <button onClick={() => pin(null)}>release pin</button>
           ) : (
             <span className="mode">auto-cut</span>
           )}
@@ -157,7 +166,8 @@ export function Watch() {
                 events={events}
                 now={now}
                 signalLost={!connected}
-                onClick={() => setPinnedId(agent.agent_id)}
+                onClick={() => pin(agent.agent_id)}
+                clickLabel={`focus ${agent.name}`}
               />
             ))}
           </section>

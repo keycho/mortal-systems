@@ -76,6 +76,7 @@ export {
   StreamNotImplementedError,
   ffmpegArgs,
   ffmpegEncoderFor,
+  parseCgroupStat,
   selectStreamProvider,
 } from "./stream/index.js";
 export type {
