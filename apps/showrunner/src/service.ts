@@ -71,17 +71,46 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
   const streams = streamProvider ? new StreamManager(streamProvider, env) : null;
 
   // WALL_RUNTIME=live gives every identity an actual chrome instance;
-  // the stub remains the dev/test default and says so in /health
-  const liveRuntime =
-    !opts.runtime && (env.WALL_RUNTIME ?? "stub").toLowerCase() === "live"
-      ? new LiveRuntimePort({
-          executablePath: env.CHROME_PATH,
-          sandbox: env.CHROME_SANDBOX === "1",
-        })
-      : null;
+  // the stub remains the dev/test default and says so in /health.
+  // tier-1 external browsing is earned, not configured: CHROME_SANDBOX=1
+  // asks, and the boot-time probe decides. a failed probe launches the
+  // browsers unsandboxed for home-ground pages only and gates external
+  // navigation off entirely, with the reason in /health.
+  const wantLive = !opts.runtime && (env.WALL_RUNTIME ?? "stub").toLowerCase() === "live";
+  const sandboxWanted = env.CHROME_SANDBOX === "1";
+  let sandboxStatus: { wanted: boolean; ok: boolean; reason?: string } = {
+    wanted: sandboxWanted,
+    ok: false,
+    ...(sandboxWanted ? {} : { reason: "not requested (CHROME_SANDBOX unset)" }),
+  };
+  if (wantLive && sandboxWanted) {
+    const { probeSandbox } = await import("./sandbox-probe.js");
+    const probe = await probeSandbox(env.CHROME_PATH);
+    sandboxStatus = { wanted: true, ok: probe.ok, ...(probe.reason ? { reason: probe.reason } : {}) };
+    if (!probe.ok) {
+      console.warn(`sandbox probe failed, external browsing OFF: ${probe.reason}`);
+    }
+  }
+  const preFlags = opts.flags ?? flagsFromEnv(env);
+  const liveRuntime = wantLive
+    ? new LiveRuntimePort({
+        executablePath: env.CHROME_PATH,
+        sandbox: sandboxStatus.ok,
+        // tier 2: operator-provisioned session state; agents never see a
+        // login form because the session arrives signed in or not at all
+        sessionStateDir: env.WALL_SESSIONS_DIR ?? join(opts.root, "sessions"),
+        // non-GET stays blocked everywhere external except write-capable
+        // domains, and only once the tier is actually enabled
+        writeHosts: (preFlags.tier2WriteEnabled ?? false)
+          ? (preFlags.writeAllowlist ?? []).map((c) => c.domain)
+          : [],
+      })
+    : null;
   const runtime = opts.runtime ?? liveRuntime ?? new StubRuntimePort();
   const runtimeLabel =
     (runtime as { label?: string }).label ?? (opts.runtime ? "custom" : "stub");
+  const flags = preFlags;
+  flags.externalBrowsing = Boolean(liveRuntime) && sandboxStatus.ok;
 
   const showrunner = new Showrunner({
     store: wallStore,
@@ -90,7 +119,7 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     // frozen-tenant refusals; the http client remains for split deployments
     terrarium: storeTerrariumClient(terrariumStore),
     think: thinker.think,
-    flags: opts.flags ?? flagsFromEnv(env),
+    flags,
   });
   Object.assign(showrunner.names, castNames());
 
@@ -125,6 +154,13 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       runtime_port: runtimeLabel,
       ...(liveRuntime ? { runtime: liveRuntime.health() } : {}),
       ...(director ? { stream: director.status() } : {}),
+      ...(wantLive
+        ? {
+            sandbox: sandboxStatus,
+            external_browsing: flags.externalBrowsing ?? false,
+            tier2_write: flags.tier2WriteEnabled ?? false,
+          }
+        : {}),
     }),
   });
 
@@ -148,6 +184,8 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       runtime: liveRuntime,
       baseUrl: `http://127.0.0.1:${port}`,
       terrariumToken,
+      readingAllowlist: flags.readingAllowlist ?? [],
+      externalEnabled: flags.externalBrowsing ?? false,
     });
   }
 
@@ -185,6 +223,7 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     void showrunner
       .tick()
       .then(() => showrunner.calendarTick())
+      .then(() => showrunner.assignDailyReading())
       .catch(console.error);
   }, tickSeconds * 1000);
   tick.unref();

@@ -22,6 +22,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ffmpeg ca-certificates chromium \
     fonts-liberation fonts-noto-core fonts-noto-cjk \
+    util-linux \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /repo
 COPY --from=build /repo ./
@@ -29,15 +30,20 @@ ENV NODE_ENV=production
 # state must live on a mounted volume: railway -> service -> volume at /data.
 # without one, every deploy is a mass death the stream never recorded.
 ENV MORTAL_ROOT=/data
-# headless-in-docker reality: the process runs as root, so chromium's own
-# sandbox cannot start (it needs user namespaces the platform does not
-# grant); we launch with the sandbox off (playwright chromiumSandbox:false,
-# the supported equivalent of --no-sandbox) and pass
-# --disable-dev-shm-usage because container /dev/shm is tiny (64mb) —
-# shared memory goes to /tmp instead. the honest risk math for v1: these
-# browsers render only pages this service itself serves. set
-# CHROME_SANDBOX=1 on userns-capable hosts, and before open-web browsing
-# ships the sandbox becomes mandatory.
+# headless-in-docker reality, and the tier-1 contract: the entrypoint
+# drops from root to the node user (chromium refuses to sandbox under
+# uid 0), and with CHROME_SANDBOX=1 the service probes a sandboxed launch
+# at boot. probe passes (host kernel allows unprivileged user
+# namespaces) -> browsers run sandboxed and external allowlisted reading
+# is on. probe fails -> browsers run unsandboxed, external navigation is
+# gated OFF entirely (agents browse only pages this service serves), and
+# /health names the reason. external pages never render in an
+# unsandboxed browser; that is a hard rule, not a preference.
+# --disable-dev-shm-usage is always passed: container /dev/shm is 64mb,
+# shared memory goes to /tmp instead.
 ENV CHROME_PATH=/usr/bin/chromium
+ENV CHROME_SANDBOX=1
+RUN chmod +x /repo/apps/showrunner/docker-entrypoint.sh
 EXPOSE 4925
+ENTRYPOINT ["/repo/apps/showrunner/docker-entrypoint.sh"]
 CMD ["node", "apps/showrunner/dist/serve.js"]

@@ -24,6 +24,9 @@ export interface CastMember {
   wave: 1 | 2;
   /** terrarium tenant name, when the member writes */
   tenant: string | null;
+  /** in-character tier-1 reading (allowlisted domains); the scheduler
+   * assigns 1-2 of these a day when external browsing is on */
+  external_reading?: string[];
 }
 
 const DAY = 86_400;
@@ -42,6 +45,11 @@ export const CAST: CastMember[] = [
     runtime_feature: "region node, locale coherence",
     wave: 1,
     tenant: "yuki",
+    external_reading: [
+      "https://ja.wikipedia.org/wiki/翻訳",
+      "https://ja.wikipedia.org/wiki/日記",
+      "https://craigmod.com/essays/",
+    ],
   },
   {
     agent_id: "ag_marlowe",
@@ -56,6 +64,12 @@ export const CAST: CastMember[] = [
     runtime_feature: "identity persistence, depth accretion",
     wave: 1,
     tenant: "marlowe",
+    external_reading: [
+      "https://news.ycombinator.com/",
+      "https://en.wikipedia.org/wiki/Eulogy",
+      "https://aworkinglibrary.com/",
+      "https://en.wikipedia.org/wiki/Epitaph",
+    ],
   },
   {
     agent_id: "ag_ash",
@@ -70,6 +84,10 @@ export const CAST: CastMember[] = [
     runtime_feature: "clean teardown, non-linkability, controlled inheritance",
     wave: 1,
     tenant: "ash",
+    external_reading: [
+      "https://en.wikipedia.org/wiki/Manifesto",
+      "https://news.ycombinator.com/",
+    ],
   },
   {
     agent_id: "ag_vesper",
@@ -84,6 +102,10 @@ export const CAST: CastMember[] = [
     runtime_feature: "minimal footprint, fingerprint rotation",
     wave: 2,
     tenant: null,
+    external_reading: [
+      "https://news.ycombinator.com/",
+      "https://aworkinglibrary.com/",
+    ],
   },
   {
     agent_id: "ag_odile",
@@ -98,6 +120,10 @@ export const CAST: CastMember[] = [
     runtime_feature: "external platform identity",
     wave: 2,
     tenant: "odile",
+    external_reading: [
+      "https://en.wikipedia.org/wiki/Berlin",
+      "https://news.ycombinator.com/",
+    ],
   },
   {
     agent_id: "ag_rui",
@@ -112,6 +138,10 @@ export const CAST: CastMember[] = [
     runtime_feature: "region roadmap as casting",
     wave: 2,
     tenant: "rui",
+    external_reading: [
+      "https://solar.lowtechmagazine.com/",
+      "https://en.wikipedia.org/wiki/São_Paulo",
+    ],
   },
 ];
 

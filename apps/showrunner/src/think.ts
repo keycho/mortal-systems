@@ -37,7 +37,13 @@ export interface Thought {
     | { kind: "publish_post"; title: string; body_md: string }
     | { kind: "reply_comment"; post_id: string; body: string }
     | { kind: "send_letter"; to_agent: string; body: string }
-    | { kind: "open_page"; url: string; title: string };
+    | { kind: "open_page"; url: string; title: string }
+    // tier 2, dark: external writes exist in the act grammar so the whole
+    // pipeline (chokepoint -> driver -> events) is real before the flip;
+    // until TIER2_WRITE_ENABLED, any attempt is a public tier2.dark
+    // enforcement. the ambient schema does not offer these yet.
+    | { kind: "external_post"; domain: string; text: string }
+    | { kind: "external_reply"; domain: string; target_url: string; text: string };
   /** only read at death; ignored otherwise */
   final_words?: string;
 }

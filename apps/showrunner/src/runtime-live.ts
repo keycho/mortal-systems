@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import type {
   DestroyResult,
@@ -35,6 +37,17 @@ export interface LiveRuntimeOptions {
   /** re-enable the chromium sandbox (userns-capable hosts only) */
   sandbox?: boolean;
   headless?: boolean;
+  /**
+   * tier 2: per-agent stored session state ({dir}/{agent_id}.json,
+   * playwright storageState), provisioned by the operator. agents never
+   * create accounts and never see a login form: the session arrives
+   * already signed in or the capability simply is not there.
+   */
+  sessionStateDir?: string;
+  /** hosts where non-GET requests are permitted (write-capable tier-2
+   * domains, only when the tier is enabled); everything else external
+   * stays structurally read-only */
+  writeHosts?: string[];
 }
 
 interface LiveIdentity {
@@ -56,6 +69,7 @@ export class LiveRuntimePort implements RuntimePort {
   private lastError: string | null = null;
   private counter = 0;
   private homeUrl: string | null = null;
+  private homeOrigin: string | null = null;
 
   constructor(opts: LiveRuntimeOptions = {}) {
     this.opts = opts;
@@ -69,6 +83,7 @@ export class LiveRuntimePort implements RuntimePort {
    */
   setHome(url: string): void {
     this.homeUrl = url;
+    this.homeOrigin = new URL(url).origin;
     // browsers spawned before the server was listening catch up
     for (const identity of this.live.values()) {
       if (identity.page.url() === "about:blank") {
@@ -91,10 +106,39 @@ export class LiveRuntimePort implements RuntimePort {
         "--window-size=1280,720",
       ],
     });
+    const storageStatePath = this.opts.sessionStateDir
+      ? join(this.opts.sessionStateDir, `${spec.agent_id}.json`)
+      : null;
+    const hasSession = storageStatePath !== null && existsSync(storageStatePath);
+    if (hasSession) console.log(`runtime-live: ${spec.agent_id} wakes with provisioned session state`);
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       ...(spec.locale ? { locale: spec.locale } : {}),
+      ...(hasSession ? { storageState: storageStatePath as string } : {}),
       userAgent: `mortal-wall/${spec.agent_id} (autonomous identity; mortal.systems)`,
+    });
+    // read-only outside our own service, structurally: any non-GET
+    // request to a foreign origin is aborted at the network layer, so no
+    // form on any external page can submit even if something clicked it.
+    // homeOrigin is read at request time, so browsers launched before the
+    // server was listening are covered the moment setHome runs.
+    await context.route("**/*", (route) => {
+      const request = route.request();
+      if (request.method() === "GET") return route.continue();
+      const url = request.url();
+      if (this.homeOrigin !== null && url.startsWith(this.homeOrigin)) return route.continue();
+      // tier-2 write hosts (empty until the tier flips) are the one
+      // exception; every other foreign non-GET dies at the network layer
+      try {
+        const host = new URL(url).hostname.toLowerCase();
+        const writable = (this.opts.writeHosts ?? []).some(
+          (d) => host === d || host.endsWith(`.${d}`)
+        );
+        if (writable) return route.continue();
+      } catch {
+        // unparseable url: fall through to the abort
+      }
+      return route.abort("accessdenied");
     });
     const page = await context.newPage();
     const identity: LiveIdentity = {

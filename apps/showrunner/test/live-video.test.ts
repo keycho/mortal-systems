@@ -233,6 +233,9 @@ describe.skipIf(!hasChromium)("driver click-through navigation (real chromium)",
     const address = server.address();
     const baseUrl = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
     const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    // the read-only network guard permits non-GET only to the home origin;
+    // the service always sets this, so the test does too
+    port.setHome(`${baseUrl}/`);
     try {
       await port.spawn({
         agent_id: "ag_marlowe",

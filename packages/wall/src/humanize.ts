@@ -71,6 +71,11 @@ export function humanizeEvent(event: WallEvent, name?: string): string {
         case "sent_letter":
           return `${who} sent a letter${p.target_agent ? ` to ${p.target_agent}` : ""}`;
         case "opened_page":
+          // external reads say so plainly: "marlowe is reading
+          // news.ycombinator.com: <title>" (the title carries the domain)
+          if (p.target_url && /^https?:\/\//i.test(p.target_url)) {
+            return `${who} is reading ${p.title ?? p.target_url}`;
+          }
           return `${who} opened ${p.title ?? p.target_url ?? "a page"}`;
       }
       break;

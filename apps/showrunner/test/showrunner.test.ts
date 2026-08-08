@@ -47,8 +47,14 @@ describe("policy chokepoint", () => {
     expect(() => checkAction({ type: "post", platform: "x" }, FLAGS)).toThrow(/tier2.allowlist/);
   });
 
-  it("tier 1 browsing is always allowed", () => {
-    expect(() => checkAction({ type: "browse", url: "https://example.org" }, FLAGS)).not.toThrow();
+  it("tier 1: internal browsing is always allowed; external is gated (see open-web.test.ts)", () => {
+    // home-ground pages (relative urls) never gate
+    expect(() => checkAction({ type: "browse", url: "/t/marlowe/" }, FLAGS)).not.toThrow();
+    // external browsing without the sandbox flag refuses by name; the full
+    // allowlist + sandbox behavior is exercised in open-web.test.ts
+    expect(() => checkAction({ type: "browse", url: "https://example.org" }, FLAGS)).toThrow(
+      /tier1\.sandbox/
+    );
   });
 
   it("the sponsor path ships dark and the flag comes from env", () => {

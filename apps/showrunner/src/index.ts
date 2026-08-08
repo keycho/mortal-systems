@@ -75,6 +75,12 @@ export type {
   StreamProvider,
 } from "./stream/index.js";
 export { LiveRuntimePort } from "./runtime-live.js";
+export { probeSandbox } from "./sandbox-probe.js";
+export type { SandboxProbeResult } from "./sandbox-probe.js";
+export { READING_ALLOWLIST_DEFAULT, hostAllowed } from "./policy.js";
+export { EXTERNAL_PHRASE_MAX, EXTERNAL_WRITE_CAPS, WRITE_UI } from "./driver.js";
+export { WRITE_ALLOWLIST_DEFAULT, parseWriteAllowlist } from "./policy.js";
+export type { WriteCapability } from "./policy.js";
 export type { LiveRuntimeOptions } from "./runtime-live.js";
 export { BrowserDriver } from "./driver.js";
 export type { DriverOptions } from "./driver.js";

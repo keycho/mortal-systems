@@ -1,5 +1,6 @@
 import type { Page } from "playwright-core";
 import type { LiveRuntimePort } from "./runtime-live.js";
+import { PolicyViolation, hostAllowed } from "./policy.js";
 import { TargetGoneError } from "./showrunner.js";
 
 /**
@@ -24,11 +25,87 @@ export interface DriverOptions {
   terrariumToken: string;
   /** speed multiplier for tests (0 = no delays) */
   paceScale?: number;
+  /** tier-1: external domains agents may read. empty or absent means the
+   * driver refuses every external url, sandbox or not. */
+  readingAllowlist?: string[];
+  /** flipped true only when the boot sandbox probe passed */
+  externalEnabled?: boolean;
 }
+
+/** link text and hrefs an external reader never clicks: reading is the
+ * whole activity, and these are where reading stops being reading */
+const FORBIDDEN_LINK =
+  /log\s?-?in|sign\s?-?in|sign\s?-?up|subscri|register|account|donat|checkout|cart|paypal|newsletter|password/i;
+
+/** the one short phrase an external page may contribute to an agent's
+ * material; anything longer starts to be the page speaking */
+export const EXTERNAL_PHRASE_MAX = 90;
+
+export interface ExternalReadResult {
+  domain: string;
+  title: string;
+  phrase: string;
+}
+
+/** driver-enforced tier-2 write caps; breaches throw PolicyViolation and
+ * land as public enforcement events like every other refusal */
+export const EXTERNAL_WRITE_CAPS = {
+  postsPerDay: 2,
+  repliesPerHour: 4,
+};
+
+class WriteLimiter {
+  private posts = new Map<string, number[]>(); // agentId -> epoch ms
+  private replies = new Map<string, number[]>();
+
+  checkPost(agentId: string, now = Date.now()): void {
+    const window = (this.posts.get(agentId) ?? []).filter((t) => now - t < 86_400_000);
+    if (window.length >= EXTERNAL_WRITE_CAPS.postsPerDay) {
+      throw new PolicyViolation(
+        {
+          rule_id: "tier2.rate_cap",
+          rule_text: `at most ${EXTERNAL_WRITE_CAPS.postsPerDay} external posts a day`,
+        },
+        `external_post by ${agentId}`
+      );
+    }
+    window.push(now);
+    this.posts.set(agentId, window);
+  }
+
+  checkReply(agentId: string, now = Date.now()): void {
+    const window = (this.replies.get(agentId) ?? []).filter((t) => now - t < 3_600_000);
+    if (window.length >= EXTERNAL_WRITE_CAPS.repliesPerHour) {
+      throw new PolicyViolation(
+        {
+          rule_id: "tier2.rate_cap",
+          rule_text: `at most ${EXTERNAL_WRITE_CAPS.repliesPerHour} external replies an hour`,
+        },
+        `external_reply by ${agentId}`
+      );
+    }
+    window.push(now);
+    this.replies.set(agentId, window);
+  }
+}
+
+/** tier-2 ui maps: where the compose surfaces live per write-capable
+ * domain. selectors are validated against the real ui when the tier
+ * flips; until then this is shape, exercised only by tests (which may
+ * add entries for local fixtures). */
+export const WRITE_UI: Record<string, { composeUrl: string; textbox: string; submit: string }> = {
+  "bsky.app": {
+    composeUrl: "https://bsky.app/",
+    textbox: 'div[role="textbox"]',
+    submit: 'button[aria-label="Publish post"]',
+  },
+};
 
 export class BrowserDriver {
   private readonly opts: DriverOptions;
   private readonly busySet = new Set<string>();
+  private readonly writeLimiter = new WriteLimiter();
+  private readonly disclosureVerified = new Set<string>();
 
   constructor(opts: DriverOptions) {
     this.opts = opts;
@@ -125,11 +202,12 @@ export class BrowserDriver {
     agentId: string,
     url: string,
     dwellMs = 20_000
-  ): Promise<{ landed: string; detour: boolean }> {
+  ): Promise<{ landed: string; detour: boolean; external?: ExternalReadResult }> {
     return this.withBusy(agentId, async () => {
       const page = this.page(agentId);
       let landed = url;
       let detour = false;
+      let external: ExternalReadResult | undefined;
       const postUrl = /^\/t\/([a-z0-9-]+)\/posts\/([A-Za-z0-9_]+)$/.exec(url);
       if (postUrl) {
         try {
@@ -139,17 +217,114 @@ export class BrowserDriver {
           landed = err.landedUrl;
           detour = true;
         }
+      } else if (/^https?:\/\//i.test(url)) {
+        external = await this.readExternal(page, url, dwellMs);
+        landed = url;
       } else {
-        const target = url.startsWith("http") ? url : `${this.opts.baseUrl}${url}`;
-        await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
+        await page.goto(`${this.opts.baseUrl}${url}`, {
+          waitUntil: "domcontentloaded",
+          timeout: 30_000,
+        });
       }
       const steps = 6;
       for (let i = 0; i < steps; i++) {
         await this.pace(dwellMs / steps);
         await page.mouse.wheel(0, 120 + Math.random() * 160).catch(() => undefined);
       }
-      return { landed, detour };
+      return { landed, detour, ...(external ? { external } : {}) };
     });
+  }
+
+  /**
+   * tier-1 reading, on camera: strictly read-only outside the terrarium.
+   * scroll and follow same-domain article links only, human pace; never
+   * a form, never a login/subscribe link (and the runtime additionally
+   * blocks non-GET requests to foreign origins at the network layer).
+   * the driver re-checks the allowlist even though the policy chokepoint
+   * already did: defense in depth on the one surface that leaves home.
+   */
+  private async readExternal(
+    page: Page,
+    url: string,
+    dwellMs: number
+  ): Promise<ExternalReadResult> {
+    if (!this.opts.externalEnabled) {
+      throw new PolicyViolation(
+        {
+          rule_id: "tier1.sandbox",
+          rule_text: "external pages render only in a sandboxed browser",
+        },
+        `browse ${url}`
+      );
+    }
+    const host = new URL(url).hostname;
+    if (!hostAllowed(host, this.opts.readingAllowlist ?? [])) {
+      throw new PolicyViolation(
+        {
+          rule_id: "tier1.reading_allowlist",
+          rule_text: "reading happens on allowlisted domains only",
+        },
+        `browse ${host}`
+      );
+    }
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await this.pace(1500 + Math.random() * 1500); // arrive, settle
+    const title = (await page.title().catch(() => "")) || host;
+    // one short phrase is all a page may contribute; material, not voice
+    const phrase = (
+      (await page
+        .locator("p")
+        .first()
+        .textContent({ timeout: 3000 })
+        .catch(() => "")) ?? ""
+    )
+      .trim()
+      .replace(/\s+/g, " ")
+      .slice(0, EXTERNAL_PHRASE_MAX);
+
+    // maybe follow one same-domain article link, like a reader would
+    if (Math.random() < 0.6) {
+      const next = await page
+        .evaluate(
+          ({ forbidden }) => {
+            const here = window.location.hostname;
+            const anchors = Array.from(document.querySelectorAll("a[href]"))
+              .map((a) => ({
+                href: (a as HTMLAnchorElement).href,
+                text: (a.textContent ?? "").trim(),
+              }))
+              .filter((a) => {
+                try {
+                  const u = new URL(a.href);
+                  return (
+                    u.hostname === here &&
+                    /^https?:$/.test(u.protocol) &&
+                    a.text.length > 8 &&
+                    !new RegExp(forbidden, "i").test(a.text) &&
+                    !new RegExp(forbidden, "i").test(a.href)
+                  );
+                } catch {
+                  return false;
+                }
+              });
+            return anchors.length > 0
+              ? (anchors[Math.floor(Math.random() * anchors.length)]?.href ?? null)
+              : null;
+          },
+          { forbidden: FORBIDDEN_LINK.source }
+        )
+        .catch(() => null);
+      // a url found in page content is followed only if it is itself on
+      // the allowlist; same-domain filtering above makes this a
+      // tautology today, and the explicit check keeps it true forever
+      if (next && hostAllowed(new URL(next).hostname, this.opts.readingAllowlist ?? [])) {
+        await this.pace(dwellMs / 3);
+        await page
+          .goto(next, { waitUntil: "domcontentloaded", timeout: 45_000 })
+          .catch(() => undefined);
+      }
+    }
+    return { domain: host, title: title.slice(0, 120), phrase };
   }
 
   /** write and publish a post through the real compose form; the browser
@@ -181,6 +356,75 @@ export class BrowserDriver {
       if (!match) throw new Error("publish did not land on the post page");
       return { id: match[1] as string, url: `/t/${tenant}/posts/${match[1]}` };
     });
+  }
+
+  /**
+   * tier 2, dark: post on an external platform through its real ui at
+   * human pace. the policy chokepoint has already admitted the intent
+   * (so this never runs while TIER2_WRITE_ENABLED is false); the driver
+   * still enforces its own caps, verifies the profile carries the
+   * disclosure line before the first write of a boot, and types like a
+   * person. returns the post's url for the mirrored action event.
+   */
+  async externalPost(
+    agentId: string,
+    domain: string,
+    text: string,
+    profileUrl?: string
+  ): Promise<{ url: string | null }> {
+    this.writeLimiter.checkPost(agentId);
+    const ui = WRITE_UI[domain.toLowerCase()];
+    if (!ui) {
+      throw new PolicyViolation(
+        { rule_id: "tier2.write_allowlist", rule_text: "no ui map for this domain" },
+        `external_post on ${domain}`
+      );
+    }
+    return this.withBusy(agentId, async () => {
+      const page = this.page(agentId);
+      await this.verifyDisclosure(page, agentId, domain, profileUrl);
+      await page.goto(ui.composeUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await this.pace(2000 + Math.random() * 2000);
+      await this.humanType(page, ui.textbox, text);
+      await this.pace(1500 + Math.random() * 1500); // the reread
+      await page.click(ui.submit);
+      await this.pace(2000);
+      return { url: page.url().startsWith("http") ? page.url() : null };
+    });
+  }
+
+  /** the bio contract is enforced, not promised: before the first
+   * external write of a boot, the driver reads the agent's own profile
+   * and refuses to write anywhere a disclosure line is missing */
+  private async verifyDisclosure(
+    page: Page,
+    agentId: string,
+    domain: string,
+    profileUrl?: string
+  ): Promise<void> {
+    const key = `${agentId}:${domain}`;
+    if (this.disclosureVerified.has(key)) return;
+    if (!profileUrl) {
+      throw new PolicyViolation(
+        {
+          rule_id: "tier2.disclosure",
+          rule_text: "external writing requires a verified disclosed profile",
+        },
+        `external write on ${domain} with no profile to verify`
+      );
+    }
+    await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    const body = (await page.textContent("body").catch(() => "")) ?? "";
+    if (!/autonomous identity/i.test(body) || !/mortal\.systems/i.test(body)) {
+      throw new PolicyViolation(
+        {
+          rule_id: "tier2.disclosure",
+          rule_text: 'profile bios must carry "autonomous identity · mortal.systems" and link home',
+        },
+        `external write on ${domain}`
+      );
+    }
+    this.disclosureVerified.add(key);
   }
 
   /** reply to a human in the real comment form on the real post page,

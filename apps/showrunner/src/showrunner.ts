@@ -75,7 +75,14 @@ export class TargetGoneError extends Error {
 
 export interface ActDriver {
   busy(agentId: string): boolean;
-  openPage(agentId: string, url: string): Promise<{ landed: string; detour: boolean }>;
+  openPage(
+    agentId: string,
+    url: string
+  ): Promise<{
+    landed: string;
+    detour: boolean;
+    external?: { domain: string; title: string; phrase: string };
+  }>;
   publishPost(
     agentId: string,
     tenant: string,
@@ -562,6 +569,46 @@ export class Showrunner {
           agent.memory.push(`wrote to ${this.names[act.to_agent] ?? act.to_agent}`);
           return;
         }
+        case "external_post": {
+          // tier 2, dark: this checkAction refuses with tier2.dark until
+          // the flip, and the refusal is a public enforcement event; when
+          // the tier is live it admits only capability-granted domains
+          checkAction({ type: "external_post", domain: act.domain }, this.flags);
+          this.emitState(agent.agent_id, "writing", act.domain);
+          const posted = await (this.driver as ActDriver & {
+            externalPost?: (
+              agentId: string,
+              domain: string,
+              text: string
+            ) => Promise<{ url: string | null }>;
+          })?.externalPost?.(agent.agent_id, act.domain, act.text);
+          this.store.append({
+            agent_id: agent.agent_id,
+            kind: "action",
+            visibility: "public",
+            primitive: "driver.compose()",
+            payload: {
+              verb: "published_post",
+              target_url: posted?.url ?? `https://${act.domain}`,
+              title: `on ${act.domain}`,
+            },
+          });
+          agent.memory.push(`posted on ${act.domain}`);
+          return;
+        }
+        case "external_reply": {
+          checkAction({ type: "external_reply", domain: act.domain }, this.flags);
+          this.emitState(agent.agent_id, "replying", act.domain);
+          this.store.append({
+            agent_id: agent.agent_id,
+            kind: "action",
+            visibility: "public",
+            primitive: "driver.reply()",
+            payload: { verb: "left_comment", target_url: act.target_url },
+          });
+          agent.memory.push(`replied on ${act.domain}`);
+          return;
+        }
         case "open_page": {
           checkAction({ type: "browse", url: act.url }, this.flags);
           this.emitState(agent.agent_id, "reading", act.title);
@@ -579,6 +626,16 @@ export class Showrunner {
               // actually ended up, never where they meant to go
               landedUrl = landing.landed;
               landedTitle = "a page that was gone";
+            } else if (landing?.external) {
+              // external reads surface honestly: real domain, real title,
+              // one capped phrase as material for later thought
+              landedTitle = `${landing.external.domain}: ${landing.external.title}`;
+              this.emitState(agent.agent_id, "reading", landedTitle);
+              agent.reading.push(
+                `read on ${landing.external.domain}: ${landing.external.title}${
+                  landing.external.phrase ? `. one line that stayed: "${landing.external.phrase}"` : ""
+                }`
+              );
             }
           }
           this.store.append({
@@ -701,6 +758,36 @@ export class Showrunner {
   private serialMembersList: CastMember[] = [];
   registerSerialMember(member: CastMember): void {
     if (!this.serialMembersList.includes(member)) this.serialMembersList.push(member);
+  }
+
+  private externalReadDays = new Map<string, string>();
+
+  /**
+   * the scheduler places conditions, never scripts: each persona gets 1-2
+   * external reads a day from its own in-character list, performed as
+   * ordinary open_page acts through the policy chokepoint and the driver,
+   * so refusals and reads land on the record like everything else. runs
+   * only when the sandbox earned external browsing at boot; skips
+   * sleepers and agents mid-act.
+   */
+  async assignDailyReading(now: Date = this.now()): Promise<void> {
+    if (!(this.flags.externalBrowsing ?? false)) return;
+    const day = now.toISOString().slice(0, 10);
+    const dayIndex = Math.floor(now.getTime() / 86_400_000);
+    for (const agent of [...this.live.values()]) {
+      const list = agent.member.external_reading ?? [];
+      if (list.length === 0) continue;
+      if (this.externalReadDays.get(agent.agent_id) === day) continue;
+      if (isAsleep(agent.member, now)) continue;
+      if (this.driver?.busy(agent.agent_id)) continue;
+      this.externalReadDays.set(agent.agent_id, day);
+      const count = list.length > 2 && dayIndex % 2 === 0 ? 2 : 1;
+      for (let i = 0; i < count; i++) {
+        const url = list[(dayIndex + i) % list.length] as string;
+        const title = new URL(url).hostname;
+        await this.performAct(agent, { kind: "open_page", url, title });
+      }
+    }
   }
   private *serialMembers(): Iterable<CastMember> {
     yield* this.serialMembersList;
