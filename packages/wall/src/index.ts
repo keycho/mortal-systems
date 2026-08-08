@@ -5,6 +5,7 @@ export {
   ACTION_VERBS,
   DEATH_CAUSES,
   MONOLOGUE_MAX_CHARS,
+  NARRATION_MAX_CHARS,
   MAX_INHERITED_FRAGMENTS,
   PAYLOAD_SCHEMAS,
   RECEIPT_KINDS,
@@ -27,14 +28,25 @@ export { WallStore } from "./store.js";
 export type { ListOptions } from "./store.js";
 export { humanizeEvent, humanizeSeconds } from "./humanize.js";
 export {
+  PANEL_TAGS,
   agentNow,
   depthScore,
   displayNameFromId,
+  nowLine,
+  panelEntries,
   recap,
   recapFallback,
+  tagFor,
   tickerLines,
 } from "./read.js";
-export type { AgentNow, DepthInputs, RecapSummarizer, TickerLine } from "./read.js";
+export type {
+  AgentNow,
+  DepthInputs,
+  PanelEntry,
+  PanelTag,
+  RecapSummarizer,
+  TickerLine,
+} from "./read.js";
 export {
   DIRECTOR_EVENT_WINDOW_MS,
   SPOTLIGHT_SECONDS,

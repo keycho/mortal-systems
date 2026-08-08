@@ -4,8 +4,9 @@
  * versa. a warm near-black room; the browser surfaces inside the frames
  * render light, and that contrast is deliberate: streams are never
  * darkened, tinted or dimmed (handoff §7). the site draws only the status
- * bar, the ttl and the monologue caption; everything else in a frame is
- * captured video.
+ * bar and the ttl; everything else in a frame is captured video, and
+ * agent text lives in surface B (the gate's spotlight bar, the watch
+ * page's reasoning panel), never on a frame.
  *
  * the two faces come from the product site's own stacks (--font-display,
  * --font-mono in tokens.css), so the wall and the site can never drift.
@@ -85,7 +86,7 @@
   padding: 64px var(--w-margin-x) 0;
 }
 
-/* ---- a cell: the frame, plus the caption slot beneath it ---- */
+/* ---- a cell: the frame, and only the frame ---- */
 .wall-cell {
   display: flex;
   flex-direction: column;
@@ -245,28 +246,22 @@
   }
 }
 
-/* §3 the caption slot: one monologue at a time, 9px below its speaker */
-.wall-capslot {
+/* §3 the spotlight bar (surface B on the gate): one monologue at a time
+   for the whole wall, a gate-level element beneath the grid, never on a
+   frame. it keeps the caption slot's fixed height and its 0.8s fade, so
+   a caption arriving or leaving never moves the wire or the foot. */
+.wall-spotlight {
+  position: relative;
+  z-index: 2;
   height: var(--w-cap-slot);
-  margin-top: 9px;
+  margin: 14px var(--w-margin-x) 0;
   overflow: hidden;
 }
-/* a caption is a line and, when the identity does not think in english,
-   a smaller reading under it. the line keeps the amber and the size: a
-   japanese cell should read as japanese at a glance, which is the whole
-   visual point of having a tokyo identity at all. */
-.wall-caption .line {
-  display: block;
-}
-.wall-caption .gloss {
-  display: block;
-  margin-top: 3px;
-  font-size: 10px;
-  line-height: 1.35;
-  color: var(--w-dim);
-  opacity: 0.85;
-}
-.wall-caption {
+/* the spotline is a name, a line and, when the identity does not think
+   in english, a smaller reading under it. the line keeps the amber and
+   the size: a japanese line should read as japanese at a glance, which
+   is the whole visual point of having a tokyo identity at all. */
+.wall-spotline {
   font-size: 12px;
   line-height: 1.5;
   color: var(--w-amber);
@@ -277,8 +272,19 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.wall-caption.out {
+.wall-spotline.out {
   opacity: 0;
+}
+.wall-spotline .who {
+  color: var(--w-at);
+  margin-right: 10px;
+}
+.wall-spotline .gloss {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.85;
 }
 
 /* ---- §5 the wire strip ---- */
@@ -311,7 +317,8 @@
   color: var(--w-wire);
   white-space: nowrap;
 }
-.wall-wirestrip .entry.monologue {
+.wall-wirestrip .entry.monologue,
+.wall-wirestrip .entry.narration {
   color: var(--w-amber);
 }
 @keyframes wall-wire {
@@ -410,6 +417,114 @@
   color: var(--w-bone);
   border-color: var(--w-bone);
 }
+/* ---- surface B: the reasoning panel (watch) ----
+   the NOW intent line over a dense timestamped record of READ / WENT /
+   THOUGHT / WROTE lines, under the hero's frame and never inside it.
+   mortal-gate tokens only; spend and every other operating figure stay
+   in /health, off this surface. */
+.wall-panelrow {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+.wall-panel {
+  position: relative;
+  z-index: 2; /* above the page grain, like every other text surface */
+  width: var(--w-stage);
+  border: 1px solid var(--w-border);
+  background: var(--w-frame);
+}
+.wall-now {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 14px 0;
+}
+.wall-now .label {
+  flex: none;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--w-at);
+}
+.wall-now .intent-block {
+  min-width: 0;
+}
+.wall-now .intent {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--w-amber);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.wall-now .intent.quiet {
+  color: var(--w-state);
+}
+.wall-now .gloss {
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--w-at);
+}
+.wall-record {
+  margin-top: 12px;
+  border-top: 1px solid var(--w-hair);
+  padding: 8px 0 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.wall-record .entry {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--w-wire);
+}
+.wall-record .t {
+  flex: none;
+  font-size: 10px;
+  color: var(--w-at);
+  font-variant-numeric: tabular-nums;
+}
+.wall-record .tag {
+  flex: none;
+  width: 56px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--w-text-2);
+}
+.wall-record .entry.WENT .tag {
+  color: var(--w-at);
+}
+.wall-record .entry.THOUGHT .tag,
+.wall-record .entry.THOUGHT .text {
+  color: var(--w-amber);
+}
+.wall-record .entry.WROTE .tag {
+  color: var(--w-orange);
+}
+.wall-record .text {
+  min-width: 0;
+}
+.wall-record .text .about {
+  color: var(--w-at);
+  font-size: 10px;
+}
+.wall-record .text .gloss {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+.wall-record-empty {
+  padding: 4px 14px;
+  color: var(--w-at);
+}
+
 /* the rest of the cast, on the gate's grid: even columns, even gaps */
 .wall-grid-rest {
   width: var(--w-stage);
@@ -476,7 +591,8 @@
 .wall-wire .line.death {
   color: var(--w-red);
 }
-.wall-wire .line.monologue {
+.wall-wire .line.monologue,
+.wall-wire .line.narration {
   color: var(--w-amber);
 }
 .wall-wire .line.human_contact {
@@ -643,22 +759,7 @@
   .wall-wirestrip .track {
     animation: none;
   }
-  /* a caption is a line and, when the identity does not think in english,
-   a smaller reading under it. the line keeps the amber and the size: a
-   japanese cell should read as japanese at a glance, which is the whole
-   visual point of having a tokyo identity at all. */
-.wall-caption .line {
-  display: block;
-}
-.wall-caption .gloss {
-  display: block;
-  margin-top: 3px;
-  font-size: 10px;
-  line-height: 1.35;
-  color: var(--w-dim);
-  opacity: 0.85;
-}
-.wall-caption {
+  .wall-spotline {
     transition: none;
   }
 }
@@ -694,23 +795,11 @@
   .wall-activity .at-line {
     font-size: 10.5px;
   }
-  /* a caption is a line and, when the identity does not think in english,
-   a smaller reading under it. the line keeps the amber and the size: a
-   japanese cell should read as japanese at a glance, which is the whole
-   visual point of having a tokyo identity at all. */
-.wall-caption .line {
-  display: block;
-}
-.wall-caption .gloss {
-  display: block;
-  margin-top: 3px;
-  font-size: 10px;
-  line-height: 1.35;
-  color: var(--w-dim);
-  opacity: 0.85;
-}
-.wall-caption {
+  .wall-spotline {
     font-size: 11.5px;
+  }
+  .wall-record .entry {
+    font-size: 10.5px;
   }
   .wall-more {
     display: block;

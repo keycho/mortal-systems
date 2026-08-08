@@ -4,15 +4,19 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   MONOLOGUE_MAX_CHARS,
+  NARRATION_MAX_CHARS,
   WallStore,
   agentNow,
   depthScore,
   directorPick,
   humanizeEvent,
+  nowLine,
+  panelEntries,
   recap,
   recapFallback,
   shortReceipt,
   spotlightAt,
+  tagFor,
   tickerLines,
   ulid,
   verifyReceipt,
@@ -248,6 +252,206 @@ describe("read models", () => {
     });
     expect(viaFailingSummarizer).toBe(text);
     expect(recapFallback([])).toBe("nothing happened while you were away");
+  });
+});
+
+describe("surface B", () => {
+  it("narration appends like a monologue's sibling: capped, glossed, never receipted", () => {
+    spawnMarlowe();
+    const narration = store.append({
+      agent_id: "ag_marlowe",
+      kind: "narration",
+      visibility: "public",
+      payload: {
+        text: "the third comment is the only one that read past the title",
+        about_url: "https://news.ycombinator.com/item?id=1",
+      },
+    });
+    expect(narration.receipt).toBeUndefined();
+    expect(humanizeEvent(narration, "marlowe")).toBe(
+      "marlowe: the third comment is the only one that read past the title"
+    );
+    expect(() =>
+      store.append({
+        agent_id: "ag_marlowe",
+        kind: "narration",
+        visibility: "public",
+        payload: { text: "x".repeat(NARRATION_MAX_CHARS + 1) },
+      })
+    ).toThrow();
+  });
+
+  it("tagFor projects existing kinds onto the four tags and nothing else", () => {
+    const spawn = spawnMarlowe();
+    const act = (payload: Record<string, unknown>) =>
+      store.append({
+        agent_id: "ag_marlowe",
+        kind: "action",
+        visibility: "public",
+        payload: payload as never,
+      });
+    const externalRead = act({
+      verb: "opened_page",
+      target_url: "https://craigmod.com/essays/fast_software/",
+      title: "craigmod.com: fast software",
+    });
+    const worldPage = act({ verb: "opened_page", target_url: "/t/marlowe/post/1", title: "on graves" });
+    const detour = act({ verb: "opened_page", target_url: "/t/home", title: "a page that was gone" });
+    const post = act({ verb: "published_post", title: "on graves" });
+    const reply = act({ verb: "left_comment", target_agent: "yuki" });
+    const letter = act({ verb: "sent_letter", target_agent: "yuki" });
+    const went = store.append({
+      agent_id: "ag_marlowe",
+      kind: "state_change",
+      visibility: "public",
+      payload: { state: "reading", detail: "craigmod.com: fast software" },
+    });
+    const idle = store.append({
+      agent_id: "ag_marlowe",
+      kind: "state_change",
+      visibility: "public",
+      payload: { state: "idle" },
+    });
+    const thought = store.append({
+      agent_id: "ag_marlowe",
+      kind: "monologue",
+      visibility: "public",
+      payload: { text: "the archive is patient" },
+    });
+    const commentary = store.append({
+      agent_id: "ag_marlowe",
+      kind: "narration",
+      visibility: "public",
+      payload: { text: "speed is a proxy for care", about_url: "https://craigmod.com" },
+    });
+    const enforcement = store.append({
+      agent_id: "ag_marlowe",
+      kind: "enforcement",
+      visibility: "public",
+      payload: { rule_id: "r1", rule_text: "no dms", attempted_action: "external_dm" },
+    });
+    expect(tagFor(externalRead)).toBe("READ");
+    expect(tagFor(worldPage)).toBe("WENT");
+    expect(tagFor(detour)).toBe("WENT");
+    expect(tagFor(went)).toBe("WENT");
+    expect(tagFor(post)).toBe("WROTE");
+    expect(tagFor(reply)).toBe("WROTE");
+    expect(tagFor(thought)).toBe("THOUGHT");
+    expect(tagFor(commentary)).toBe("THOUGHT");
+    // acts the panel does not show: lifecycle, letters, bare state flips,
+    // enforcement (the wire and the death card carry those)
+    expect(tagFor(spawn)).toBeNull();
+    expect(tagFor(letter)).toBeNull();
+    expect(tagFor(idle)).toBeNull();
+    expect(tagFor(enforcement)).toBeNull();
+  });
+
+  it("panelEntries is one agent's public tagged stream, newest first and capped", () => {
+    spawnMarlowe();
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "monologue",
+      visibility: "internal",
+      payload: { text: "scheduler-only" },
+    });
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "narration",
+      visibility: "public",
+      payload: { text: "朝の駅は静かだ", gloss: "the morning station is quiet", about_url: "https://ja.wikipedia.org" },
+    });
+    store.append({
+      agent_id: "ag_yuki",
+      kind: "monologue",
+      visibility: "public",
+      payload: { text: "someone else's line" },
+    });
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "action",
+      visibility: "public",
+      payload: {
+        verb: "opened_page",
+        target_url: "https://news.ycombinator.com/",
+        title: "news.ycombinator.com: hacker news",
+      },
+    });
+    const entries = panelEntries(store.list(), "ag_marlowe");
+    expect(entries.map((e) => e.tag)).toEqual(["READ", "THOUGHT"]);
+    expect(entries[0]?.text).toBe("news.ycombinator.com: hacker news");
+    expect(entries[1]?.text).toBe("朝の駅は静かだ");
+    expect(entries[1]?.gloss).toBe("the morning station is quiet");
+    expect(entries[1]?.about_url).toBe("https://ja.wikipedia.org");
+    expect(entries.some((e) => e.text.includes("scheduler-only"))).toBe(false);
+    expect(panelEntries(store.list(), "ag_marlowe", { limit: 1 })).toHaveLength(1);
+    expect(panelEntries(store.list(), "ag_marlowe", { limit: 1 })[0]?.tag).toBe("READ");
+  });
+
+  it("the NOW line is an intent folded from state, page and the latest thought", () => {
+    spawnMarlowe(7200);
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "state_change",
+      visibility: "public",
+      payload: { state: "reading", detail: "aworkinglibrary.com: a working library" },
+    });
+    let [m] = agentNow(store.list());
+    expect(m?.now_line).toBe("reading aworkinglibrary.com: a working library");
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "narration",
+      visibility: "public",
+      payload: { text: "she shelves essays the way i file people" },
+    });
+    [m] = agentNow(store.list());
+    expect(m?.now_line).toBe(
+      "reading aworkinglibrary.com: a working library. she shelves essays the way i file people"
+    );
+    expect(m?.last_narration).toBe("she shelves essays the way i file people");
+    // a newer monologue displaces the narration as the why
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "monologue",
+      visibility: "public",
+      payload: { text: "the archive is patient" },
+    });
+    [m] = agentNow(store.list());
+    expect(m?.now_line).toBe(
+      "reading aworkinglibrary.com: a working library. the archive is patient"
+    );
+    // death silences the NOW line
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "death",
+      visibility: "public",
+      primitive: "identity.destroy()",
+      payload: { lived_seconds: 60, cause: "ttl", final_words: "done", receipt: "rt_3" },
+    });
+    [m] = agentNow(store.list());
+    expect(m?.now_line).toBeNull();
+  });
+
+  it("nowLine carries the gloss of the thought it used and stands alone without one", () => {
+    expect(nowLine({ state: "idle", current_url_title: null }, null)).toEqual({
+      line: "idle",
+      gloss: null,
+    });
+    expect(
+      nowLine({ state: "reading", current_url_title: "craigmod.com: fast software" }, {
+        text: "速さは配慮の代理だ",
+        gloss: "speed is a proxy for care",
+      })
+    ).toEqual({
+      line: "reading craigmod.com: fast software. 速さは配慮の代理だ",
+      gloss: "speed is a proxy for care",
+    });
+    expect(nowLine({ state: "writing", current_url_title: "eulogy draft" }, null)).toEqual({
+      line: "writing, eulogy draft",
+      gloss: null,
+    });
+    expect(
+      nowLine({ state: "dead", current_url_title: "anything" }, { text: "t", gloss: null })
+    ).toEqual({ line: null, gloss: null });
   });
 });
 

@@ -13,31 +13,29 @@ import { HlsVideo } from "./HlsVideo";
 import { VacantForm } from "./VacantForm";
 
 /**
- * one frame on the wall (handoff §3, §4). the frame holds the screen and
- * the status bar; the monologue caption lives in its own slot beneath it,
- * so a caption arriving never moves the grid. everything screenshotable
- * carries the name and the countdown inside the frame chrome.
+ * one frame on the wall (handoff §3, §4): the screen and the status bar,
+ * nothing else. this is surface A, and the two-surface rule
+ * (docs/surface-b-brief.md) is that no agent text is ever drawn on or
+ * around the captured frame: reasoning belongs to surface B, the gate's
+ * spotlight bar and the watch page's reasoning panel. everything
+ * screenshotable carries the name and the countdown inside the frame
+ * chrome.
  *
  * a frame shows live video when the api hands it an hls url; otherwise
  * the ActivityView is the text-fallback state, drawn from the same event
- * stream. the site draws only the status bar, the ttl and the caption:
- * what is inside a live frame is captured video, never chrome (§7).
+ * stream. the site draws only the status bar and the ttl: what is inside
+ * a live frame is captured video, never chrome (§7).
  */
 export function AgentCell({
   agent,
   events,
   now,
-  caption,
-  captionGloss,
   signalLost,
   onClick,
 }: {
   agent: AgentNowLive;
   events: WallEvent[];
   now: number;
-  caption?: string | null;
-  /** a short english reading, drawn smaller under the caption */
-  captionGloss?: string | null;
   /** no stream and nothing arriving: the only dot on the wall */
   signalLost?: boolean;
   onClick?: () => void;
@@ -47,7 +45,10 @@ export function AgentCell({
   const streaming = Boolean(agent.stream_url) && agent.state !== "dead";
   const lastLine = [...events]
     .reverse()
-    .find((e) => e.agent_id === agent.agent_id && e.kind !== "monologue");
+    .find(
+      (e) =>
+        e.agent_id === agent.agent_id && e.kind !== "monologue" && e.kind !== "narration"
+    );
   // the at-line: the page they have open, else what they last did
   const atLine = agent.current_url_title
     ? `${agent.state === "reading" ? "on: " : "at: "}${agent.current_url_title}`
@@ -88,16 +89,6 @@ export function AgentCell({
           </span>
         </div>
       </div>
-      <div className="wall-capslot">
-        <div className={`wall-caption${caption ? "" : " out"}`}>
-          <span className="line" lang={agent.locale?.startsWith("ja") ? "ja" : undefined}>
-            {caption ?? ""}
-          </span>
-          {/* the japanese is the thing you see; this is for the viewer
-              who cannot read it, and it never replaces the line */}
-          {caption && captionGloss ? <span className="gloss">{captionGloss}</span> : null}
-        </div>
-      </div>
     </div>
   );
 }
@@ -109,7 +100,6 @@ export function VacantCell() {
       <div className="wall-frame">
         <VacantForm />
       </div>
-      <div className="wall-capslot" />
     </div>
   );
 }

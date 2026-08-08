@@ -10,12 +10,14 @@ import {
 } from "@mortal/wall/browser";
 import { useRecap, useWall } from "../../lib/wall-client";
 import { AgentCell } from "./AgentCell";
+import { ReasoningPanel } from "./ReasoningPanel";
 
 /**
  * the watch page (wall spec section 6): director cam with the tested
- * auto-cut priority, manual pin by clicking a small cell, the amber
- * monologue bar, the wire, and the "show the machine" annotation overlay
- * that prints the runtime primitive and receipt behind each event.
+ * auto-cut priority, manual pin by clicking a small cell, the reasoning
+ * panel (surface B) under the hero's frame, the wire, and the "show the
+ * machine" annotation overlay that prints the runtime primitive and
+ * receipt behind each event.
  */
 
 const WIRE_LINES = 20;
@@ -63,18 +65,19 @@ export function Watch() {
         {/* the hero: one frame, given the room a director's cut deserves */}
         <section className="wall-stage">
           {hero ? (
-            <AgentCell
-              agent={hero}
-              events={events}
-              now={now}
-              caption={hero.last_monologue ?? null}
-              captionGloss={hero.last_monologue_gloss ?? null}
-              signalLost={!connected}
-            />
+            <AgentCell agent={hero} events={events} now={now} signalLost={!connected} />
           ) : (
             <div className="wall-frame wall-frame-empty">nobody is on camera yet</div>
           )}
         </section>
+
+        {/* surface B, under the hero's cell: the NOW intent line and the
+            tagged record. the side-by-side layout is a later checkpoint */}
+        {hero ? (
+          <section className="wall-panelrow">
+            <ReasoningPanel agent={hero} events={events} />
+          </section>
+        ) : null}
 
         <div className="wall-stagebar">
           <button className={showMachine ? "on" : ""} onClick={() => setShowMachine((v) => !v)}>

@@ -33,6 +33,18 @@ export interface AgentNow {
   /** a short english reading of last_monologue, when the identity does
    * not think in english. shown under the line, never instead of it. */
   last_monologue_gloss?: string | null;
+  last_narration: string | null;
+  /** same contract as last_monologue_gloss, for the narration */
+  last_narration_gloss?: string | null;
+  /** the page the latest narration says it is about, when it says so */
+  last_narration_about?: string | null;
+  /** surface B's NOW line: what the agent is doing and why, one
+   * sentence, folded from state, the open page and the latest thought
+   * (narration or monologue, whichever spoke last). an intent, not a
+   * status word. */
+  now_line: string | null;
+  /** english reading of the thought inside now_line, when it has one */
+  now_gloss?: string | null;
   current_url_title: string | null;
   last_event_id: string | null;
   inherited_fragments: string[];
@@ -48,6 +60,9 @@ export function agentNow(
   const now = opts.now ?? new Date();
   const byAgent = new Map<string, AgentNow>();
   const diesAt = new Map<string, number>();
+  // the latest thought of either kind, for the NOW line: a fresh
+  // monologue outranks an old narration and the other way round
+  const lastThought = new Map<string, { text: string; gloss: string | null }>();
 
   for (const event of events) {
     let agent = byAgent.get(event.agent_id);
@@ -66,6 +81,11 @@ export function agentNow(
         final_hour: false,
         last_monologue: null,
         last_monologue_gloss: null,
+        last_narration: null,
+        last_narration_gloss: null,
+        last_narration_about: null,
+        now_line: null,
+        now_gloss: null,
         current_url_title: null,
         last_event_id: null,
         inherited_fragments: [],
@@ -106,6 +126,15 @@ export function agentNow(
         const p = event.payload as PayloadFor<"monologue">;
         agent.last_monologue = p.text;
         agent.last_monologue_gloss = p.gloss ?? null;
+        lastThought.set(event.agent_id, { text: p.text, gloss: p.gloss ?? null });
+        break;
+      }
+      case "narration": {
+        const p = event.payload as PayloadFor<"narration">;
+        agent.last_narration = p.text;
+        agent.last_narration_gloss = p.gloss ?? null;
+        agent.last_narration_about = p.about_url ?? null;
+        lastThought.set(event.agent_id, { text: p.text, gloss: p.gloss ?? null });
         break;
       }
       case "death": {
@@ -134,8 +163,140 @@ export function agentNow(
       agent.ttl_label = humanizeSeconds(remaining);
       agent.final_hour = remaining < 3600;
     }
+    const derived = nowLine(agent, lastThought.get(agent.agent_id) ?? null);
+    agent.now_line = derived.line;
+    agent.now_gloss = derived.gloss;
   }
   return [...byAgent.values()];
+}
+
+/**
+ * the NOW derivation, pure in (folded agent, latest thought): the doing
+ * half comes from state and the open page, the why half is the latest
+ * narration or monologue. joined with a period, lowercase, one line;
+ * either half stands alone when the other is missing.
+ */
+export function nowLine(
+  agent: Pick<AgentNow, "state" | "current_url_title">,
+  thought: { text: string; gloss: string | null } | null
+): { line: string | null; gloss: string | null } {
+  if (agent.state === "dead" || agent.state === "unborn") return { line: null, gloss: null };
+  const page = agent.current_url_title;
+  const doing =
+    agent.state === "reading" && page
+      ? `reading ${page}`
+      : agent.state === "writing" && page
+        ? `writing, ${page}`
+        : agent.state === "replying" && page
+          ? `replying, ${page}`
+          : agent.state;
+  if (!thought) return { line: doing, gloss: null };
+  return { line: `${doing}. ${thought.text}`, gloss: thought.gloss };
+}
+
+// ---- surface B: the reasoning panel's projection ----
+
+/** the panel's four tags: a projection of existing event kinds computed
+ * here in the read model, never a field on the events themselves */
+export const PANEL_TAGS = ["READ", "WENT", "THOUGHT", "WROTE"] as const;
+export type PanelTag = (typeof PANEL_TAGS)[number];
+
+/**
+ * which tag an event renders under, or null for events the panel does
+ * not show. READ is an external read; WENT is movement, a page inside
+ * the world or a navigation detour landing; THOUGHT is the agent's
+ * voice; WROTE is a post or a comment reply.
+ */
+export function tagFor(event: WallEvent): PanelTag | null {
+  switch (event.kind) {
+    case "monologue":
+    case "narration":
+      return "THOUGHT";
+    case "action": {
+      const p = event.payload as PayloadFor<"action">;
+      switch (p.verb) {
+        case "opened_page":
+          // the humanizer's own test for an external read; anything else
+          // (a world page, a detour landing) is movement
+          return p.target_url && /^https?:\/\//i.test(p.target_url) ? "READ" : "WENT";
+        case "published_post":
+        case "left_comment":
+          return "WROTE";
+        default:
+          return null;
+      }
+    }
+    case "state_change": {
+      // arriving on a page as a state: reading with the page named
+      const p = event.payload as PayloadFor<"state_change">;
+      return p.state === "reading" && p.detail ? "WENT" : null;
+    }
+    default:
+      return null;
+  }
+}
+
+export interface PanelEntry {
+  id: string;
+  ts: string;
+  tag: PanelTag;
+  /** the object of the line: the page, the thought, the piece. the
+   * panel belongs to one agent, so no name prefix here. */
+  text: string;
+  /** english reading under a THOUGHT that is not in english */
+  gloss?: string;
+  /** the page a narration line says it is about */
+  about_url?: string;
+}
+
+/** the panel's stream for one agent: public events only, tagged lines
+ * only, newest first, capped */
+export function panelEntries(
+  events: WallEvent[],
+  agentId: string,
+  opts: { limit?: number } = {}
+): PanelEntry[] {
+  const limit = opts.limit ?? 60;
+  const entries: PanelEntry[] = [];
+  for (let i = events.length - 1; i >= 0 && entries.length < limit; i--) {
+    const event = events[i] as WallEvent;
+    if (event.agent_id !== agentId || event.visibility !== "public") continue;
+    const tag = tagFor(event);
+    if (!tag) continue;
+    entries.push({ id: event.id, ts: event.ts, tag, ...panelText(event) });
+  }
+  return entries;
+}
+
+function panelText(event: WallEvent): { text: string; gloss?: string; about_url?: string } {
+  switch (event.kind) {
+    case "monologue": {
+      const p = event.payload as PayloadFor<"monologue">;
+      return { text: p.text, ...(p.gloss ? { gloss: p.gloss } : {}) };
+    }
+    case "narration": {
+      const p = event.payload as PayloadFor<"narration">;
+      return {
+        text: p.text,
+        ...(p.gloss ? { gloss: p.gloss } : {}),
+        ...(p.about_url ? { about_url: p.about_url } : {}),
+      };
+    }
+    case "action": {
+      const p = event.payload as PayloadFor<"action">;
+      if (p.verb === "published_post")
+        return { text: p.title ? `published "${p.title}"` : "published a post" };
+      if (p.verb === "left_comment")
+        return { text: p.target_agent ? `a reply, for ${p.target_agent}` : "a reply" };
+      return { text: p.title ?? p.target_url ?? "a page" };
+    }
+    case "state_change": {
+      const p = event.payload as PayloadFor<"state_change">;
+      return { text: p.detail ?? p.state };
+    }
+    default:
+      return { text: event.kind };
+  }
 }
 
 export interface TickerLine {

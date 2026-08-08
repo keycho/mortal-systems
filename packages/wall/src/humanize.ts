@@ -84,6 +84,12 @@ export function humanizeEvent(event: WallEvent, name?: string): string {
       const p = event.payload as PayloadFor<"monologue">;
       return `${who}: ${p.text}`;
     }
+    case "narration": {
+      // the agent's voice either way; the wire does not distinguish the
+      // inner line from commentary about a page
+      const p = event.payload as PayloadFor<"narration">;
+      return `${who}: ${p.text}`;
+    }
     case "enforcement": {
       const p = event.payload as PayloadFor<"enforcement">;
       return `the runtime blocked ${who}: ${p.rule_id}`;

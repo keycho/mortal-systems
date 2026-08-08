@@ -9,8 +9,9 @@ import { AgentCell, VacantCell } from "./AgentCell";
 /**
  * the gate (wall spec section 5, drawn to the "mortal gate" handoff): the
  * first thing anyone sees. framed screens with margin on a warm near-black
- * room, no nav, no feature copy. one monologue caption at a time in the
- * slot beneath its speaker; the count line is live; everything else is
+ * room, no nav, no feature copy. one monologue spotlight at a time for the
+ * whole wall, a gate-level bar beneath the grid (surface B: agent text is
+ * never drawn on a frame); the count line is live; everything else is
  * chrome. the frames themselves render the product site's light world,
  * and that contrast is the point.
  */
@@ -44,8 +45,8 @@ export function Gate() {
 
   const spotlight = useMemo(() => spotlightAt(events, new Date(now)), [events, now]);
 
-  // a final hour holds its caption for the whole hour; otherwise the
-  // spotlight rotates. either way exactly one caption renders at a time.
+  // a final hour holds the spotlight for the whole hour; otherwise it
+  // rotates. either way exactly one caption renders across the wall.
   const finalHourAgent = useMemo(
     () => sorted.find((a) => {
       const remaining = remainingSeconds(a, now);
@@ -61,12 +62,15 @@ export function Gate() {
     return own ? (own.payload as PayloadFor<"monologue">).text : null;
   }, [finalHourAgent, events]);
 
-  const captionFor = (agentId: string): string | null => {
-    if (finalHourAgent) {
-      return agentId === finalHourAgent.agent_id ? heldCaption : null;
-    }
-    return spotlight?.agent_id === agentId ? spotlight.text : null;
-  };
+  // the one voice on the wall right now: the held final-hour caption, or
+  // the rotating spotlight when its speaker is on screen
+  const speaker = finalHourAgent
+    ? heldCaption
+      ? finalHourAgent
+      : null
+    : (spotlight && sorted.find((a) => a.agent_id === spotlight.agent_id)) || null;
+  const spokenText = finalHourAgent ? heldCaption : speaker ? spotlight?.text ?? null : null;
+  const spokenGloss = speaker && spokenText ? (speaker.last_monologue_gloss ?? null) : null;
 
   // the wire: the last 4 public events, newest first
   const strip = useMemo(() => {
@@ -104,16 +108,30 @@ export function Gate() {
             agent={agent}
             events={events}
             now={now}
-            caption={captionFor(agent.agent_id)}
-            captionGloss={
-              captionFor(agent.agent_id) ? (agent.last_monologue_gloss ?? null) : null
-            }
             signalLost={signalLost}
           />
         ))}
         {Array.from({ length: vacants }, (_, i) => (
           <VacantCell key={`vacant-${i}`} />
         ))}
+      </div>
+      {/* surface B on the gate: the spotlight bar. the slot is always
+          present at a fixed height, so a caption arriving or leaving
+          never moves the wire or the foot */}
+      <div className="wall-spotlight">
+        <div className={`wall-spotline${spokenText ? "" : " out"}`}>
+          {spokenText && speaker ? (
+            <>
+              <span className="who">{speaker.name}</span>
+              <span className="line" lang={speaker.locale?.startsWith("ja") ? "ja" : undefined}>
+                {spokenText}
+              </span>
+              {/* the japanese is the thing you see; this is for the viewer
+                  who cannot read it, and it never replaces the line */}
+              {spokenGloss ? <span className="gloss">{spokenGloss}</span> : null}
+            </>
+          ) : null}
+        </div>
       </div>
       {moreLine ? (
         <div className="wall-more">

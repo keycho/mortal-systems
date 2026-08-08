@@ -42,6 +42,10 @@ export const DEATH_CAUSES = ["ttl", "enforcement", "manual"] as const;
 export type DeathCause = (typeof DEATH_CAUSES)[number];
 
 export const MONOLOGUE_MAX_CHARS = 140;
+/** narration is commentary about a page being read (surface B's THOUGHT
+ * stream), so it gets more room than the 140-char inner voice; still a
+ * line or two, and the panel clamps what it draws */
+export const NARRATION_MAX_CHARS = 280;
 /** controlled inheritance: an ash successor receives at most this many
  * explicit, logged memory fragments and nothing else */
 export const MAX_INHERITED_FRAGMENTS = 3;
@@ -100,6 +104,24 @@ export const MonologuePayload = z.object({
   gloss: z.string().max(MONOLOGUE_MAX_CHARS).optional(),
 });
 
+/**
+ * surface B's running commentary: what an agent says about what it is
+ * looking at, drawn by the frontend beside the cell and never injected
+ * into the captured browser window. commentary, not an act, so it is
+ * never receipted; it is the show, so producers append it public.
+ */
+export const NarrationPayload = z.object({
+  /** what the agent is saying about what it is looking at */
+  text: z.string().min(1).max(NARRATION_MAX_CHARS),
+  /** a short english reading, when the identity does not think in
+   * english. same contract as MonologuePayload.gloss: never a
+   * replacement, always a line underneath. */
+  gloss: z.string().max(NARRATION_MAX_CHARS).optional(),
+  /** the page this thought is about, so the panel can tie a line to
+   * what surface A was showing at the time */
+  about_url: z.string().optional(),
+});
+
 export const EnforcementPayload = z.object({
   rule_id: z.string(),
   rule_text: z.string(),
@@ -125,6 +147,7 @@ export const PAYLOAD_SCHEMAS = {
   state_change: StateChangePayload,
   action: ActionPayload,
   monologue: MonologuePayload,
+  narration: NarrationPayload,
   enforcement: EnforcementPayload,
   human_contact: HumanContactPayload,
   system: SystemPayload,

@@ -11,6 +11,7 @@ export {
   ACTION_VERBS,
   DEATH_CAUSES,
   MONOLOGUE_MAX_CHARS,
+  NARRATION_MAX_CHARS,
   MAX_INHERITED_FRAGMENTS,
   WALL_EVENT_KINDS,
 } from "./schema.js";
@@ -26,13 +27,17 @@ export type {
 } from "./schema.js";
 export { humanizeEvent, humanizeSeconds, shortReceipt } from "./humanize.js";
 export {
+  PANEL_TAGS,
   agentNow,
   depthScore,
   displayNameFromId,
+  nowLine,
+  panelEntries,
   recapFallback,
+  tagFor,
   tickerLines,
 } from "./read.js";
-export type { AgentNow, DepthInputs, TickerLine } from "./read.js";
+export type { AgentNow, DepthInputs, PanelEntry, PanelTag, TickerLine } from "./read.js";
 export {
   DIRECTOR_EVENT_WINDOW_MS,
   SPOTLIGHT_SECONDS,
