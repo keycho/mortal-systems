@@ -55,6 +55,8 @@ export {
   MuxProvider,
   PROFILE_480,
   PROFILE_720,
+  PROFILE_GRID,
+  PROFILE_GRID_LOW,
   PlaywrightScreencast,
   SelfHostedHlsProvider,
   StreamDirector,
@@ -65,6 +67,8 @@ export {
   selectStreamProvider,
 } from "./stream/index.js";
 export type {
+  EncodeInput,
+  Pressure,
   EncodeTarget,
   Encoder,
   EncoderFactory,

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { startVirtualScreen, xvfbAvailable, type VirtualScreen } from "./xvfb.js";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import type {
   DestroyResult,
@@ -53,6 +54,27 @@ export interface LiveRuntimeOptions {
    * domains, only when the tier is enabled); everything else external
    * stays structurally read-only */
   writeHosts?: string[];
+  /**
+   * render each identity as a real browser window on its own virtual
+   * screen, so tabs, toolbar and url bar are in frame. requires Xvfb.
+   * failure is per-agent and never fatal: that identity falls back to
+   * headless viewport capture and /health names which mode it got.
+   */
+  headfulScreens?: boolean;
+  /** first X display number to allocate; each identity takes the next */
+  displayBase?: number;
+  /** the screen size, which is also the capture frame */
+  screenWidth?: number;
+  screenHeight?: number;
+}
+
+/** how an identity ended up being drawn, and why if it is not the ideal */
+export interface RenderMode {
+  mode: "headful_x11" | "headless_viewport";
+  display?: string;
+  width: number;
+  height: number;
+  reason?: string;
 }
 
 interface LiveIdentity {
@@ -63,6 +85,8 @@ interface LiveIdentity {
   browser: Browser;
   context: BrowserContext;
   page: Page;
+  screen: VirtualScreen | null;
+  render: RenderMode;
 }
 
 export class LiveRuntimePort implements RuntimePort {
@@ -73,6 +97,7 @@ export class LiveRuntimePort implements RuntimePort {
   private deadCount = 0;
   private lastError: string | null = null;
   private counter = 0;
+  private displaySeq = 0;
   private homeUrl: string | null = null;
   private homeOrigin: string | null = null;
 
@@ -86,6 +111,16 @@ export class LiveRuntimePort implements RuntimePort {
    * about:blank page never paints, so the screencast would have no first
    * frame to send until the agent's first act.
    */
+  /** how this agent is being drawn, for the capture layer and /health */
+  renderFor(agentId: string): RenderMode | null {
+    return this.byAgent.get(agentId)?.render ?? null;
+  }
+
+  /** every live agent, so the gallery can keep a channel per identity */
+  liveAgentIds(): string[] {
+    return [...this.byAgent.keys()];
+  }
+
   setHome(url: string): void {
     this.homeUrl = url;
     this.homeOrigin = new URL(url).origin;
@@ -99,17 +134,85 @@ export class LiveRuntimePort implements RuntimePort {
     }
   }
 
-  private async launch(spec: SpawnSpec, identityId: string, createdAt: string): Promise<LiveIdentity> {
-    const browser = await chromium.launch({
-      headless: this.opts.headless ?? true,
+  private async launchBrowser(
+    screen: VirtualScreen | null,
+    width: number,
+    height: number
+  ): Promise<Browser> {
+    return chromium.launch({
+      // headful only makes sense pointed at a screen; without one there
+      // is nowhere for a window to be
+      headless: screen ? false : (this.opts.headless ?? true),
       chromiumSandbox: this.opts.sandbox ?? false,
       ...(this.opts.executablePath ? { executablePath: this.opts.executablePath } : {}),
+      ...(screen ? { env: { ...process.env, DISPLAY: screen.display } } : {}),
       args: [
         ...(this.opts.launchArgs ?? ["--disable-dev-shm-usage", "--disable-gpu"]),
         "--hide-scrollbars",
-        "--window-size=1280,720",
+        `--window-size=${width},${height}`,
+        ...(screen ? ["--window-position=0,0"] : []),
       ],
     });
+  }
+
+  /**
+   * a virtual screen for this identity, or null with a reason. never
+   * throws: losing the browser chrome is a downgrade in how the wall
+   * looks, and it must not cost an identity its life or its channel.
+   */
+  private async screenFor(agentId: string, profileW: number, profileH: number): Promise<{
+    screen: VirtualScreen | null;
+    reason?: string;
+  }> {
+    if (!this.opts.headfulScreens) {
+      return { screen: null, reason: "headful screens not requested" };
+    }
+    if (!xvfbAvailable()) {
+      return { screen: null, reason: "Xvfb is not installed in this image" };
+    }
+    const displayNumber = (this.opts.displayBase ?? 99) + this.displaySeq++;
+    try {
+      return {
+        screen: await startVirtualScreen({
+          displayNumber,
+          width: profileW,
+          height: profileH,
+        }),
+      };
+    } catch (err) {
+      return {
+        screen: null,
+        reason: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  private async launch(spec: SpawnSpec, identityId: string, createdAt: string): Promise<LiveIdentity> {
+    const width = this.opts.screenWidth ?? 1280;
+    const height = this.opts.screenHeight ?? 720;
+    const { screen, reason } = await this.screenFor(spec.agent_id, width, height);
+    let render: RenderMode = screen
+      ? { mode: "headful_x11", display: screen.display, width, height }
+      : { mode: "headless_viewport", width, height, ...(reason ? { reason } : {}) };
+
+    let browser: Browser;
+    try {
+      browser = await this.launchBrowser(screen, width, height);
+    } catch (err) {
+      // the window was the ambition; the identity is the point. a headful
+      // launch that fails takes its screen down with it and the agent
+      // lives on headless, with the reason kept for /health.
+      if (!screen) throw err;
+      screen.stop();
+      render = {
+        mode: "headless_viewport",
+        width,
+        height,
+        reason: `headful launch failed: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`,
+      };
+      console.warn(`runtime-live: ${spec.agent_id} falling back to headless: ${render.reason}`);
+      browser = await this.launchBrowser(null, width, height);
+    }
     const storageStatePath = this.opts.sessionStateDir
       ? join(this.opts.sessionStateDir, `${spec.agent_id}.json`)
       : null;
@@ -153,8 +256,13 @@ export class LiveRuntimePort implements RuntimePort {
       browser,
       context,
       page,
+      screen,
+      render,
     };
     browser.on("disconnected", () => {
+      // the screen exists for the window; with the window gone it is an
+      // X server holding memory for nobody
+      identity.screen?.stop();
       // only count deaths we did not order; destroy() removes first
       if (this.live.has(identityId)) {
         this.live.delete(identityId);

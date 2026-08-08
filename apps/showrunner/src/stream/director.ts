@@ -1,16 +1,31 @@
 import { agentNow, directorScore, type WallEvent } from "@mortal/wall";
 import { PlaywrightScreencast, type ScreencastablePage } from "./capture.js";
-import { PROFILE_480, PROFILE_720, type FrameSource, type StreamProfile } from "./types.js";
+import {
+  PROFILE_480,
+  PROFILE_720,
+  PROFILE_GRID,
+  PROFILE_GRID_LOW,
+  type EncodeInput,
+  type FrameSource,
+  type StreamProfile,
+} from "./types.js";
 import type { StreamManager } from "./index.js";
 
 /**
- * the director cam, server-side: one camera, pointed at the hot agent by
- * the same auto-cut priority the watch page uses (death imminent >
- * human contact > enforcement > published > writing > reading > idle).
- * on a cut the old capture stops and the new one starts; the gap is
- * covered by the activity-view poster, which is the designed fallback,
- * not an accident. under memory pressure the profile drops from 720p6 to
- * 480p4 and the drop is reported, never hidden.
+ * the gallery, and the camera inside it.
+ *
+ * every living identity has its own channel, always on, because the wall
+ * is a room of lives being lived and a cell that only sometimes has video
+ * is a cell that mostly does not. the grid runs small and slow (360p at
+ * 2-3fps, which is what a 416px cell can show anyway) and the director's
+ * pick is upswitched to 720p6 for the hero, so the expensive picture
+ * exists once and where it is being looked at.
+ *
+ * scarcity is spent in a fixed order, and the order is the editorial
+ * decision: under memory pressure the grid loses frame rate, then the
+ * grid goes dark to its poster with signal-lost, and only after that
+ * does the hero drop quality. the last thing the wall gives up is the
+ * one picture someone is actually watching.
  */
 
 export interface StreamDirectorOptions {
@@ -19,20 +34,29 @@ export interface StreamDirectorOptions {
   events: () => WallEvent[];
   /** the live runtime's page accessor; null = that browser is gone */
   pageFor: (agentId: string) => ScreencastablePage | null;
-  /** rss ceiling in mb before the profile drops a level */
+  /** who is alive right now, from the runtime rather than the record */
+  liveAgents?: () => string[];
+  /** how this agent is drawn: an x11 window, or the page alone */
+  encodeInputFor?: (agentId: string) => EncodeInput;
+  /** rss ceiling in mb before the gallery starts giving things up */
   memoryLimitMb?: number;
   intervalMs?: number;
+  /** how many encoders may start in one tick; the rest wait a tick */
+  startsPerTick?: number;
   /** injected in tests */
   rssMb?: () => number;
   sourceFor?: (page: ScreencastablePage, profile: StreamProfile) => FrameSource;
 }
 
+/** what the wall gives up, in the order it gives it up */
+export type Pressure = "none" | "grid_slow" | "grid_dark" | "hero_low";
+
 export class StreamDirector {
   private readonly opts: StreamDirectorOptions;
-  private target: string | null = null;
-  private profile: StreamProfile = PROFILE_720;
+  private hero: string | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private lastCutReason = "boot";
+  private pressure: Pressure = "none";
 
   constructor(opts: StreamDirectorOptions) {
     this.opts = opts;
@@ -48,24 +72,38 @@ export class StreamDirector {
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-    if (this.target) await this.opts.manager.stopAgent(this.target);
-    this.target = null;
+    await this.opts.manager.stopAll();
+    this.hero = null;
   }
 
   /**
-   * what the wall may say about its own camera. the director's intent is
+   * what the wall may say about its own cameras. the director's intent is
    * not evidence: it once reported "capturing ag_marlowe" for as long as
    * the process lived while the encoder had died and /hls answered "no
-   * such stream". so ok, and the name of the agent being captured, come
-   * from the manager's reading of the segments on disk; the director
-   * contributes only why it last cut.
+   * such stream". so ok, and every channel in it, come from the manager's
+   * reading of the segments on disk.
    */
   status(): Record<string, unknown> {
     const health = this.opts.manager.health();
+    const alive = this.roster(this.hero);
+    // an identity that is alive with no channel is not visible in a list
+    // of channels, and "every channel is fine" would be a true sentence
+    // about a wall with a dark cell. name them.
+    const awaiting = alive.filter((id) => !this.opts.manager.agents().includes(id));
     return {
       ...health,
-      intended: this.target,
-      profile: health.profile ?? this.profile.name,
+      ...(awaiting.length > 0 ? { awaiting } : {}),
+      live_agents: alive.length,
+      channels_running: this.opts.manager.agents().length,
+      hero: this.hero,
+      pressure: this.pressure,
+      // the numbers behind the ladder, so "pressure: none" can be checked
+      // rather than believed
+      memory: {
+        rss_mb: Math.round(this.rssMb()),
+        limit_mb: this.opts.memoryLimitMb ?? 1800,
+        headroom_mb: Math.round((this.opts.memoryLimitMb ?? 1800) - this.rssMb()),
+      },
       last_cut: this.lastCutReason,
       ...(this.opts.manager.lastError() ? { last_error: this.opts.manager.lastError() } : {}),
     };
@@ -86,70 +124,120 @@ export class StreamDirector {
     return best?.id ?? null;
   }
 
-  async tick(now: Date = new Date()): Promise<void> {
-    // memory pressure: drop to 480p4 and stay there; a restart restores
-    const rss = this.opts.rssMb?.() ?? process.memoryUsage().rss / 1_048_576;
+  private rssMb(): number {
+    return this.opts.rssMb?.() ?? process.memoryUsage().rss / 1_048_576;
+  }
+
+  /** the ladder, read from the headroom actually left */
+  private readPressure(): Pressure {
+    const rss = this.rssMb();
     const limit = this.opts.memoryLimitMb ?? 1800;
-    const wantedProfile = rss > limit ? PROFILE_480 : this.profile;
-    const profileChanged = wantedProfile.name !== this.profile.name;
-    if (profileChanged) {
-      console.warn(
-        `stream director: rss ${Math.round(rss)}mb over ${limit}mb, dropping to ${wantedProfile.name}`
-      );
+    if (rss <= limit) return "none";
+    if (rss <= limit * 1.15) return "grid_slow";
+    if (rss <= limit * 1.3) return "grid_dark";
+    return "hero_low";
+  }
+
+  private gridProfile(): StreamProfile | null {
+    switch (this.pressure) {
+      case "none":
+        return PROFILE_GRID;
+      case "grid_slow":
+        return PROFILE_GRID_LOW;
+      default:
+        // the grid goes to its poster: cells fall back to the activity
+        // view and the signal-lost state, which is designed and honest
+        return null;
+    }
+  }
+
+  private heroProfile(): StreamProfile {
+    return this.pressure === "hero_low" ? PROFILE_480 : PROFILE_720;
+  }
+
+  /** who should have a channel: the live roster if there is one, else
+   * whoever the camera is pointed at */
+  private roster(hero: string | null): string[] {
+    const declared = this.opts.liveAgents?.();
+    const ids = declared ?? (hero ? [hero] : []);
+    return ids.filter((id) => this.opts.pageFor(id));
+  }
+
+  private sourceFor(page: ScreencastablePage, profile: StreamProfile): FrameSource {
+    return this.opts.sourceFor?.(page, profile) ?? new PlaywrightScreencast(page, profile);
+  }
+
+  async tick(now: Date = new Date()): Promise<void> {
+    const previousPressure = this.pressure;
+    this.pressure = this.readPressure();
+    if (previousPressure !== this.pressure) {
+      console.warn(`stream director: pressure ${previousPressure} -> ${this.pressure}`);
     }
 
-    // a capture can end without the director asking: an encoder death
-    // drops the channel from under it. holding the old target would make
-    // the next tick a no-op ("already on him") and strand the wall
-    // without a camera for the rest of the boot.
-    if (this.target) {
-      const health = this.opts.manager.health();
-      // "lost" is the manager no longer running it at all (an encoder
-      // death dropped the channel); "stalled" is an encoder that is alive
-      // and producing nothing. a capture inside its startup window is
-      // neither -- the first segment cannot exist before hls_time seconds
-      // of frames, and cutting there would restart forever.
-      const lost = health.capturing !== this.target;
+    const manager = this.opts.manager;
+    const hero = this.pick(now);
+    if (hero !== this.hero) this.hero = hero;
+    // a director with no roster still has a camera: the hero alone is the
+    // degenerate gallery, and it is what the single-camera wall was.
+    const alive = this.roster(hero);
+    this.lastCutReason = hero ? `cut to ${hero}` : "no capturable agent";
+
+    // a channel whose agent is gone, or which died under us, is dropped
+    // before anything else: holding it would report a camera on a life
+    // that ended, and would keep the memory it needs from the living.
+    for (const agentId of manager.agents()) {
+      const health = manager.channelHealth(agentId);
       const stalled =
-        !lost && !health.ok && !(health.reason ?? "").includes("startup window");
-      if (lost || stalled) {
-        const dropped = this.target;
-        await this.opts.manager.stopAgent(dropped);
-        this.target = null;
-        this.lastCutReason = `capture on ${dropped} ended: ${
-          health.reason ?? this.opts.manager.lastError() ?? "no playlist"
-        }`;
-        console.error(`stream director: ${this.lastCutReason}`);
+        health !== null && !health.ok && !(health.reason ?? "").includes("startup window");
+      if (!alive.includes(agentId) || stalled) {
+        await manager.stopAgent(agentId);
+        if (stalled) {
+          console.error(`stream director: ${agentId} channel dropped: ${health?.reason}`);
+        }
       }
     }
 
-    const next = this.pick(now);
-    if (next === null && this.target === null) {
-      this.lastCutReason = "no capturable agent";
-      return;
-    }
-    if (next === this.target && !profileChanged) return;
+    const gridProfile = this.gridProfile();
+    let started = 0;
+    const budget = this.opts.startsPerTick ?? 1;
 
-    if (this.target) {
-      await this.opts.manager.stopAgent(this.target);
-      this.target = null;
-    }
-    this.profile = wantedProfile;
-    if (!next) {
-      this.lastCutReason = "no capturable agent";
-      return;
-    }
-    const page = this.opts.pageFor(next);
-    if (!page) return;
-    const source =
-      this.opts.sourceFor?.(page, this.profile) ?? new PlaywrightScreencast(page, this.profile);
-    try {
-      await this.opts.manager.startAgent(next, source, this.profile);
-      this.target = next;
-      this.lastCutReason = profileChanged ? `profile drop to ${this.profile.name}` : `cut to ${next}`;
-    } catch (err) {
-      this.lastCutReason = `capture failed: ${String(err)}`;
-      console.error(`stream director: ${this.lastCutReason}`);
+    for (const agentId of alive) {
+      const isHero = agentId === this.hero;
+      const wanted = isHero ? this.heroProfile() : gridProfile;
+      const current = manager.profileOf(agentId);
+
+      if (wanted === null) {
+        // pressure has taken the grid; the hero keeps its channel
+        if (current && !isHero) await manager.stopAgent(agentId);
+        continue;
+      }
+      if (current?.name === wanted.name) continue;
+
+      const page = this.opts.pageFor(agentId);
+      if (!page) continue;
+      const input = this.opts.encodeInputFor?.(agentId) ?? { kind: "frames" as const };
+
+      // a profile change on an agent that already has a channel is a
+      // restart, and it is worth the blink; a brand new channel counts
+      // against the stagger budget, because three ffmpegs and three
+      // chromiums starting in the same second is how a container dies.
+      if (current) {
+        await manager
+          .setProfile(agentId, this.sourceFor(page, wanted), wanted, input)
+          .catch((err) => {
+            console.error(`stream director: ${agentId} profile change failed: ${String(err)}`);
+            return null;
+          });
+        continue;
+      }
+      if (started >= budget) continue;
+      started += 1;
+      try {
+        await manager.startAgent(agentId, this.sourceFor(page, wanted), wanted, input);
+      } catch (err) {
+        this.lastCutReason = `capture failed for ${agentId}: ${String(err)}`;
+        console.error(`stream director: ${this.lastCutReason}`);
+      }
     }
   }
 }

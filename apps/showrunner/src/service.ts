@@ -166,6 +166,16 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
         // a passing probe is evidence about the identities that follow
         // rather than about a configuration nothing else uses
         ...(sandboxStatus.args ? { launchArgs: sandboxStatus.args } : {}),
+        // the browsers are the show, so they are drawn as browsers: a
+        // real window on a private virtual screen, with the tabs and the
+        // url bar in frame. per-agent fallback to headless keeps a cell
+        // rather than losing it, and /health says which mode each got.
+        // off unless asked for: the deploy image sets it, and a test
+        // suite should not silently start X servers
+        headfulScreens: env.WALL_HEADFUL === "1",
+        displayBase: Number(env.WALL_XVFB_BASE ?? 99),
+        screenWidth: Number(env.WALL_SCREEN_WIDTH ?? 1280),
+        screenHeight: Number(env.WALL_SCREEN_HEIGHT ?? 720),
         // tier 2: operator-provisioned session state; agents never see a
         // login form because the session arrives signed in or not at all
         sessionStateDir: env.WALL_SESSIONS_DIR ?? join(opts.root, "sessions"),
@@ -238,6 +248,13 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       runtime_port: runtimeLabel,
       ...(liveRuntime ? { runtime: liveRuntime.health() } : {}),
       ...(director ? { stream: director.status() } : {}),
+      ...(liveRuntime
+        ? {
+            render: Object.fromEntries(
+              liveRuntime.liveAgentIds().map((id) => [id, liveRuntime.renderFor(id)])
+            ),
+          }
+        : {}),
       ...(wantLive
         ? {
             sandbox: sandboxStatus,
@@ -341,8 +358,17 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       manager: streams,
       events: () => wallStore.list({ publicOnly: true, newestFirst: true, limit: 200 }).reverse(),
       pageFor: (agentId) => liveRuntime.pageFor(agentId),
+      // every living identity gets a channel, not just the hot one
+      liveAgents: () => liveRuntime.liveAgentIds(),
+      encodeInputFor: (agentId) => {
+        const render = liveRuntime.renderFor(agentId);
+        return render?.mode === "headful_x11" && render.display
+          ? { kind: "x11", display: render.display, width: render.width, height: render.height }
+          : { kind: "frames" };
+      },
       memoryLimitMb: Number(env.WALL_STREAM_MEM_MB ?? 1800),
       intervalMs: Number(env.WALL_DIRECTOR_INTERVAL_MS ?? 10_000),
+      startsPerTick: Number(env.WALL_STREAM_STARTS_PER_TICK ?? 1),
     });
     director.start();
   }

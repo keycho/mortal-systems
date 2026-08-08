@@ -21,6 +21,7 @@ FROM node:22-slim
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ffmpeg ca-certificates chromium \
+    xvfb x11-utils \
     fonts-liberation fonts-noto-core fonts-noto-cjk \
     util-linux \
   && rm -rf /var/lib/apt/lists/*
@@ -48,6 +49,16 @@ ENV MORTAL_ROOT=/data
 # chromium's own stderr from anything that failed.
 ENV CHROME_PATH=/usr/bin/chromium
 ENV CHROME_SANDBOX=1
+# the browsers are the show. each identity gets a private Xvfb screen and
+# opens a real chromium window on it, so the tabs, the toolbar and the
+# url bar are inside the captured frame -- a cdp screencast draws the
+# page alone and leaves out the browser a viewer would recognise. ffmpeg
+# grabs the screen with x11grab. an identity whose screen or headful
+# launch fails falls back to headless viewport capture and keeps its
+# channel; /health names the mode per agent. WALL_HEADFUL=0 turns the
+# whole thing off.
+ENV WALL_HEADFUL=1
+ENV WALL_XVFB_BASE=99
 # debian's chromium ships a setuid sandbox helper and prefers it over the
 # namespace sandbox. if it is not root-owned mode 4755 chromium aborts
 # outright rather than run unsandboxed -- a browser that starts and dies
