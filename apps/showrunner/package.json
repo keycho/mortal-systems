@@ -1,0 +1,32 @@
+{
+  "name": "showrunner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "the showrunner: the single service that owns the wall's day. it emits tasks to agents and events to the stream; it places conditions, never scripts. liveness, timezone stagger, the spawn calendar, controlled inheritance, model tiering, the tier policy chokepoint, and the public wall api all live here.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "dev": "tsx --conditions=development src/cli.ts"
+  },
+  "dependencies": {
+    "@mortal/wall": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "terrarium": "workspace:*",
+    "tsx": "^4.19.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
