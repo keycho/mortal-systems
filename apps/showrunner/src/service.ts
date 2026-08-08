@@ -101,11 +101,18 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     ok: boolean;
     failure?: string;
     reason?: string;
+    /** the flags that actually survived here, reused by the browsers */
+    args?: string[];
+    environment?: Record<string, unknown>;
+    attempts?: Array<Record<string, unknown>>;
   } = {
     wanted: sandboxWanted,
     ok: false,
     ...(sandboxWanted ? {} : { reason: "not requested (CHROME_SANDBOX unset)" }),
   };
+  // the probe runs here, before a single identity is spawned and before
+  // any capture starts, so it measures an empty container rather than
+  // competing with three browsers and an encoder for headroom.
   if (wantLive && sandboxWanted) {
     const { probeSandbox } = await import("./sandbox-probe.js");
     const probe = await probeSandbox(env.CHROME_PATH);
@@ -114,10 +121,32 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       ok: probe.ok,
       ...(probe.failure ? { failure: probe.failure } : {}),
       ...(probe.reason ? { reason: probe.reason } : {}),
+      ...(probe.args ? { args: probe.args } : {}),
+      ...(probe.environment ? { environment: probe.environment as unknown as Record<string, unknown> } : {}),
+      ...(probe.attempts ? { attempts: probe.attempts as unknown as Array<Record<string, unknown>> } : {}),
     };
-    if (!probe.ok) {
-      console.warn(
-        `sandbox probe failed [${probe.failure}], external browsing OFF: ${probe.reason}`
+    if (probe.ok) {
+      log(`sandbox probe passed on "${probe.attempts?.find((a) => a.ok)?.label}" flags; tier-1 external reading ON`);
+    } else {
+      // a failure here costs the wall its open web, so it gets the full
+      // account rather than an adjective: what was tried, what the
+      // container looked like, and chromium's own last words.
+      console.error(
+        [
+          "",
+          "============ the sandbox probe failed; external reading OFF ============",
+          `failure:      ${probe.failure}`,
+          `reason:       ${probe.reason}`,
+          `environment:  ${JSON.stringify(probe.environment)}`,
+          ...(probe.attempts ?? []).flatMap((attempt) => [
+            `attempt "${attempt.label}" [${attempt.args.join(" ")}] -> ${attempt.ok ? "ok" : (attempt.failure ?? "failed")}`,
+            ...(attempt.stderr ? [indent(attempt.stderr)] : []),
+          ]),
+          "agents keep browsing pages this service serves; no external page",
+          "will render in an unsandboxed browser.",
+          "=======================================================================",
+          "",
+        ].join("\n")
       );
     }
   }
@@ -126,6 +155,10 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     ? new LiveRuntimePort({
         executablePath: env.CHROME_PATH,
         sandbox: sandboxStatus.ok,
+        // the browsers launch on exactly the flags the probe proved, so
+        // a passing probe is evidence about the identities that follow
+        // rather than about a configuration nothing else uses
+        ...(sandboxStatus.args ? { launchArgs: sandboxStatus.args } : {}),
         // tier 2: operator-provisioned session state; agents never see a
         // login form because the session arrives signed in or not at all
         sessionStateDir: env.WALL_SESSIONS_DIR ?? join(opts.root, "sessions"),
@@ -353,6 +386,14 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
  * that says `resume error: [` is the same silence this incident was
  * about. so collapse the whole message instead and keep the front of it.
  */
+/** shift a captured block right so it reads as quoted, not as our own log */
+function indent(block: string): string {
+  return block
+    .split("\n")
+    .map((line) => `    | ${line}`)
+    .join("\n");
+}
+
 function firstLine(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   const collapsed = message.replace(/\s+/g, " ").trim();

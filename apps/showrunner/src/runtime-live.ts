@@ -36,6 +36,11 @@ export interface LiveRuntimeOptions {
   executablePath?: string;
   /** re-enable the chromium sandbox (userns-capable hosts only) */
   sandbox?: boolean;
+  /** launch flags proved by the boot sandbox probe on this host. the
+   * probe tries several combinations because which one survives is a
+   * property of the container, and the identities have to launch on the
+   * combination that lived rather than on a hardcoded guess. */
+  launchArgs?: string[];
   headless?: boolean;
   /**
    * tier 2: per-agent stored session state ({dir}/{agent_id}.json,
@@ -100,8 +105,7 @@ export class LiveRuntimePort implements RuntimePort {
       chromiumSandbox: this.opts.sandbox ?? false,
       ...(this.opts.executablePath ? { executablePath: this.opts.executablePath } : {}),
       args: [
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
+        ...(this.opts.launchArgs ?? ["--disable-dev-shm-usage", "--disable-gpu"]),
         "--hide-scrollbars",
         "--window-size=1280,720",
       ],

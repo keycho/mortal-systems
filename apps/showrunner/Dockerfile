@@ -39,10 +39,27 @@ ENV MORTAL_ROOT=/data
 # gated OFF entirely (agents browse only pages this service serves), and
 # /health names the reason. external pages never render in an
 # unsandboxed browser; that is a hard rule, not a preference.
-# --disable-dev-shm-usage is always passed: container /dev/shm is 64mb,
-# shared memory goes to /tmp instead.
+# the launch flags are measured, not fixed: the probe walks a ladder of
+# combinations (namespace sandbox vs debian's setuid helper, /dev/shm vs
+# /tmp for shared memory) and hands the one that survived to every
+# identity's browser, so a passing probe is evidence about the browsers
+# that follow. /health carries the winning flags, the container facts it
+# measured (/dev/shm size, memory ceiling, missing libraries) and
+# chromium's own stderr from anything that failed.
 ENV CHROME_PATH=/usr/bin/chromium
 ENV CHROME_SANDBOX=1
+# debian's chromium ships a setuid sandbox helper and prefers it over the
+# namespace sandbox. if it is not root-owned mode 4755 chromium aborts
+# outright rather than run unsandboxed -- a browser that starts and dies
+# on a host whose namespaces were fine all along. some layer exporters
+# drop the setuid bit, so it is restored here explicitly. where the
+# platform forbids it anyway (no-new-privileges), the probe's
+# --disable-setuid-sandbox rungs keep the sandbox and build it from user
+# namespaces instead.
+RUN if [ -f /usr/lib/chromium/chrome-sandbox ]; then \
+      chown root:root /usr/lib/chromium/chrome-sandbox \
+      && chmod 4755 /usr/lib/chromium/chrome-sandbox; \
+    fi
 RUN chmod +x /repo/apps/showrunner/docker-entrypoint.sh
 EXPOSE 4925
 ENTRYPOINT ["/repo/apps/showrunner/docker-entrypoint.sh"]

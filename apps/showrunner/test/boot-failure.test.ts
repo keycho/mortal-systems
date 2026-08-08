@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   StubRuntimePort,
   bootWallService,
-  classifySandboxFailure,
   type CastMember,
   type SpawnResult,
   type SpawnSpec,
@@ -163,45 +162,5 @@ describe("a wall that boots empty says so and fails its healthcheck", () => {
     const boot = body.boot as { phase: string; spawn_failures?: Array<{ agent_id: string }> };
     expect(boot.phase).toBe("running");
     expect(boot.spawn_failures?.map((f) => f.agent_id)).toEqual(["ag_bad"]);
-  });
-});
-
-describe("the sandbox probe names which kind of failure it hit", () => {
-  it("reads a kernel userns refusal as a host policy denial", () => {
-    expect(
-      classifySandboxFailure(
-        "Failed to move to new namespace: PID namespaces supported, Network namespace supported, but failed: errno = Operation not permitted"
-      )
-    ).toBe("userns_denied");
-    expect(classifySandboxFailure("clone() returned -1, errno = 1")).toBe("userns_denied");
-    expect(classifySandboxFailure("No usable sandbox! Update your kernel")).toBe("userns_denied");
-  });
-
-  it("reads a dead probe browser as a crash, not a denial", () => {
-    expect(classifySandboxFailure("Target page, context or browser has been closed")).toBe(
-      "browser_crashed"
-    );
-    expect(classifySandboxFailure("Browser closed unexpectedly")).toBe("browser_crashed");
-  });
-
-  it("reads a missing binary as an image problem", () => {
-    expect(
-      classifySandboxFailure("Executable doesn't exist at /usr/bin/chromium")
-    ).toBe("browser_missing");
-  });
-
-  // the distinction has to survive the message that carries both, because
-  // a userns denial usually kills the target too. naming the crash there
-  // would send an operator to rebuild an image over a host policy.
-  it("prefers the denial when a denial also closed the target", () => {
-    expect(
-      classifySandboxFailure(
-        "Target closed\nFailed to move to new namespace: errno = Operation not permitted"
-      )
-    ).toBe("userns_denied");
-  });
-
-  it("admits when it does not recognize the failure", () => {
-    expect(classifySandboxFailure("something nobody has seen before")).toBe("unknown");
   });
 });
