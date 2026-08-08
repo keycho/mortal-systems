@@ -1,12 +1,12 @@
-import { PLATFORMS } from "../../lib/site-data";
+import { ALPHA_INSTALL_NOTE, PLATFORMS } from "../../lib/site-data";
 import { SectionHead } from "./SectionHead";
 import { SiteFooter } from "./SiteFooter";
 
 /**
- * the download section: platform cards with signed/notarized and sha256
- * checksum slots. no build has shipped, so every card renders the dashed
- * "coming" state — never a dead solid button. when a signed artifact url
- * lands in PLATFORMS the card flips to a solid download button.
+ * the download section: platform cards that flip from the dashed "coming"
+ * state to a solid button only when a real artifact url lands in
+ * PLATFORMS (never a dead solid button). the shipped macos alpha is
+ * unsigned and every download surface says so via ALPHA_INSTALL_NOTE.
  */
 export function DownloadSection({
   withFooter = true,
@@ -26,7 +26,7 @@ export function DownloadSection({
               a desktop app, on <em style={{ fontStyle: "italic" }}>purpose</em>.
             </>
           }
-          intro="mortal is a desktop app because real isolation needs real processes. the code is public. the builds are signed. the checksums are printed."
+          intro="mortal is a desktop app because real isolation needs real processes. the code is public. the alpha ships unsigned; signed and notarized builds come with demonstrated interest. checksums are published with each release."
         />
         <div
           className="m-grid4"
@@ -97,12 +97,22 @@ export function DownloadSection({
                   {pl.signed}
                 </span>
                 <span style={{ border: "1px dashed rgba(25,23,19,.3)", borderRadius: 5, padding: "6px 9px" }}>
-                  sha256 · printed here at release
+                  sha256 · published with the release asset
                 </span>
               </div>
             </div>
           ))}
         </div>
+        <p
+          style={{
+            font: "400 12.5px/1.65 var(--font-mono)",
+            color: "rgba(25,23,19,.55)",
+            margin: "18px 0 0",
+            maxWidth: "72ch",
+          }}
+        >
+          {ALPHA_INSTALL_NOTE}
+        </p>
         <div
           style={{
             display: "flex",

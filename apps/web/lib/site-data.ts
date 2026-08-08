@@ -124,12 +124,25 @@ export interface Platform {
   href: string | null;
 }
 
-/** no build has shipped yet, so every card is honest about it. when a
- * signed artifact exists, set its href and the card flips to a solid
- * button. (the handoff marked macos apple silicon available; there is no
- * artifact url yet, and the handoff's own rule is "never a dead button".) */
+/** the one shipped artifact: the unsigned macos (apple silicon) alpha,
+ * built by release-macos.yml and uploaded to a github release under this
+ * stable asset name. /releases/latest/download resolves to the newest
+ * release carrying it, so the url survives version bumps. */
+export const MACOS_ALPHA_DMG_URL =
+  "https://github.com/keycho/mortal-systems/releases/latest/download/mortal-manager_macos_arm64.dmg";
+
+/** printed verbatim next to every download surface. the build is
+ * deliberately unsigned (no apple developer enrollment until demonstrated
+ * interest), and hiding that would be a lie of omission. */
+export const ALPHA_INSTALL_NOTE =
+  "alpha · unsigned build. after downloading, right-click the app and choose Open to bypass the macOS unidentified-developer warning.";
+
+/** a card flips to a solid button only when a real artifact url lands in
+ * its href; null renders the dashed "coming" state (never a dead button).
+ * the macos apple-silicon alpha shipped unsigned and its label says so;
+ * the remaining cards stay pending slots until their artifacts exist. */
 export const PLATFORMS: Platform[] = [
-  { name: "macOS", arch: "apple silicon", signed: "signed · notarization: pending slot", href: null },
+  { name: "macOS", arch: "apple silicon", signed: "alpha · unsigned · right-click Open to run", href: MACOS_ALPHA_DMG_URL },
   { name: "macOS", arch: "intel", signed: "signed · notarization: pending slot", href: null },
   { name: "Windows", arch: "x64", signed: "signed · authenticode: pending slot", href: null },
   { name: "Linux", arch: "x64 · AppImage", signed: "signed · gpg key: pending slot", href: null },

@@ -4,7 +4,8 @@ import { Nav } from "../../components/site/Nav";
 
 export const metadata: Metadata = {
   title: "download · mortal systems",
-  description: "a desktop app, on purpose. signed builds with printed checksums, when they ship.",
+  description:
+    "a desktop app, on purpose. an unsigned macos alpha you can download today; signed builds come with demonstrated interest.",
 };
 
 export default function Download() {
@@ -25,10 +26,10 @@ export default function Download() {
             color: "rgba(25,23,19,.7)",
           }}
         >
-          today the alpha runs from source: clone the repository, then{" "}
+          prefer source? the alpha also runs from a clone: {" "}
           <code style={{ font: "400 12px var(--font-mono)", color: "var(--ink)" }}>pnpm install</code>{" "}
-          and follow the dev flow in the readme. the runtime, your identities, and their
-          destruction all happen locally on your machine; this site never touches them.
+          and follow the dev flow in the readme. either way the runtime, your identities, and
+          their destruction all happen locally on your machine; this site never touches them.
         </div>
       </DownloadSection>
     </div>

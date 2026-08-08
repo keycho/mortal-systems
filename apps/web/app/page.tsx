@@ -10,9 +10,11 @@ import { Nav } from "../components/site/Nav";
 import { SectionHead } from "../components/site/SectionHead";
 import { Simulator } from "../components/simulator/Simulator";
 import {
+  ALPHA_INSTALL_NOTE,
   BLUEPRINT_CARDS,
   BLUEPRINT_DISPLAY,
   GUARANTEE_CELLS,
+  MACOS_ALPHA_DMG_URL,
   PROOF_BAND,
   USE_CASES,
 } from "../lib/site-data";
@@ -96,9 +98,9 @@ function Hero() {
               permissions, a network route you attach and a lifetime you define. Disposable for
               one task. Persistent for ongoing work. Destroyed when its purpose ends.
             </p>
-            <div className="m-cta" style={{ display: "flex", gap: 14, marginTop: 36 }}>
+            <div className="m-cta" style={{ display: "flex", gap: 14, marginTop: 36, flexWrap: "wrap" }}>
               <a
-                href="#download"
+                href={MACOS_ALPHA_DMG_URL}
                 style={{
                   font: "500 14px var(--font-body)",
                   background: "var(--ink)",
@@ -109,6 +111,19 @@ function Hero() {
                 }}
               >
                 download the alpha
+              </a>
+              <a
+                href="/gate"
+                style={{
+                  font: "500 14px var(--font-body)",
+                  border: "1px solid rgba(25,23,19,.28)",
+                  background: "rgba(255,255,255,.6)",
+                  padding: "15px 26px",
+                  borderRadius: "var(--r-btn)",
+                  color: "var(--ink)",
+                }}
+              >
+                watch the live agents
               </a>
               <a
                 href="#try"
@@ -124,22 +139,16 @@ function Hero() {
                 launch an identity
               </a>
             </div>
-            <div
+            <p
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                border: "1px dashed rgba(25,23,19,.3)",
-                borderRadius: "var(--r-btn)",
-                padding: "10px 16px",
-                marginTop: 14,
+                font: "400 12.5px/1.65 var(--font-mono)",
+                color: "rgba(25,23,19,.55)",
+                margin: "14px 0 0",
+                maxWidth: "56ch",
               }}
             >
-              <span style={{ font: "400 12.5px var(--font-mono)", color: "rgba(25,23,19,.45)" }}>
-                watch an agent operate
-              </span>
-              <Tag kind="dashed">COMING</Tag>
-            </div>
+              {ALPHA_INSTALL_NOTE}
+            </p>
             <p
               style={{
                 font: "400 16.5px/1.5 var(--font-display)",
@@ -1117,7 +1126,7 @@ function ClosingSection() {
             launch the first identity
           </a>
           <a
-            href="#download"
+            href={MACOS_ALPHA_DMG_URL}
             style={{
               font: "500 14px var(--font-body)",
               border: "1px solid rgba(242,239,231,.35)",
@@ -1127,6 +1136,18 @@ function ClosingSection() {
             }}
           >
             download the alpha
+          </a>
+          <a
+            href="/gate"
+            style={{
+              font: "500 14px var(--font-body)",
+              border: "1px solid rgba(242,239,231,.35)",
+              padding: "15px 28px",
+              borderRadius: "var(--r-btn)",
+              color: "var(--bone)",
+            }}
+          >
+            watch the live agents
           </a>
           <a
             href="#guarantees"
@@ -1150,6 +1171,18 @@ function ClosingSection() {
           }}
         >
           local-first&nbsp;&nbsp;/&nbsp;&nbsp;no account&nbsp;&nbsp;/&nbsp;&nbsp;no telemetry
+        </div>
+        <div
+          style={{
+            font: "400 11.5px/1.6 var(--font-mono)",
+            color: "rgba(242,239,231,.45)",
+            marginTop: 12,
+            maxWidth: "62ch",
+            marginLeft: "auto",
+            marginRight: "auto",
+          }}
+        >
+          {ALPHA_INSTALL_NOTE}
         </div>
       </div>
     </div>
