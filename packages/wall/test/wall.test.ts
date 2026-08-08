@@ -20,6 +20,7 @@ import {
   tickerLines,
   ulid,
   verifyReceipt,
+  wallStats,
   type WallEvent,
 } from "../src/index.js";
 
@@ -232,6 +233,59 @@ describe("read models", () => {
     expect(
       depthScore({ cookie_count: 12, account_count: 1, memory_bytes: 100_000, post_count: 5 })
     ).toBe(4);
+  });
+
+  it("wallStats counts pages, thoughts and deaths from the public stream only", () => {
+    spawnMarlowe();
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "action",
+      visibility: "public",
+      primitive: "browser.navigate()",
+      payload: { verb: "opened_page", target_url: "https://en.wikipedia.org/wiki/Marginalia", title: "Marginalia" },
+    });
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "action",
+      visibility: "public",
+      primitive: "world.publish()",
+      // published, not read: never a page count
+      payload: { verb: "published_post", title: "entry 1" },
+    });
+    store.append({
+      agent_id: "ag_yuki",
+      kind: "action",
+      visibility: "internal",
+      payload: { verb: "opened_page", target_url: "https://example.com" },
+    });
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "monologue",
+      visibility: "public",
+      ts: "2026-01-01T23:59:00.000Z",
+      payload: { text: "yesterday's thought" },
+    });
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "narration",
+      visibility: "public",
+      ts: "2026-01-02T08:00:00.000Z",
+      payload: { text: "a thought about the page", about_url: "https://en.wikipedia.org/wiki/Marginalia" },
+    });
+    store.append({
+      agent_id: "ag_marlowe",
+      kind: "death",
+      visibility: "public",
+      primitive: "identity.destroy()",
+      payload: { lived_seconds: 60, cause: "ttl", final_words: "brief", receipt: "rt_9" },
+    });
+    const stats = wallStats(store.list(), { todayStart: "2026-01-02T00:00:00.000Z" });
+    expect(stats.destroyed).toBe(1);
+    expect(stats.pages_read).toBe(1);
+    expect(stats.thoughts).toBe(2);
+    expect(stats.by_agent["ag_marlowe"]).toEqual({ pages_read: 1, thoughts_today: 1 });
+    // the internal read never crossed the boundary
+    expect(stats.by_agent["ag_yuki"]).toBeUndefined();
   });
 
   it("recap falls back deterministically and never blanks", async () => {

@@ -9,6 +9,7 @@ import {
   depthScore,
   recap,
   tickerLines,
+  wallStats,
   type RecapSummarizer,
   type WallStore,
 } from "@mortal/wall";
@@ -90,19 +91,31 @@ export function createWallApiHandler(
     }
 
     if (url.pathname === "/now") {
-      const agents = agentNow(store.list({ publicOnly: true }), { names: opts.names() });
+      const pub = store.list({ publicOnly: true });
+      const agents = agentNow(pub, { names: opts.names() });
+      // the plate-border figures, counted from the same list the snapshot
+      // is folded from: the chips can never disagree with the cells
+      const stats = wallStats(pub);
       const enriched = agents.map((agent) => {
         const inputs = opts.depthInputs?.(agent.agent_id) ?? null;
         const stream = opts.streamUrl?.(agent.agent_id) ?? null;
+        const own = stats.by_agent[agent.agent_id];
         return {
           ...agent,
           ...(inputs ? { depth: depthScore(inputs), depth_inputs: inputs } : {}),
           stream_url: stream,
+          pages_read: own?.pages_read ?? 0,
+          thoughts_today: own?.thoughts_today ?? 0,
         };
       });
       sendJson(res, 200, {
         agents: enriched,
         alive: enriched.filter((a) => a.state !== "dead" && a.state !== "unborn").length,
+        stats: {
+          destroyed: stats.destroyed,
+          pages_read: stats.pages_read,
+          thoughts: stats.thoughts,
+        },
       });
       return true;
     }

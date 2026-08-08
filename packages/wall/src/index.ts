@@ -38,14 +38,17 @@ export {
   recapFallback,
   tagFor,
   tickerLines,
+  wallStats,
 } from "./read.js";
 export type {
   AgentNow,
+  AgentStats,
   DepthInputs,
   PanelEntry,
   PanelTag,
   RecapSummarizer,
   TickerLine,
+  WallStats,
 } from "./read.js";
 export {
   DIRECTOR_EVENT_WINDOW_MS,

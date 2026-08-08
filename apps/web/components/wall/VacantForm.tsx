@@ -41,7 +41,7 @@ export function VacantForm() {
           <path
             key={i}
             d={layer.d}
-            stroke="var(--w-vacant-stroke)"
+            stroke="var(--w-oxide)"
             strokeWidth={1}
             opacity={lineOpacity(i, form.layers.length)}
           />

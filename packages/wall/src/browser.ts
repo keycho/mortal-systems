@@ -36,8 +36,17 @@ export {
   recapFallback,
   tagFor,
   tickerLines,
+  wallStats,
 } from "./read.js";
-export type { AgentNow, DepthInputs, PanelEntry, PanelTag, TickerLine } from "./read.js";
+export type {
+  AgentNow,
+  AgentStats,
+  DepthInputs,
+  PanelEntry,
+  PanelTag,
+  TickerLine,
+  WallStats,
+} from "./read.js";
 export {
   DIRECTOR_EVENT_WINDOW_MS,
   SPOTLIGHT_SECONDS,

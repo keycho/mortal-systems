@@ -46,6 +46,17 @@ export interface WallSnapshot {
    * degradation when the sse cap is reached */
   channel: "sse" | "poll";
   now: number;
+  /** the plate-border figures, counted by the runtime from the same
+   * stream everything else renders from; null until /now first answers */
+  stats: WallStatsNow | null;
+}
+
+/** wall totals for the corner chips (the read model's WallStats minus
+ * the per-agent map, which /now folds onto each agent instead) */
+export interface WallStatsNow {
+  destroyed: number;
+  pages_read: number;
+  thoughts: number;
 }
 
 export interface AgentNowLive extends AgentNow {
@@ -53,6 +64,9 @@ export interface AgentNowLive extends AgentNow {
   depth_inputs?: Record<string, number>;
   /** generic hls playback url when a live camera exists for this agent */
   stream_url?: string | null;
+  /** corner-chip figures for this agent, counted by the runtime */
+  pages_read?: number;
+  thoughts_today?: number;
 }
 
 const EVENT_BUFFER = 400;
@@ -67,6 +81,7 @@ export function useWall(): WallSnapshot {
   const [connected, setConnected] = useState(false);
   const [channel, setChannel] = useState<"sse" | "poll">("sse");
   const [now, setNow] = useState(() => Date.now());
+  const [stats, setStats] = useState<WallStatsNow | null>(null);
   const lastId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -79,10 +94,15 @@ export function useWall(): WallSnapshot {
       try {
         const res = await fetch(`${WALL_API}/now`);
         if (!res.ok) throw new Error(String(res.status));
-        const body = (await res.json()) as { agents: AgentNowLive[]; alive: number };
+        const body = (await res.json()) as {
+          agents: AgentNowLive[];
+          alive: number;
+          stats?: WallStatsNow;
+        };
         if (stopped) return;
         setAgents(body.agents);
         setAlive(body.alive);
+        setStats(body.stats ?? null);
       } catch {
         if (!stopped) setConnected(false);
       }
@@ -168,7 +188,34 @@ export function useWall(): WallSnapshot {
     };
   }, []);
 
-  return { agents, alive, events, connected, channel, now };
+  return { agents, alive, events, connected, channel, now, stats };
+}
+
+/** the plate's clock chip: hh:mm:ss utc, ticking on the shared clock */
+export function utcClock(now: number): string {
+  const d = new Date(now);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+/** chip figures group thousands ("34,118 pages read") */
+export function formatCount(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
+/** how long a death keeps its vacant frame on screen before the cell
+ * leaves the grid: long enough that a viewer sees the ending, short
+ * enough that the room never fills with empty plates. presentation
+ * policy shared by the wall and the gate. */
+export const RECENT_DEATH_MS = 10 * 60_000;
+
+/** dead, and recently enough that the frame still hangs, vacant */
+export function recentlyDead(agent: AgentNowLive, now: number): boolean {
+  return (
+    agent.state === "dead" &&
+    Boolean(agent.death) &&
+    now - Date.parse((agent.death as { ts: string }).ts) < RECENT_DEATH_MS
+  );
 }
 
 /** live ttl derived from dies_at and the ticking clock */

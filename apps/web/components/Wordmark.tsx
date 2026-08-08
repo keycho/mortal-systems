@@ -35,13 +35,14 @@ const VARIANTS = {
     bar: "rgba(242,239,231,.2)",
     fill: "rgba(242,239,231,.5)",
   },
-  /** the wall's footer band: same treatment, the gate handoff's sizes */
+  /** the wall's header: same treatment, the gate handoff's sizes, ink
+   * on the light room's cream ground */
   wall: {
     font: "500 13px var(--font-mono)",
-    color: "#f2efe7",
+    color: "#191713",
     dash: { width: 24, height: 2.5, margin: "0 10px" },
-    bar: "rgba(242,239,231,.25)",
-    fill: "#f2efe7",
+    bar: "rgba(25,23,19,.22)",
+    fill: "#191713",
   },
 } as const;
 

@@ -17,7 +17,7 @@ export interface DeadIdentity {
 }
 
 /**
- * the death card: one fixed black template, the same layout every time.
+ * the death card: one fixed template, the same layout every time.
  * name, lifespan, cause, final words, receipt, wordmark. it is a meme
  * format; nothing about it varies per death.
  */

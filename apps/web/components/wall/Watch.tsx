@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AGENT_CLASS_DISPLAY,
   directorPick,
@@ -8,32 +8,59 @@ import {
   shortReceipt,
   type WallEvent,
 } from "@mortal/wall/browser";
-import { useRecap, useWall } from "../../lib/wall-client";
+import {
+  countdownLabel,
+  finalHourLabel,
+  formatCount,
+  recentlyDead,
+  remainingSeconds,
+  useRecap,
+  useWall,
+  utcClock,
+} from "../../lib/wall-client";
 import { AgentCell } from "./AgentCell";
 import { ReasoningPanel } from "./ReasoningPanel";
+import { WallChrome } from "./WallChrome";
 
 /**
- * the watch page (wall spec section 6): director cam with the tested
- * auto-cut priority, manual pin by clicking a small cell, the reasoning
- * panel (surface B) under the hero's frame, the wire, and the "show the
- * machine" annotation overlay that prints the runtime primitive and
- * receipt behind each event.
+ * the gate, browse-forward (light handoff 2b): the hero feed with the
+ * reasoning panel beside it, the controls row, the rest of the cast in
+ * smaller frames below, the wire, and the plate border naming who is on
+ * camera. director cam with the tested auto-cut priority; clicking a
+ * small cell pins it, and the wall's frames arrive here already pinned
+ * via ?pin=. "show the machine" prints the runtime primitive and receipt
+ * behind each wire line.
  */
 
 const WIRE_LINES = 20;
 
 export function Watch() {
-  const { agents, events, connected, now } = useWall();
+  const { agents, events, connected, now, stats } = useWall();
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [showMachine, setShowMachine] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const recap = useRecap();
 
+  // a frame clicked on the wall arrives pinned; the query string is the
+  // whole handshake, so the page stays a static export
+  useEffect(() => {
+    setMounted(true);
+    const pin = new URLSearchParams(window.location.search).get("pin");
+    if (pin) setPinnedId(pin);
+  }, []);
+
   const living = useMemo(() => agents.filter((a) => a.state !== "unborn"), [agents]);
-  const hero = useMemo(
-    () => directorPick(living, events, { pinnedId, now: new Date(now) }),
-    [living, events, pinnedId, now]
+  // directorPick returns the read model's AgentNow; resolve it back into
+  // the live list so the hero keeps stream_url and the chip figures
+  const hero = useMemo(() => {
+    const pick = directorPick(living, events, { pinnedId, now: new Date(now) });
+    return pick ? (living.find((a) => a.agent_id === pick.agent_id) ?? null) : null;
+  }, [living, events, pinnedId, now]);
+  // a small frame's death keeps its vacant plate for a while, like the
+  // wall; long-gone agents leave the row
+  const rest = living.filter(
+    (a) => a.agent_id !== hero?.agent_id && (a.state !== "dead" || recentlyDead(a, now))
   );
-  const rest = living.filter((a) => a.agent_id !== hero?.agent_id);
   const wire = useMemo(
     () =>
       [...events]
@@ -50,8 +77,31 @@ export function Watch() {
       }`
     : "/download";
 
+  const heroRemaining = hero ? remainingSeconds(hero, now) : null;
+  const heroFinalHour = heroRemaining !== null && heroRemaining < 3600;
+  const heroTtl =
+    heroRemaining === null
+      ? null
+      : heroFinalHour
+        ? finalHourLabel(heroRemaining)
+        : countdownLabel(heroRemaining);
+
   return (
-    <main className="wall">
+    <main className="wall wall-watch-page">
+      <WallChrome
+        field="gate"
+        chips={{
+          tl: hero ? `watching · ${hero.name}` : null,
+          tr: heroTtl ? `${heroTtl} remaining` : null,
+          trTone: heroFinalHour ? "final" : "life",
+          bl: hero
+            ? `${formatCount(hero.pages_read ?? 0)} pages read · ${formatCount(hero.thoughts_today ?? 0)} thoughts today`
+            : stats
+              ? `${formatCount(stats.pages_read)} pages read · ${formatCount(stats.thoughts)} thoughts logged`
+              : null,
+          br: mounted ? `${utcClock(now)} utc · mortal.systems` : null,
+        }}
+      />
       {recap.text ? (
         <div className="wall-recap">
           <span>while you were away: {recap.text}</span>
@@ -97,7 +147,7 @@ export function Watch() {
           ) : null}
         </div>
 
-        {/* everyone else, on the gate's own grid: even cells, even gaps */}
+        {/* everyone else, smaller, on the wall's own grid grammar */}
         {rest.length > 0 ? (
           <section className="wall-grid wall-grid-rest">
             {rest.map((agent) => (
@@ -114,7 +164,7 @@ export function Watch() {
         ) : null}
       </div>
 
-      {/* the wire gets its own strip, full width, the way the gate has it */}
+      {/* the wire gets its own strip, full width, the way the wall has it */}
       <div className="wall-wirefeed">
         {wire.map((event) => (
           <WireLine key={event.id} event={event} showMachine={showMachine} agents={living} />
@@ -123,7 +173,7 @@ export function Watch() {
 
       <div className="wall-watchfoot">
         <a href="/graveyard">graveyard</a>
-        <a href="/">the gate</a>
+        <a href="/">the wall</a>
       </div>
     </main>
   );

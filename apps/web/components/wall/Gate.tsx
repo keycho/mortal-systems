@@ -1,28 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { directorScore, humanizeEvent, spotlightAt, type PayloadFor } from "@mortal/wall/browser";
-import { remainingSeconds, useWall } from "../../lib/wall-client";
+import { formatCount, recentlyDead, remainingSeconds, useWall, utcClock } from "../../lib/wall-client";
 import { Wordmark } from "../Wordmark";
-import { AgentCell, VacantCell } from "./AgentCell";
+import { AgentCell, VacantCell, type CellCaption } from "./AgentCell";
+import { WallChrome } from "./WallChrome";
 
 /**
- * the gate (wall spec section 5, drawn to the "mortal gate" handoff): the
- * first thing anyone sees. framed screens with margin on a warm near-black
- * room, no nav, no feature copy. one monologue spotlight at a time for the
- * whole wall, a gate-level bar beneath the grid (surface B: agent text is
- * never drawn on a frame); the count line is live; everything else is
- * chrome. the frames themselves render the product site's light world,
- * and that contrast is the point.
+ * the wall (light handoff 2a): the first thing anyone sees. live frames
+ * hung like plates on the cream ground, the oxide form and tv grain
+ * behind them, the plate border with the runtime's own figures at the
+ * corners, one typed-on monologue caption beneath its speaker's frame,
+ * the wire, and the serif count line over the bordered enter.
  *
  * the grid sizes to the cast: exactly one cell per agent, columns capped
- * at three, so a three-agent wall is one full row instead of a row of
- * life over a row of vacant filler. the drifting vacant form appears
- * only when the room is empty.
+ * at three. a death keeps its frame for a short while, vacant (the
+ * drifting form, never a label), then the cell leaves the wall. the
+ * drifting vacant row appears only when the room is empty.
  */
 
 /** the empty room: one row of the drifting form, never a label */
 const EMPTY_ROOM_SLOTS = 3;
+
+/** the caption types on at ~9 chars a second with a few characters of
+ * head start, then holds (light handoff's own reveal) */
+const TYPE_CPS = 9;
+const TYPE_HEAD = 5;
 
 const COUNT_WORDS = [
   "no identities are",
@@ -37,16 +41,20 @@ const COUNT_WORDS = [
 const MORE_WORDS = ["no", "one", "two", "three", "four", "five", "six"];
 
 export function Gate() {
-  const { agents, alive, events, connected, now } = useWall();
+  const { agents, alive, events, connected, now, stats } = useWall();
+  const mounted = useMounted();
 
   // cells arrive sorted by the director score so the mobile hero is the
-  // director pick, and a final hour outranks everything else
+  // director pick, and a final hour outranks everything else. a recent
+  // death stays on as a vacant frame; older dead leave the grid.
   const sorted = useMemo(() => {
-    const living = agents.filter((a) => a.state !== "unborn");
-    return [...living].sort(
+    const living = agents.filter((a) => a.state !== "unborn" && a.state !== "dead");
+    const rank = [...living].sort(
       (a, b) =>
         directorScore(b, events, new Date(now)) - directorScore(a, events, new Date(now))
     );
+    const recentDead = agents.filter((a) => recentlyDead(a, now));
+    return [...rank, ...recentDead];
   }, [agents, events, now]);
 
   const spotlight = useMemo(() => spotlightAt(events, new Date(now)), [events, now]);
@@ -69,14 +77,24 @@ export function Gate() {
   }, [finalHourAgent, events]);
 
   // the one voice on the wall right now: the held final-hour caption, or
-  // the rotating spotlight when its speaker is on screen
+  // the rotating spotlight when its speaker is on screen and alive
   const speaker = finalHourAgent
     ? heldCaption
       ? finalHourAgent
       : null
-    : (spotlight && sorted.find((a) => a.agent_id === spotlight.agent_id)) || null;
+    : (spotlight &&
+        sorted.find((a) => a.agent_id === spotlight.agent_id && a.state !== "dead")) ||
+      null;
   const spokenText = finalHourAgent ? heldCaption : speaker ? spotlight?.text ?? null : null;
-  const spokenGloss = speaker && spokenText ? (speaker.last_monologue_gloss ?? null) : null;
+  const typed = useTypeOn(spokenText, speaker?.agent_id ?? null);
+  const caption: CellCaption | null =
+    speaker && typed
+      ? {
+          text: typed,
+          gloss: speaker.last_monologue_gloss ?? null,
+          lang: speaker.locale?.startsWith("ja") ? "ja" : undefined,
+        }
+      : null;
 
   // the wire: the last 4 public events, newest first
   const strip = useMemo(() => {
@@ -101,12 +119,28 @@ export function Gate() {
       : null;
   // no stream and nothing arriving: the signal-lost dot, on those cells only
   const signalLost = !connected && agents.length > 0;
+  // §6: the mobile hero is the spotlight's speaker, and a final hour wins
+  const mobileHero = finalHourAgent ?? speaker ?? sorted[0] ?? null;
 
   return (
     <main className="wall wall-gate">
+      <WallChrome
+        field="wall"
+        chips={{
+          tl: "the wall · live",
+          tr: stats ? `${alive} alive · ${formatCount(stats.destroyed)} destroyed to date` : null,
+          bl: stats
+            ? `${formatCount(stats.pages_read)} pages read · ${formatCount(stats.thoughts)} thoughts logged`
+            : null,
+          br: mounted ? `${utcClock(now)} utc · mortal.systems` : null,
+        }}
+      />
       {!connected && agents.length === 0 ? (
         <div className="wall-offline">the wall is unreachable from here right now</div>
       ) : null}
+      <div className="wall-head">
+        <Wordmark variant="wall" />
+      </div>
       <div className="wall-grid" data-cols={sorted.length === 0 ? EMPTY_ROOM_SLOTS : cols}>
         {sorted.map((agent) => (
           <AgentCell
@@ -115,29 +149,16 @@ export function Gate() {
             events={events}
             now={now}
             signalLost={signalLost}
+            href={`/watch?pin=${encodeURIComponent(agent.agent_id)}`}
+            caption={speaker?.agent_id === agent.agent_id ? caption : null}
+            mobileHero={mobileHero?.agent_id === agent.agent_id}
           />
         ))}
         {sorted.length === 0
-          ? Array.from({ length: EMPTY_ROOM_SLOTS }, (_, i) => <VacantCell key={`vacant-${i}`} />)
+          ? Array.from({ length: EMPTY_ROOM_SLOTS }, (_, i) => (
+              <VacantCell key={`vacant-${i}`} withCaptionSlot />
+            ))
           : null}
-      </div>
-      {/* surface B on the gate: the spotlight bar. the slot is always
-          present at a fixed height, so a caption arriving or leaving
-          never moves the wire or the foot */}
-      <div className="wall-spotlight">
-        <div className={`wall-spotline${spokenText ? "" : " out"}`}>
-          {spokenText && speaker ? (
-            <>
-              <span className="who">{speaker.name}</span>
-              <span className="line" lang={speaker.locale?.startsWith("ja") ? "ja" : undefined}>
-                {spokenText}
-              </span>
-              {/* the japanese is the thing you see; this is for the viewer
-                  who cannot read it, and it never replaces the line */}
-              {spokenGloss ? <span className="gloss">{spokenGloss}</span> : null}
-            </>
-          ) : null}
-        </div>
       </div>
       {moreLine ? (
         <div className="wall-more">
@@ -160,7 +181,6 @@ export function Gate() {
         </div>
       </div>
       <div className="wall-foot">
-        <Wordmark variant="wall" />
         <span className="count">{countLine}</span>
         <a className="enter" href="/watch">
           enter ▸
@@ -168,4 +188,44 @@ export function Gate() {
       </div>
     </main>
   );
+}
+
+/** true after hydration; gates the ticking clock chip so the prerendered
+ * page never argues with the viewer's own clock */
+function useMounted(): boolean {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted;
+}
+
+/**
+ * the caption reveal: ~9 chars a second from a short head start, then
+ * hold. a new speaker or a new line restarts the reveal; reduced motion
+ * swaps the whole caption without typing.
+ */
+function useTypeOn(text: string | null, speakerId: string | null): string | null {
+  const [shown, setShown] = useState<string | null>(text);
+  useEffect(() => {
+    if (text === null) {
+      setShown(null);
+      return;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShown(text);
+      return;
+    }
+    const started = Date.now();
+    setShown(text.slice(0, TYPE_HEAD));
+    const iv = setInterval(() => {
+      const n = Math.floor(((Date.now() - started) / 1000) * TYPE_CPS) + TYPE_HEAD;
+      if (n >= text.length) {
+        setShown(text);
+        clearInterval(iv);
+      } else {
+        setShown(text.slice(0, n));
+      }
+    }, 80);
+    return () => clearInterval(iv);
+  }, [text, speakerId]);
+  return shown;
 }

@@ -351,6 +351,59 @@ export function depthScore(inputs: DepthInputs): number {
   );
 }
 
+// ---- wall stats ----
+
+/** per-agent slice of the running figures, for the gate's corner chips */
+export interface AgentStats {
+  pages_read: number;
+  thoughts_today: number;
+}
+
+/**
+ * the plate-border figures: every number the corner chips print. counted
+ * from the same public stream every other surface renders from, so the
+ * chips can never disagree with the wall. a "page read" is an opened_page
+ * action; a "thought" is a monologue or a narration; "destroyed to date"
+ * is the death count. thoughts_today resets at utc midnight (the wall's
+ * clock chip is utc, so the day boundary is the one the viewer can see).
+ */
+export interface WallStats {
+  destroyed: number;
+  pages_read: number;
+  thoughts: number;
+  by_agent: Record<string, AgentStats>;
+}
+
+export function wallStats(events: WallEvent[], opts: { todayStart?: string } = {}): WallStats {
+  const todayStart = opts.todayStart ?? `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const stats: WallStats = { destroyed: 0, pages_read: 0, thoughts: 0, by_agent: {} };
+  const agent = (id: string): AgentStats =>
+    (stats.by_agent[id] ??= { pages_read: 0, thoughts_today: 0 });
+  for (const event of events) {
+    if (event.visibility !== "public") continue;
+    switch (event.kind) {
+      case "death":
+        stats.destroyed += 1;
+        break;
+      case "action": {
+        if ((event.payload as PayloadFor<"action">).verb !== "opened_page") break;
+        stats.pages_read += 1;
+        agent(event.agent_id).pages_read += 1;
+        break;
+      }
+      case "monologue":
+      case "narration": {
+        stats.thoughts += 1;
+        if (event.ts >= todayStart) agent(event.agent_id).thoughts_today += 1;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  return stats;
+}
+
 // ---- recap ----
 
 /** llm summarizer boundary: the showrunner may plug a model in; the

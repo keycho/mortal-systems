@@ -1,39 +1,59 @@
 /**
- * the wall's own tokens (design handoff "mortal gate"), scoped under
- * .wall so the spectacle layer never leaks into the product site and vice
- * versa. a warm near-black room; the browser surfaces inside the frames
- * render light, and that contrast is deliberate: streams are never
- * darkened, tinted or dimmed (handoff §7). the site draws only the status
- * bar and the ttl; everything else in a frame is captured video, and
- * agent text lives in surface B (the gate's spotlight bar, the watch
- * page's reasoning panel), never on a frame.
+ * the wall's own tokens (design handoff "mortal gate", light sections
+ * 2a/2b), scoped under .wall so the spectacle layer never leaks into the
+ * product site and vice versa. the room is the product site's cream
+ * world now: white frames hung like plates, tv grain and the oxide
+ * line-form behind them, the plate border with the runtime's figures at
+ * the corners. the geometry is still gate-handoff.md's; only the skin
+ * changed. streams are never darkened, tinted or dimmed (handoff §7),
+ * and the site draws only the status bar, the ttl and the caption slot;
+ * everything else in a frame is captured video.
  *
  * the two faces come from the product site's own stacks (--font-display,
  * --font-mono in tokens.css), so the wall and the site can never drift.
  */
 .wall {
-  /* §1 color tokens */
-  --w-page: #151210;
-  --w-frame: #1b1713;
-  --w-bone: #f2efe7;
-  --w-border: rgba(242, 239, 231, 0.16);
+  /* light skin tokens (2a/2b) over the §1 roles */
+  --w-page: #f8f6f1;
+  --w-frame: #ffffff;
+  --w-bar: #fdfbf7; /* status bar + reasoning panel surface */
+  --w-ink: #191713;
+  --w-border: rgba(25, 23, 19, 0.14);
   --w-border-final: rgba(191, 59, 43, 0.65);
-  --w-border-vacant: rgba(242, 239, 231, 0.1);
-  --w-hair: rgba(242, 239, 231, 0.1);
+  --w-border-vacant: rgba(25, 23, 19, 0.1);
+  --w-hair: rgba(25, 23, 19, 0.1);
   --w-hair-final: rgba(191, 59, 43, 0.3);
+  --w-wire-hair: rgba(25, 23, 19, 0.12);
   --w-lost: #8a857b;
-  --w-text: #f2efe7;
-  --w-text-2: rgba(242, 239, 231, 0.75);
-  --w-state: rgba(242, 239, 231, 0.6);
-  --w-at: rgba(242, 239, 231, 0.4);
-  --w-orange: #cf5a22;
+  --w-text: #191713;
+  --w-text-2: rgba(25, 23, 19, 0.75);
+  --w-state: rgba(25, 23, 19, 0.55);
+  --w-at: rgba(25, 23, 19, 0.4);
+  --w-dim: rgba(25, 23, 19, 0.45);
+  --w-life: #c4501f; /* ttl + enter */
+  --w-life-border: rgba(196, 80, 31, 0.4);
   --w-red: #bf3b2b;
-  --w-amber: #c98b3d;
-  --w-wire: rgba(242, 239, 231, 0.45);
-  --w-count: rgba(242, 239, 231, 0.85);
-  --w-vacant-stroke: #a6431f;
+  --w-oxide: #a6431f; /* monologue + THOUGHT rows + wire quotes + line-forms */
+  --w-wire: rgba(25, 23, 19, 0.5);
+  --w-count: rgba(25, 23, 19, 0.85);
+  --w-plate: rgba(25, 23, 19, 0.2);
+  --w-chip: rgba(25, 23, 19, 0.55);
 
-  /* §3 geometry */
+  /* the plate shadows: an inset top light, a contact line, a hang */
+  --w-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(25, 23, 19, 0.05),
+    0 14px 34px rgba(25, 23, 19, 0.08);
+  --w-shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 4px rgba(25, 23, 19, 0.06),
+    0 22px 48px rgba(25, 23, 19, 0.13);
+  --w-shadow-hero: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(25, 23, 19, 0.05),
+    0 18px 44px rgba(25, 23, 19, 0.09);
+  --w-shadow-hero-hover: inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 4px rgba(25, 23, 19, 0.06), 0 26px 56px rgba(25, 23, 19, 0.13);
+  --w-shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 1px 2px rgba(25, 23, 19, 0.05),
+    0 10px 26px rgba(25, 23, 19, 0.07);
+  --w-shadow-sm-hover: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 4px rgba(25, 23, 19, 0.06),
+    0 18px 40px rgba(25, 23, 19, 0.12);
+
+  /* §3 geometry, unchanged */
   --w-frame-h: 250px;
   --w-status-h: 34px;
   --w-gap: 24px;
@@ -59,38 +79,121 @@
   text-decoration: none;
 }
 
-/* §1 page noise grain: black fractal noise at 4%, above the room and
- * below nothing that matters. pointer-events none so it never eats a
- * click; kept off the frames' own stacking context (see .wall-frame,
- * which raises itself above the grain) so video is never textured. */
-.wall::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 1;
+/* ---- the room (2a/2b chrome): grain, line-form, plate, chips ----
+ * all pointer-transparent. grain and the oxide form sit under the
+ * frames (content blocks carry z-index 2); the plate border and its
+ * chips ride above like a bezel, fixed to the viewport edge. */
+.wall-room {
   pointer-events: none;
-  opacity: 0.04;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='1'/></svg>");
 }
 
-/* ---- the gate ---- */
+/* tv grain: a pre-rasterized 240px noise tile repeated as a background
+ * image (never a live full-page filter), jumped around on a steps()
+ * cycle. the -120px bleed keeps the jumps from ever showing an edge. */
+.wall-grain {
+  position: fixed;
+  inset: -120px;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.9 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+  animation: wall-tvgrain 0.9s steps(4) infinite;
+}
+@keyframes wall-tvgrain {
+  0% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-90px, 60px);
+  }
+  50% {
+    transform: translate(60px, -80px);
+  }
+  75% {
+    transform: translate(-40px, -50px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* the oxide line-form: generated nested loops (lib/bg-field.ts),
+ * top-right on the wall, bottom-left on the gate, behind everything */
+.wall-field {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* the plate border: a 1px rule inset 18px from the viewport edge, with
+ * the runtime's figures masking it at the four corners */
+.wall-plate {
+  position: fixed;
+  inset: 18px;
+  border: 1px solid var(--w-plate);
+  z-index: 3;
+}
+.wall-chip {
+  position: fixed;
+  z-index: 3;
+  background: var(--w-page);
+  padding: 2px 9px;
+  font: 400 9.5px var(--font-mono, "IBM Plex Mono", monospace);
+  letter-spacing: 0.1em;
+  color: var(--w-chip);
+  white-space: nowrap;
+  max-width: 44vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wall-chip.tl {
+  top: 12px;
+  left: 44px;
+}
+.wall-chip.tr {
+  top: 12px;
+  right: 44px;
+}
+.wall-chip.bl {
+  bottom: 12px;
+  left: 44px;
+}
+.wall-chip.br {
+  bottom: 12px;
+  right: 44px;
+}
+.wall-chip.tr.life {
+  color: var(--w-life);
+}
+.wall-chip.tr.final {
+  color: var(--w-red);
+}
+
+/* ---- the wall page ---- */
 .wall-gate {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
+/* the wordmark, centered in the wall header (ink on cream) */
+.wall-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 52px var(--w-margin-x) 0;
+  margin-bottom: 34px;
+}
 .wall-grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--w-gap);
-  padding: 64px var(--w-margin-x) 0;
+  padding: 0 var(--w-margin-x);
 }
-/* the grid sizes to the cast (data-cols = min(3, live cells)): a small
-   cast fills its row instead of sitting beside vacant filler. one or
-   two alive get the width a two-column cell would, centered, so the
-   capture's crop stays in the same regime as the full grid. :where()
-   keeps specificity level with .wall-grid so the mobile rule still
-   wins. */
+/* the grid sizes to the cast (data-cols = min(3, cells)): a small cast
+   fills its row instead of sitting beside vacant filler. :where() keeps
+   specificity level with .wall-grid so the mobile rule still wins. */
 .wall-grid:where([data-cols="1"]) {
   grid-template-columns: minmax(0, 704px);
   justify-content: center;
@@ -99,24 +202,34 @@
   grid-template-columns: repeat(2, 1fr);
 }
 
-/* ---- a cell: the frame, and only the frame ---- */
+/* ---- a cell: the frame and, on the wall, the caption slot ---- */
 .wall-cell {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .wall-frame {
   position: relative;
-  z-index: 2; /* above the page grain: streams stay unaltered */
+  z-index: 2; /* above the room chrome: streams stay unaltered */
   height: var(--w-frame-h);
   background: var(--w-frame);
   border: 1px solid var(--w-border);
+  box-shadow: var(--w-shadow);
   overflow: hidden;
+  transition: transform 0.25s, box-shadow 0.25s;
 }
 .wall-cell.final-hour .wall-frame {
   border-color: var(--w-border-final);
 }
-.wall-cell[data-clickable="1"] .wall-frame {
+/* cursor pointer = watchable; every watchable frame lifts on hover */
+.wall-cell[data-clickable="1"] .wall-frame,
+a.wall-cell .wall-frame {
   cursor: pointer;
+}
+.wall-cell[data-clickable="1"] .wall-frame:hover,
+a.wall-cell .wall-frame:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--w-shadow-hover);
 }
 
 /* §4 normal: the stream, edge to edge, unaltered */
@@ -132,7 +245,7 @@
   display: block;
 }
 
-/* §4 status bar, inside the frame */
+/* §4 status bar, inside the frame, on its own cream surface */
 .wall-status {
   position: absolute;
   left: 0;
@@ -144,6 +257,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 9px 14px;
+  background: var(--w-bar);
   border-top: 1px solid var(--w-hair);
   font-size: 11px;
   line-height: 1;
@@ -159,7 +273,7 @@
   text-overflow: ellipsis;
 }
 .wall-status .ttl {
-  color: var(--w-orange);
+  color: var(--w-life);
   font-weight: 500;
   flex: none;
 }
@@ -188,7 +302,7 @@
   letter-spacing: 0.12em;
 }
 
-/* §4 text fallback: what a frame is without a stream ---- */
+/* §4 text fallback: what a frame is without a stream (ink dims) */
 .wall-activity {
   position: absolute;
   inset: 0;
@@ -209,7 +323,7 @@
   color: var(--w-state);
 }
 .wall-activity .state-line.active .state-word {
-  color: var(--w-text);
+  color: var(--w-text-2);
 }
 .wall-activity .cursor {
   display: inline-block;
@@ -233,7 +347,8 @@
   }
 }
 
-/* §4 vacant: the drifting contour form, never the word */
+/* §4 vacant: the drifting oxide form, never the word. a death is drawn
+ * the same way: the feed ends and the plate hangs empty for a while. */
 .wall-cell.vacant .wall-frame {
   border-color: var(--w-border-vacant);
 }
@@ -259,55 +374,49 @@
   }
 }
 
-/* §3 the spotlight bar (surface B on the gate): one monologue at a time
-   for the whole wall, a gate-level element beneath the grid, never on a
-   frame. it keeps the caption slot's fixed height and its 0.8s fade, so
-   a caption arriving or leaving never moves the wire or the foot. */
-.wall-spotlight {
-  position: relative;
-  z-index: 2;
+/* §3 the caption slot: 38px reserved under every wall frame, 9px off
+ * the plate, so a caption arriving or leaving never moves the grid.
+ * exactly one caption is lit across the wall at a time; it types on in
+ * the component and fades here. */
+.wall-cap {
   height: var(--w-cap-slot);
-  margin: 14px var(--w-margin-x) 0;
-  overflow: hidden;
-}
-/* the spotline is a name, a line and, when the identity does not think
-   in english, a smaller reading under it. the line keeps the amber and
-   the size: a japanese line should read as japanese at a glance, which
-   is the whole visual point of having a tokyo identity at all. */
-.wall-spotline {
-  font-size: 12px;
+  padding-top: 9px;
+  font: 400 12px var(--font-mono, "IBM Plex Mono", monospace);
   line-height: 1.5;
-  color: var(--w-amber);
+  color: var(--w-oxide);
   opacity: 1;
   transition: opacity 0.8s ease;
+}
+.wall-cap.out {
+  opacity: 0;
+}
+.wall-cap > span:not(.gloss) {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.wall-spotline.out {
-  opacity: 0;
-}
-.wall-spotline .who {
-  color: var(--w-at);
-  margin-right: 10px;
-}
-.wall-spotline .gloss {
+/* the japanese is the thing you see; the gloss is for the viewer who
+ * cannot read it, smaller and never instead. one line, ellipsized, so
+ * the fixed slot's overflow never collides with the row below. */
+.wall-cap .gloss {
   display: block;
   margin-top: 3px;
   font-size: 10px;
   line-height: 1.35;
   opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---- §5 the wire strip ---- */
 .wall-wirestrip {
   position: relative;
   z-index: 2;
-  height: 31px;
-  margin: 20px var(--w-margin-x) 0;
-  border-top: 1px solid var(--w-hair);
-  border-bottom: 1px solid var(--w-hair);
+  margin: 28px var(--w-margin-x) 0;
+  border-top: 1px solid var(--w-wire-hair);
+  border-bottom: 1px solid var(--w-wire-hair);
   overflow: hidden;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
   mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
@@ -315,7 +424,7 @@
 .wall-wirestrip .track {
   display: flex;
   width: max-content;
-  padding: 9px 0;
+  padding: 15px 0;
   animation: wall-wire 46s linear infinite;
 }
 .wall-wirestrip .run {
@@ -332,7 +441,7 @@
 }
 .wall-wirestrip .entry.monologue,
 .wall-wirestrip .entry.narration {
-  color: var(--w-amber);
+  color: var(--w-oxide);
 }
 @keyframes wall-wire {
   to {
@@ -340,69 +449,73 @@
   }
 }
 
-/* ---- §5 footer band ---- */
+/* ---- footer band: the serif count line and the bordered enter ---- */
 .wall-foot {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 36px;
-  padding: 30px var(--w-margin-x) 34px;
+  gap: 48px;
+  padding: 40px 0 46px;
 }
 .wall-foot .count {
   font-family: var(--font-display, "Instrument Serif", serif);
   font-style: italic;
-  font-size: 20px;
+  font-size: 26px;
+  font-weight: 400;
   line-height: 1.3;
   color: var(--w-count);
 }
 .wall-foot .enter {
   font-size: 13px;
   font-weight: 500;
-  color: var(--w-orange);
+  letter-spacing: 0.06em;
+  color: var(--w-life);
+  border: 1px solid var(--w-life-border);
+  padding: 13px 30px;
+  background: rgba(255, 255, 255, 0.5);
+  transition: background 0.25s;
 }
 .wall-foot .enter:hover {
-  text-decoration: underline;
+  background: rgba(196, 80, 31, 0.08);
 }
 .wall-more {
   display: none;
 }
 
-/* ---- watch page ---- */
-/* ---- /watch: the same room as the gate, with one frame given the floor ----
-   the old layout was a 2fr/1fr split with the wire crammed into a sidebar,
-   which made the hero narrow, the other cells uneven, and the wire
-   unreadable. the wall has one grammar: framed cells, even gaps, generous
-   margins, and the wire in a strip of its own. /watch now speaks it. */
+/* ---- the gate (browse-forward watch page) ---- */
 .wall-watch {
-  /* one column, and everything in the page sits inside it: the hero, the
-     rest of the cast and the wire all share an edge, which is most of
-     what "even" means on a page like this */
-  --w-stage: min(100%, 1040px);
+  position: relative;
+  z-index: 2;
   padding: 56px var(--w-margin-x) 0;
 }
 /* the hero row: surface A large on the left, surface B the reasoning
-   rail beside it (the reference's structure, the wall's own grammar).
-   the browser stays dominant; the row's height comes from the hero's
-   aspect ratio, and the rail's record scrolls inside that height. */
+   rail beside it. the browser stays dominant; the rail's record scrolls
+   inside the hero's own height. */
 .wall-stagerow {
+  --w-frame-h: 440px;
+  --w-status-h: 38px;
   position: relative;
-  z-index: 2;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 420px;
   gap: var(--w-gap);
-  width: var(--w-stage);
-  margin: 0 auto;
+  align-items: stretch;
 }
 .wall-stagerow.solo {
   grid-template-columns: 1fr;
 }
-/* the hero keeps the frame's proportions rather than a fixed height, so
-   the browser inside it is never letterboxed or cropped */
 .wall-stagerow .wall-frame {
-  height: auto;
-  aspect-ratio: 416 / 250;
+  box-shadow: var(--w-shadow-hero);
+}
+/* the hero deepens without lifting (2b): it already has the floor */
+.wall-stagecell .wall-frame:hover {
+  transform: none;
+  box-shadow: var(--w-shadow-hero-hover);
+}
+.wall-stagerow .wall-status {
+  padding: 11px 16px;
+  font-size: 11.5px;
 }
 .wall-stagerail {
   position: relative;
@@ -425,67 +538,83 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 416 / 250;
-  border: 1px solid var(--w-hair);
+  height: var(--w-frame-h);
+  border: 1px solid var(--w-border);
   background: var(--w-frame);
+  box-shadow: var(--w-shadow-hero);
   color: var(--w-dim);
   font-size: 12px;
 }
+/* the controls row: show the machine / auto-cut left, spawn right */
 .wall-stagebar {
   display: flex;
   align-items: center;
-  gap: 18px;
-  width: var(--w-stage);
-  margin: 14px auto 0;
-  font-size: 11px;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 12px;
   color: var(--w-dim);
 }
 .wall-stagebar .spacer {
   flex: 1;
 }
 .wall-stagebar button {
-  background: none;
-  border: 1px solid var(--w-hair);
-  color: var(--w-dim);
-  font: inherit;
-  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(25, 23, 19, 0.2);
+  color: rgba(25, 23, 19, 0.7);
+  font: 400 12px var(--font-mono, "IBM Plex Mono", monospace);
+  padding: 9px 16px;
   cursor: pointer;
 }
 .wall-stagebar button.on {
-  color: var(--w-bone);
-  border-color: var(--w-bone);
+  border-color: rgba(25, 23, 19, 0.45);
+  color: var(--w-ink);
 }
-/* ---- surface B: the reasoning panel (watch) ----
+.wall-stagebar .mode {
+  color: var(--w-dim);
+  padding: 9px 4px;
+}
+.wall-spawnlink {
+  font-weight: 500;
+  color: var(--w-life);
+  border: 1px solid rgba(196, 80, 31, 0.45);
+  padding: 9px 18px;
+  background: rgba(255, 255, 255, 0.6);
+  transition: background 0.25s;
+}
+.wall-spawnlink:hover {
+  background: rgba(196, 80, 31, 0.08);
+}
+
+/* ---- surface B: the reasoning panel ----
    the NOW intent line over a dense timestamped record of READ / WENT /
    THOUGHT / WROTE lines, beside the hero's frame and never inside it.
-   mortal-gate tokens only; spend and every other operating figure stay
-   in /health, off this surface. */
+   spend and every other operating figure stay in /health, off this
+   surface. */
 .wall-panel {
   position: relative;
-  z-index: 2; /* above the page grain, like every other text surface */
-  width: var(--w-stage);
+  z-index: 2;
   border: 1px solid var(--w-border);
-  background: var(--w-frame);
+  background: var(--w-bar);
 }
 .wall-now {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  padding: 12px 14px 0;
+  gap: 10px;
+  padding: 18px 20px 0;
+  font-size: 11px;
+  line-height: 1.6;
 }
 .wall-now .label {
   flex: none;
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  color: var(--w-at);
+  color: var(--w-dim);
 }
 .wall-now .intent-block {
   min-width: 0;
 }
 .wall-now .intent {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--w-amber);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--w-oxide);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -501,20 +630,21 @@
   color: var(--w-at);
 }
 .wall-record {
-  margin-top: 12px;
+  margin-top: 14px;
   border-top: 1px solid var(--w-hair);
-  padding: 8px 0 10px;
+  padding: 0 20px 10px;
   max-height: 300px;
   overflow-y: auto;
 }
 .wall-record .entry {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 4px 14px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--w-wire);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(25, 23, 19, 0.07);
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: rgba(25, 23, 19, 0.6);
 }
 .wall-record .t {
   flex: none;
@@ -524,20 +654,14 @@
 }
 .wall-record .tag {
   flex: none;
-  width: 56px;
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: var(--w-text-2);
+  width: 52px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: rgba(25, 23, 19, 0.6);
 }
-.wall-record .entry.WENT .tag {
-  color: var(--w-at);
-}
-.wall-record .entry.THOUGHT .tag,
 .wall-record .entry.THOUGHT .text {
-  color: var(--w-amber);
-}
-.wall-record .entry.WROTE .tag {
-  color: var(--w-orange);
+  color: var(--w-oxide);
 }
 .wall-record .text {
   min-width: 0;
@@ -551,43 +675,89 @@
   margin-top: 3px;
   font-size: 10px;
   line-height: 1.35;
-  opacity: 0.85;
+  color: var(--w-at);
 }
 .wall-record-empty {
-  padding: 4px 14px;
+  padding: 10px 0;
   color: var(--w-at);
 }
 
-/* the rest of the cast, on the gate's grid: even columns, even gaps */
+/* the rest of the cast, smaller, on the wall's grid grammar */
 .wall-grid-rest {
-  width: var(--w-stage);
-  margin: 44px auto 0;
+  --w-frame-h: 220px;
+  --w-status-h: 32px;
+  margin-top: 32px;
+  padding-left: 0;
+  padding-right: 0;
 }
+.wall-grid-rest .wall-frame {
+  box-shadow: var(--w-shadow-sm);
+}
+.wall-grid-rest .wall-cell[data-clickable="1"] .wall-frame:hover {
+  box-shadow: var(--w-shadow-sm-hover);
+}
+.wall-grid-rest .wall-status {
+  padding: 8px 12px;
+  font-size: 10.5px;
+}
+.wall-grid-rest .wall-activity {
+  padding: 14px 16px 0;
+}
+.wall-grid-rest .wall-activity .state-word {
+  font-size: 17px;
+}
+.wall-grid-rest .wall-activity .at-line {
+  font-size: 10.5px;
+}
+
 /* the wire, full width, in its own strip */
 .wall-wirefeed {
-  width: min(calc(100% - 2 * var(--w-margin-x)), 1040px);
-  margin: 44px auto 0;
+  position: relative;
+  z-index: 2;
+  margin: 44px var(--w-margin-x) 0;
   padding-top: 14px;
-  border-top: 1px solid var(--w-hair);
+  border-top: 1px solid var(--w-wire-hair);
   display: flex;
   flex-direction: column;
   gap: 7px;
   max-height: 210px;
   overflow: hidden;
 }
+.wall-wirefeed .line {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--w-wire);
+}
+.wall-wirefeed .line.death {
+  color: var(--w-red);
+}
+.wall-wirefeed .line.monologue,
+.wall-wirefeed .line.narration {
+  color: var(--w-oxide);
+}
+.wall-wirefeed .line.human_contact {
+  color: var(--w-text-2);
+}
+.wall-wirefeed .machine {
+  display: block;
+  color: var(--w-at);
+  font-size: 10px;
+  padding-left: 12px;
+  padding-top: 3px;
+}
 .wall-watchfoot {
+  position: relative;
+  z-index: 2;
   display: flex;
   gap: 24px;
-  width: min(calc(100% - 2 * var(--w-margin-x)), 1040px);
-  margin: 26px auto 56px;
+  margin: 26px var(--w-margin-x) 56px;
   font-size: 11px;
 }
 .wall-watchfoot a {
   color: var(--w-dim);
-  text-decoration: none;
 }
 .wall-watchfoot a:hover {
-  color: var(--w-bone);
+  color: var(--w-ink);
 }
 @media (max-width: 900px) {
   .wall-watch {
@@ -611,84 +781,6 @@
   }
 }
 
-/* the rest-grid reuses .wall-grid, whose padding already belongs to a
-   full page; inside /watch the margins come from .wall-watch */
-.wall-grid-rest {
-  padding-left: 0;
-  padding-right: 0;
-  padding-top: 0;
-}
-/* ---- the wire list (watch) ---- */
-.wall-wire {
-  position: relative;
-  z-index: 2;
-  border: 1px solid var(--w-border);
-  background: var(--w-frame);
-  max-height: 340px;
-  overflow-y: auto;
-  padding: 12px 0;
-}
-.wall-wire .line {
-  padding: 5px 14px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: var(--w-wire);
-}
-.wall-wire .line.death {
-  color: var(--w-red);
-}
-.wall-wire .line.monologue,
-.wall-wire .line.narration {
-  color: var(--w-amber);
-}
-.wall-wire .line.human_contact {
-  color: var(--w-text);
-}
-.wall-wire .machine {
-  display: block;
-  color: var(--w-at);
-  font-size: 10px;
-  padding-left: 12px;
-  padding-top: 3px;
-}
-.wall-toolbar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  font-size: 11px;
-  color: var(--w-at);
-  padding: 0 var(--w-margin-x);
-}
-.wall-graveyard .wall-toolbar {
-  padding: 0;
-}
-.wall-toolbar button {
-  background: none;
-  border: 1px solid var(--w-border);
-  color: var(--w-text-2);
-  font: inherit;
-  letter-spacing: inherit;
-  padding: 7px 12px;
-  cursor: pointer;
-}
-.wall-toolbar button.on {
-  border-color: rgba(201, 139, 61, 0.55);
-  color: var(--w-amber);
-}
-.wall-spawnlink {
-  color: var(--w-orange);
-  border: 1px solid rgba(207, 90, 34, 0.5);
-  padding: 7px 12px;
-}
-.wall-voicebar {
-  min-height: var(--w-cap-slot);
-  margin-top: 9px;
-  color: var(--w-amber);
-  font-size: 12px;
-  line-height: 1.5;
-}
 .wall-recap {
   position: relative;
   z-index: 2;
@@ -697,7 +789,7 @@
   gap: 12px;
   margin: 28px var(--w-margin-x) 0;
   padding: 11px 14px;
-  background: var(--w-frame);
+  background: var(--w-bar);
   border: 1px solid var(--w-border);
   color: var(--w-text-2);
   font-size: 11px;
@@ -717,7 +809,7 @@
   font-size: 11px;
 }
 
-/* ---- graveyard + the death card ---- */
+/* ---- graveyard + the death card, in the same light room ---- */
 .wall-graveyard {
   position: relative;
   z-index: 2;
@@ -752,6 +844,7 @@
 .death-card {
   background: var(--w-frame);
   border: 1px solid var(--w-border);
+  box-shadow: var(--w-shadow-sm);
   padding: 22px 20px 16px;
   display: flex;
   flex-direction: column;
@@ -798,14 +891,32 @@
   font-size: 11px;
   padding: 32px 0;
 }
+.wall-toolbar {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  font-size: 11px;
+}
+.wall-toolbar a {
+  color: var(--w-dim);
+}
+.wall-toolbar a:hover {
+  color: var(--w-ink);
+}
 
+/* reduced motion: static grain, no wire scroll, no drift; captions swap
+ * without typing (the reveal itself is gated in the component) */
 @media (prefers-reduced-motion: reduce) {
+  .wall-grain,
   .wall-activity .cursor,
   .wall-vacant-form svg,
   .wall-wirestrip .track {
     animation: none;
   }
-  .wall-spotline {
+  .wall-cap,
+  .wall-frame,
+  .wall-foot .enter,
+  .wall-spawnlink {
     transition: none;
   }
 }
@@ -817,19 +928,35 @@
     --w-frame-h: 224px;
     --w-status-h: 32px;
   }
+  .wall-plate {
+    inset: 10px;
+  }
+  .wall-chip.tl,
+  .wall-chip.bl {
+    left: 22px;
+  }
+  .wall-chip.tr,
+  .wall-chip.br {
+    right: 22px;
+  }
+  .wall-head {
+    padding-top: 28px;
+    margin-bottom: 20px;
+  }
   .wall-grid {
     grid-template-columns: 1fr;
-    padding: 28px var(--w-margin-x) 0;
   }
-  /* the hero frame only: the other screens are named, not drawn */
-  .wall-grid > .wall-cell:nth-child(n + 2) {
+  /* the hero frame only (the spotlight's speaker; a final hour wins):
+     the other screens are named, not drawn */
+  .wall-gate .wall-grid > .wall-cell {
     display: none;
+  }
+  .wall-gate .wall-grid > .wall-cell[data-mobile-hero="1"],
+  .wall-gate .wall-grid > .wall-cell:only-child {
+    display: flex;
   }
   .wall-status {
     padding: 8px 12px;
-    font-size: 10.5px;
-  }
-  .wall-status .ttl {
     font-size: 10.5px;
   }
   .wall-activity {
@@ -841,14 +968,19 @@
   .wall-activity .at-line {
     font-size: 10.5px;
   }
-  .wall-spotline {
+  /* one cell on screen: the slot can breathe instead of clipping */
+  .wall-cap {
     font-size: 11.5px;
+    height: auto;
+    min-height: var(--w-cap-slot);
   }
   .wall-record .entry {
     font-size: 10.5px;
   }
   .wall-more {
     display: block;
+    position: relative;
+    z-index: 2;
     padding: 14px var(--w-margin-x) 0;
     font-size: 10px;
     line-height: 1.5;
@@ -862,21 +994,27 @@
   }
   .wall-foot {
     flex-direction: column;
-    gap: 36px;
+    gap: 28px;
     padding: 30px var(--w-margin-x) 34px;
   }
   .wall-foot .count {
-    font-size: 18px;
+    font-size: 22px;
     text-align: center;
   }
   .wall-foot .enter {
-    border: 1px solid rgba(207, 90, 34, 0.5);
+    border-color: rgba(196, 80, 31, 0.5);
     padding: 12px 34px;
   }
-  /* watch stacks; the mini grid keeps two up */
-  .wall-watch {
-    grid-template-columns: 1fr;
-    padding: 28px var(--w-margin-x) 0;
+  .wall-stagerow {
+    --w-frame-h: 240px;
+    --w-status-h: 32px;
+  }
+  .wall-stagerow .wall-status {
+    padding: 8px 12px;
+    font-size: 10.5px;
+  }
+  .wall-stagebar {
+    flex-wrap: wrap;
   }
   .wall-graveyard {
     padding: 40px 16px;
