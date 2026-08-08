@@ -1,8 +1,9 @@
 # mortal manager — tauri 2 shell.
 #
-# STATUS (poc): scaffolded but NOT compiled in the linux build container
-# (webkit2gtk system dependencies are absent there). target platform for the
-# poc is macos. see docs/PROGRESS.md and docs/DECISIONS.md.
+# STATUS: compiled + launch-smoked by release ci on the macos runner
+# (release-macos.yml). still not compilable in the linux dev container
+# (webkit2gtk system dependencies are absent there). target platform is
+# macos. see docs/PROGRESS.md and docs/DECISIONS.md.
 
 [package]
 name = "mortal-manager"

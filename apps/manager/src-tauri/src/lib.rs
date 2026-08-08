@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
+use tauri::Manager;
 
 struct RuntimeHandle {
     child: Mutex<Option<Child>>,
@@ -18,14 +19,54 @@ fn mortal_root() -> PathBuf {
     PathBuf::from(home).join(".mortal")
 }
 
-/// spawn `node <runtime>/dist/cli.js serve` as the runtime sidecar. the node
-/// binary and runtime path come from env in the poc (MORTAL_NODE,
-/// MORTAL_RUNTIME_DIR); packaging a self-contained sidecar binary is mvp
-/// scope.
-fn spawn_runtime() -> std::io::Result<Child> {
-    let node = std::env::var("MORTAL_NODE").unwrap_or_else(|_| "node".into());
-    let runtime_dir = std::env::var("MORTAL_RUNTIME_DIR")
-        .unwrap_or_else(|_| "../../packages/runtime".into());
+/// the ci-assembled self-contained sidecar under Resources/sidecar:
+/// `node` (executable), `runtime/dist/cli.js` (+ its node_modules from
+/// `pnpm deploy`), and `companion/` (the built extension template).
+fn bundled_sidecar(app: &tauri::AppHandle) -> Option<(PathBuf, PathBuf, PathBuf)> {
+    let base = app.path().resource_dir().ok()?.join("sidecar");
+    let node = base.join("node");
+    let cli = base.join("runtime").join("dist").join("cli.js");
+    let companion = base.join("companion");
+    if node.is_file() && cli.is_file() {
+        Some((node, cli, companion))
+    } else {
+        None
+    }
+}
+
+fn sidecar_log(root: &PathBuf) -> Stdio {
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(root.join("sidecar.log"))
+        .map(Stdio::from)
+        .unwrap_or_else(|_| Stdio::null())
+}
+
+/// spawn the runtime sidecar. env overrides (MORTAL_NODE, MORTAL_RUNTIME_DIR)
+/// keep the dev flow exactly as before; without them the bundled
+/// Resources/sidecar tree is used when present, falling back to the
+/// monorepo-relative dev default.
+fn spawn_runtime(app: &tauri::AppHandle) -> std::io::Result<Child> {
+    let node_env = std::env::var("MORTAL_NODE").ok();
+    let dir_env = std::env::var("MORTAL_RUNTIME_DIR").ok();
+
+    if node_env.is_none() && dir_env.is_none() {
+        if let Some((node, cli, companion)) = bundled_sidecar(app) {
+            let root = mortal_root();
+            let _ = std::fs::create_dir_all(&root);
+            let mut cmd = Command::new(node);
+            cmd.arg(cli).arg("serve").arg("--seed-first-party");
+            if companion.is_dir() {
+                cmd.env("MORTAL_COMPANION_TEMPLATE", &companion);
+            }
+            cmd.stdout(sidecar_log(&root)).stderr(sidecar_log(&root));
+            return cmd.spawn();
+        }
+    }
+
+    let node = node_env.unwrap_or_else(|| "node".into());
+    let runtime_dir = dir_env.unwrap_or_else(|| "../../packages/runtime".into());
     Command::new(node)
         .arg(format!("{runtime_dir}/dist/cli.js"))
         .arg("serve")
@@ -74,13 +115,18 @@ async fn runtime_call(
 }
 
 pub fn run() {
-    let handle = RuntimeHandle {
-        child: Mutex::new(spawn_runtime().ok()),
-        endpoint: Mutex::new(None),
-    };
-
     tauri::Builder::default()
-        .manage(handle)
+        .manage(RuntimeHandle {
+            child: Mutex::new(None),
+            endpoint: Mutex::new(None),
+        })
+        .setup(|app| {
+            let child = spawn_runtime(app.handle()).ok();
+            if let Ok(mut guard) = app.state::<RuntimeHandle>().child.lock() {
+                *guard = child;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![runtime_call])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::Destroyed = event {

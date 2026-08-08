@@ -1,0 +1,121 @@
+name: release-macos
+
+# unsigned macos alpha build, on demand. produces the .dmg the founder
+# uploads to a github release (the site links the /releases/latest/download
+# url). signing/notarization is deliberately deferred until there is
+# demonstrated interest — the download page says so.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-unsigned-macos-arm64:
+    runs-on: macos-latest # arm64 (apple silicon)
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/manager/src-tauri
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: build the js side (runtime, companion, manager frontend)
+        run: pnpm turbo run build --filter=@mortal/runtime --filter=companion --filter=manager
+
+      - name: assemble the self-contained sidecar (node + runtime + companion)
+        run: |
+          set -euxo pipefail
+          SIDE=apps/manager/src-tauri/sidecar
+          rm -rf "$SIDE/runtime" "$SIDE/companion" "$SIDE/node"
+          pnpm --filter @mortal/runtime deploy --legacy --prod "$SIDE/runtime"
+          cp -R apps/companion/dist "$SIDE/companion"
+          # the setup-node binary is a self-contained, node.js-project-signed
+          # arm64 executable — reuse it instead of downloading a tarball
+          cp "$(command -v node)" "$SIDE/node"
+          chmod +x "$SIDE/node"
+          du -sh "$SIDE"
+          # boot-proof the assembled tree exactly as the shell will spawn it,
+          # before tauri wraps it into the bundle
+          PROOF="$RUNNER_TEMP/sidecar-proof"
+          rm -rf "$PROOF"
+          MORTAL_ROOT="$PROOF" "$SIDE/node" "$SIDE/runtime/dist/cli.js" serve --seed-first-party &
+          BOOT=$!
+          for _ in $(seq 1 30); do [ -s "$PROOF/runtime.json" ] && break; sleep 1; done
+          test -s "$PROOF/runtime.json"
+          PORT=$(node -p "JSON.parse(require('fs').readFileSync('$PROOF/runtime.json','utf8')).port")
+          curl -fsS "http://127.0.0.1:$PORT/v1/health"
+          kill $BOOT || true
+
+      - name: tauri build (unsigned .app)
+        run: pnpm --filter manager exec tauri build --bundles app
+
+      - name: ad-hoc sign + package the dmg
+        run: |
+          set -euxo pipefail
+          APP="apps/manager/src-tauri/target/release/bundle/macos/mortal manager.app"
+          test -d "$APP"
+          # ad-hoc seal so the arm64 bundle is coherent end to end; this is
+          # explicitly NOT a developer-id signature and gatekeeper will still
+          # require right-click -> open after download. that is the honest
+          # alpha posture and the site says so next to the button.
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --verbose=2 "$APP"
+          STAGE="$RUNNER_TEMP/dmg-stage"
+          rm -rf "$STAGE" dist-dmg
+          mkdir -p "$STAGE" dist-dmg
+          cp -R "$APP" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname "mortal manager" -srcfolder "$STAGE" -ov -format UDZO \
+            dist-dmg/mortal-manager_macos_arm64.dmg
+          shasum -a 256 dist-dmg/mortal-manager_macos_arm64.dmg | tee dist-dmg/mortal-manager_macos_arm64.dmg.sha256
+          ls -lh dist-dmg/
+
+      - name: launch smoke (app process up, sidecar runtime healthy)
+        run: |
+          set -euxo pipefail
+          APP="apps/manager/src-tauri/target/release/bundle/macos/mortal manager.app"
+          BIN="$APP/Contents/MacOS/$(ls "$APP/Contents/MacOS/" | head -1)"
+          rm -rf "$HOME/.mortal"
+          "$BIN" > "$RUNNER_TEMP/app-stdout.log" 2>&1 &
+          APP_PID=$!
+          RJ="$HOME/.mortal/runtime.json"
+          for _ in $(seq 1 60); do [ -s "$RJ" ] && break; sleep 1; done
+          if [ ! -s "$RJ" ]; then
+            echo "runtime.json never appeared — sidecar did not boot from the bundle"
+            cat "$HOME/.mortal/sidecar.log" 2>/dev/null || true
+            cat "$RUNNER_TEMP/app-stdout.log" || true
+            exit 1
+          fi
+          PORT=$(node -p "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.mortal/runtime.json','utf8')).port")
+          curl -fsS "http://127.0.0.1:$PORT/v1/health"
+          kill -0 $APP_PID
+          echo "app process alive and bundled runtime healthy on port $PORT"
+          sleep 2
+          screencapture -x "$RUNNER_TEMP/launch.png" || true
+          tail -n 40 "$HOME/.mortal/sidecar.log" || true
+          kill $APP_PID || true
+          echo "LAUNCH SMOKE OK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mortal-manager-macos-arm64-unsigned
+          path: |
+            dist-dmg/mortal-manager_macos_arm64.dmg
+            dist-dmg/mortal-manager_macos_arm64.dmg.sha256
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: launch-smoke-evidence
+          path: |
+            ${{ runner.temp }}/launch.png
+            ${{ runner.temp }}/app-stdout.log
+          if-no-files-found: ignore
