@@ -115,8 +115,27 @@
 .wall-cell.final-hour .wall-frame {
   border-color: var(--w-border-final);
 }
+/* a clickable cell reads as a door: pointer, a brightened border and a
+   1px lift on hover, an orange focus ring for the keyboard. the click
+   navigates the wall; the captured page inside is pixels, so its video
+   takes no pointer events at all. */
 .wall-cell[data-clickable="1"] .wall-frame {
   cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.wall-cell[data-clickable="1"]:hover .wall-frame {
+  border-color: rgba(242, 239, 231, 0.45);
+  transform: translateY(-1px);
+}
+.wall-cell.final-hour[data-clickable="1"]:hover .wall-frame {
+  border-color: rgba(191, 59, 43, 0.9);
+}
+.wall-cell[data-clickable="1"] .wall-frame:focus-visible {
+  outline: 1px solid var(--w-orange);
+  outline-offset: 2px;
+}
+.wall-cell[data-clickable="1"] .wall-screen video {
+  pointer-events: none;
 }
 
 /* §4 normal: the stream, edge to edge, unaltered */
@@ -807,6 +826,12 @@
   }
   .wall-spotline {
     transition: none;
+  }
+  .wall-cell[data-clickable="1"] .wall-frame {
+    transition: none;
+  }
+  .wall-cell[data-clickable="1"]:hover .wall-frame {
+    transform: none;
   }
 }
 

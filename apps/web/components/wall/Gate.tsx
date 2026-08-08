@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { directorScore, humanizeEvent, spotlightAt, type PayloadFor } from "@mortal/wall/browser";
 import { remainingSeconds, useWall } from "../../lib/wall-client";
 import { Wordmark } from "../Wordmark";
@@ -38,6 +39,7 @@ const MORE_WORDS = ["no", "one", "two", "three", "four", "five", "six"];
 
 export function Gate() {
   const { agents, alive, events, connected, now } = useWall();
+  const router = useRouter();
 
   // cells arrive sorted by the director score so the mobile hero is the
   // director pick, and a final hour outranks everything else
@@ -109,12 +111,17 @@ export function Gate() {
       ) : null}
       <div className="wall-grid" data-cols={sorted.length === 0 ? EMPTY_ROOM_SLOTS : cols}>
         {sorted.map((agent) => (
+          // a cell is a door: clicking it walks through to the watch
+          // page with this identity pinned as the hero. the click
+          // navigates the wall, never the page inside the frame.
           <AgentCell
             key={agent.agent_id}
             agent={agent}
             events={events}
             now={now}
             signalLost={signalLost}
+            onClick={() => router.push(`/watch?agent=${encodeURIComponent(agent.agent_id)}`)}
+            clickLabel={`watch ${agent.name} live`}
           />
         ))}
         {sorted.length === 0

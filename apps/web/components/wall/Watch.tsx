@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AGENT_CLASS_DISPLAY,
   directorPick,
@@ -27,6 +27,22 @@ export function Watch() {
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [showMachine, setShowMachine] = useState(false);
   const recap = useRecap();
+
+  // a gate cell links here as /watch?agent=<id>: that agent arrives
+  // pinned as the hero. read on mount (this page is fully
+  // client-rendered; a static export has no request to read from), and
+  // keep the url honest as pins change so the address stays shareable.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("agent");
+    if (wanted && /^ag_[a-z0-9_-]+$/.test(wanted)) setPinnedId(wanted);
+  }, []);
+  const pin = (agentId: string | null): void => {
+    setPinnedId(agentId);
+    const url = new URL(window.location.href);
+    if (agentId) url.searchParams.set("agent", agentId);
+    else url.searchParams.delete("agent");
+    window.history.replaceState(null, "", url);
+  };
 
   const living = useMemo(() => agents.filter((a) => a.state !== "unborn"), [agents]);
   const hero = useMemo(
@@ -85,7 +101,7 @@ export function Watch() {
             show the machine
           </button>
           {pinnedId ? (
-            <button onClick={() => setPinnedId(null)}>release pin</button>
+            <button onClick={() => pin(null)}>release pin</button>
           ) : (
             <span className="mode">auto-cut</span>
           )}
@@ -107,7 +123,8 @@ export function Watch() {
                 events={events}
                 now={now}
                 signalLost={!connected}
-                onClick={() => setPinnedId(agent.agent_id)}
+                onClick={() => pin(agent.agent_id)}
+                clickLabel={`focus ${agent.name}`}
               />
             ))}
           </section>

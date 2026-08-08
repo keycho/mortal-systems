@@ -32,6 +32,7 @@ export function AgentCell({
   now,
   signalLost,
   onClick,
+  clickLabel,
 }: {
   agent: AgentNowLive;
   events: WallEvent[];
@@ -39,6 +40,8 @@ export function AgentCell({
   /** no stream and nothing arriving: the only dot on the wall */
   signalLost?: boolean;
   onClick?: () => void;
+  /** what the click does, for assistive tech ("watch yuki live") */
+  clickLabel?: string;
 }) {
   const remaining = remainingSeconds(agent, now);
   const finalHour = remaining !== null && remaining < 3600 && agent.state !== "dead";
@@ -62,7 +65,25 @@ export function AgentCell({
       data-agent={agent.agent_id}
       data-clickable={onClick ? "1" : undefined}
     >
-      <div className="wall-frame" onClick={onClick}>
+      <div
+        className="wall-frame"
+        onClick={onClick}
+        // a clickable frame is a control: reachable by keyboard, named
+        // for what it does. the video inside stays pixels either way.
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        aria-label={onClick ? (clickLabel ?? `watch ${agent.name}`) : undefined}
+        onKeyDown={
+          onClick
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onClick();
+                }
+              }
+            : undefined
+        }
+      >
         <div className="wall-screen">
           {streaming ? (
             <HlsVideo src={streamSrc(agent.stream_url as string)} />
