@@ -1194,6 +1194,16 @@ export class Showrunner {
       this.restAtOwnBlog(agent.agent_id);
       return;
     }
+    // the idle roster: mostly the walk, but every few drifts a
+    // different legible act — going back to a living page to see what
+    // moved, reading another identity's latest entry, or laying two of
+    // its own fronts side by side. deterministic on drift_index so the
+    // variety is testable, and each impulse falls back to the walk when
+    // its precondition is missing, so a thin moment still drifts.
+    const impulse = agent.drift_index % 5;
+    if (impulse === 2 && (await this.revisitLivingPage(agent))) return;
+    if (impulse === 3 && (await this.readPeerEntry(agent))) return;
+    if (impulse === 4 && (await this.compareFronts(agent))) return;
     const next = chooseNextRead({
       pageLinks: agent.page_links,
       rotation: agent.member.idle_rotation ?? [],
@@ -1203,6 +1213,7 @@ export class Showrunner {
       // harvest from before a cast change cannot walk this identity
       // into another's language
       allowedHosts: agent.member.reading_domains,
+      livingPages: agent.member.living_pages,
     });
     agent.drift_index += 1;
     if (!next) {
@@ -1234,12 +1245,14 @@ export class Showrunner {
       recentReads: agent.recent_reads,
       driftIndex: agent.drift_index,
       allowedHosts: agent.member.reading_domains,
+      livingPages: agent.member.living_pages,
     });
     agent.drift_index += 1;
     if (!retry || normalizeReadUrl(retry.url) === normalizeReadUrl(next.url)) {
       this.restAtOwnBlog(agent.agent_id);
       return;
     }
+    // (the retry keeps the same borders as the first choice)
     try {
       checkAction({ type: "browse", url: retry.url }, this.flags);
     } catch {
@@ -1252,6 +1265,122 @@ export class Showrunner {
       title: titleFromUrl(retry.url),
     }).catch(() => false);
     if (!secondActed) this.restAtOwnBlog(agent.agent_id);
+  }
+
+  /**
+   * the revisit impulse: go back to a living page (a front, a news
+   * page) it has already seen, to see what moved. picks the one seen
+   * longest ago, never one just read; a page never seen at all is the
+   * walk's business, not a revisit. false when there is nothing to
+   * return to, and the drift falls through to the walk.
+   */
+  private async revisitLivingPage(agent: LiveAgent): Promise<boolean> {
+    const livingPages = agent.member.living_pages ?? [];
+    if (livingPages.length === 0) return false;
+    const recent = agent.recent_reads.map(normalizeReadUrl);
+    let pick: string | null = null;
+    let pickRank = Number.POSITIVE_INFINITY;
+    for (const url of livingPages) {
+      const rank = recent.lastIndexOf(normalizeReadUrl(url));
+      if (rank === -1) continue;
+      if (rank >= recent.length - LIVING_RECENT) continue;
+      if (rank < pickRank) {
+        pickRank = rank;
+        pick = url;
+      }
+    }
+    if (!pick) return false;
+    try {
+      checkAction({ type: "browse", url: pick }, this.flags);
+    } catch {
+      return false;
+    }
+    agent.drift_index += 1;
+    const acted = await this.performAct(agent, {
+      kind: "open_page",
+      url: pick,
+      title: titleFromUrl(pick),
+    }).catch(() => false);
+    if (acted) agent.memory.push(`went back to ${titleFromUrl(pick)} to see what moved`);
+    return acted;
+  }
+
+  /**
+   * the peer impulse: read another living identity's latest entry, on
+   * camera, on the terrarium's own ground. the post id rides into the
+   * next thought's material so a reply can actually land. relationships
+   * here are made of acts on the record, and this is the act.
+   */
+  private async readPeerEntry(agent: LiveAgent): Promise<boolean> {
+    const peers = [...this.live.values()]
+      .filter((p) => p.agent_id !== agent.agent_id && p.tenant && p.last_post_id)
+      .sort((a, b) => a.agent_id.localeCompare(b.agent_id));
+    if (peers.length === 0) return false;
+    const peer = peers[Math.floor(agent.drift_index / 5) % peers.length] as LiveAgent;
+    agent.drift_index += 1;
+    const name = this.names[peer.agent_id] ?? peer.member.name;
+    const acted = await this.performAct(agent, {
+      kind: "open_page",
+      url: `/t/${peer.tenant}/posts/${peer.last_post_id}`,
+      title: `${name}'s latest entry`,
+    }).catch(() => false);
+    if (acted) {
+      agent.reading.push(`read ${name}'s latest entry (post ${peer.last_post_id})`);
+    }
+    return acted;
+  }
+
+  /**
+   * the compare impulse: two of the persona's own corners, different
+   * hosts, one after the other — the fronts first, since those are the
+   * pages where the day actually differs. each read is its own legible
+   * act on the record; the pairing lives in the identity's memory.
+   */
+  private async compareFronts(agent: LiveAgent): Promise<boolean> {
+    const rotation = agent.member.idle_rotation ?? [];
+    const livingPages = agent.member.living_pages ?? [];
+    const ordered = [...livingPages, ...rotation.filter((u) => !livingPages.includes(u))];
+    const justRead = agent.recent_reads.slice(-LIVING_RECENT).map(normalizeReadUrl);
+    const picks: string[] = [];
+    const hosts = new Set<string>();
+    for (const url of ordered) {
+      let host: string;
+      try {
+        host = new URL(url).hostname;
+      } catch {
+        continue;
+      }
+      if (hosts.has(host)) continue;
+      if (justRead.includes(normalizeReadUrl(url))) continue;
+      try {
+        checkAction({ type: "browse", url }, this.flags);
+      } catch {
+        continue;
+      }
+      picks.push(url);
+      hosts.add(host);
+      if (picks.length === 2) break;
+    }
+    if (picks.length < 2) return false;
+    agent.drift_index += 1;
+    const [first, second] = picks as [string, string];
+    const readFirst = await this.performAct(agent, {
+      kind: "open_page",
+      url: first,
+      title: titleFromUrl(first),
+    }).catch(() => false);
+    if (!this.live.has(agent.agent_id)) return readFirst;
+    const readSecond = await this.performAct(agent, {
+      kind: "open_page",
+      url: second,
+      title: titleFromUrl(second),
+    }).catch(() => false);
+    if (readFirst && readSecond) {
+      agent.memory.push(
+        `read ${new URL(first).hostname} beside ${new URL(second).hostname}, one after the other`
+      );
+    }
+    return readFirst || readSecond;
   }
 
   private emitState(agentId: string, state: string, detail?: string): void {
@@ -1279,6 +1408,11 @@ export class Showrunner {
  * is nearly always the right words. */
 /** how many reads back the walk refuses to retrace */
 export const RECENT_READS_MAX = 12;
+
+/** a living page (a front, a news page) is new again soon: only this
+ * many most-recent reads suppress it, against RECENT_READS_MAX for a
+ * static article, because its content moves under the reader */
+export const LIVING_RECENT = 2;
 
 /**
  * urls meet in one shape before they are compared: fragment gone,
@@ -1314,6 +1448,9 @@ export function chooseNextRead(opts: {
   /** the persona's own hosts; a link elsewhere is not this walk's to
    * take, whatever a stale harvest or an old memory offers */
   allowedHosts?: string[];
+  /** pages that change under the reader (fronts, news): suppressed only
+   * for the last LIVING_RECENT reads instead of the full window */
+  livingPages?: string[];
 }): { url: string; via: "link" | "seed" | "stale" } | null {
   const inWorld = (url: string): boolean => {
     if (!opts.allowedHosts || opts.allowedHosts.length === 0) return true;
@@ -1326,7 +1463,15 @@ export function chooseNextRead(opts: {
   const pageLinks = opts.pageLinks.filter(inWorld);
   const rotation = opts.rotation.filter(inWorld);
   const recent = opts.recentReads.map(normalizeReadUrl);
-  const isRecent = (url: string): boolean => recent.includes(normalizeReadUrl(url));
+  const living = new Set((opts.livingPages ?? []).map(normalizeReadUrl));
+  const isRecent = (url: string): boolean => {
+    const n = normalizeReadUrl(url);
+    const rank = recent.lastIndexOf(n);
+    if (rank === -1) return false;
+    // a front read an hour ago is new again; an article is read
+    if (living.has(n)) return rank >= recent.length - LIVING_RECENT;
+    return true;
+  };
 
   const freshLinks = pageLinks.filter((url) => !isRecent(url));
   if (freshLinks.length > 0) {

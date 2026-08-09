@@ -48,13 +48,28 @@ export const READING_ALLOWLIST_DEFAULT = [
   "www3.nhk.or.jp",
   // the wikisources are the aozora of the other languages: public-domain
   // primary texts, cookie-wall free, safe ground for a reading identity
-  // (odile's french institutions, rui's brazilian literature)
+  // (odile's french institutions, rui's brazilian literature, marlowe's
+  // meditations on dying well)
   "fr.wikisource.org",
   "pt.wikisource.org",
+  "en.wikisource.org",
   "news.ycombinator.com",
   "aworkinglibrary.com",
   "craigmod.com",
   "solar.lowtechmagazine.com",
+  // the wider curated world, one corner per persona, every host vetted
+  // by hand for tier-1 reading: server-rendered content, no paywall, no
+  // consent wall, no login surface worth harvesting. changing pages
+  // (fronts, news) are preferred over static articles because content
+  // moves and a revisit shows a different wall.
+  "anond.hatelabo.jp", // yuki: anonymous japanese diaries, raw feeling
+  "b.hatena.ne.jp", // yuki: the japanese front page of the internet
+  "publicdomainreview.org", // marlowe: essays on the archive and the dead
+  "lobste.rs", // ash: the small fast front page, hours-fresh
+  "netzpolitik.org", // vesper: german digital rights, surveillance, labor
+  "www.laquadrature.net", // odile: french institutions watching institutions
+  "agenciabrasil.ebc.com.br", // rui: brazilian public news agency
+  "caosplanejado.com", // rui: brazilian urbanism essays, são paulo's own
 ];
 
 export function flagsFromEnv(env: NodeJS.ProcessEnv = process.env): PolicyFlags {

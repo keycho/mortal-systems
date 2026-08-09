@@ -139,6 +139,30 @@ describe("each identity lives in its own linguistic world", () => {
     expect(vesper.region).toBeNull();
   });
 
+  it("gives every identity living pages, drawn from its own rotation", () => {
+    for (const m of LAUNCH_CAST) {
+      const living = m.living_pages ?? [];
+      // a wall where checking back shows different activity needs pages
+      // whose content moves under the reader
+      expect({ id: m.agent_id, hasLiving: living.length > 0 }).toEqual({
+        id: m.agent_id,
+        hasLiving: true,
+      });
+      for (const url of living) {
+        expect({ id: m.agent_id, url, inRotation: (m.idle_rotation ?? []).includes(url) }).toEqual(
+          { id: m.agent_id, url, inRotation: true }
+        );
+      }
+    }
+  });
+
+  it("spans more than wikipedia: every rotation covers at least three hosts", () => {
+    for (const m of LAUNCH_CAST) {
+      const hosts = new Set((m.idle_rotation ?? []).map((u) => new URL(u).hostname));
+      expect({ id: m.agent_id, wide: hosts.size >= 3 }).toEqual({ id: m.agent_id, wide: true });
+    }
+  });
+
   it("tells every non-english voice to think in its language and gloss the caption layer", () => {
     expect(personaFor(member("ag_odile"))).toContain("you think in french");
     expect(personaFor(member("ag_rui"))).toContain("you think in brazilian portuguese");

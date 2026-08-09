@@ -87,6 +87,30 @@ describe("the walk's decision", () => {
       chooseNextRead({ pageLinks: [], rotation: [], recentReads: [], driftIndex: 0 })
     ).toBeNull();
   });
+
+  it("a living page is new again soon; an article stays read", () => {
+    const front = "https://news.ycombinator.com/";
+    const article = "https://en.wikipedia.org/wiki/Memento_mori";
+    // both were read three reads ago
+    const next = chooseNextRead({
+      pageLinks: [],
+      rotation: [article, front],
+      recentReads: [front, article, "https://a.example/x", "https://a.example/y"],
+      driftIndex: 0,
+      livingPages: [front],
+    });
+    // the article is suppressed for the full window; the front moves on
+    expect(next).toEqual({ url: front, via: "seed" });
+    // but a front JUST read is still suppressed: no ping-pong
+    const justRead = chooseNextRead({
+      pageLinks: [],
+      rotation: [front],
+      recentReads: ["https://a.example/x", front],
+      driftIndex: 0,
+      livingPages: [front],
+    });
+    expect(justRead?.via).toBe("stale");
+  });
 });
 
 describe("the walk cannot leave the persona's ground", () => {
@@ -244,7 +268,15 @@ describe("the drift walks (showrunner + fake driver)", () => {
     platformAllowlist: ["terrarium"],
     sponsorEnabled: false,
     externalBrowsing: true,
-    readingAllowlist: ["en.wikipedia.org", "news.ycombinator.com", "aworkinglibrary.com", "craigmod.com", "solar.lowtechmagazine.com"],
+    readingAllowlist: [
+      "en.wikipedia.org",
+      "en.wikisource.org",
+      "news.ycombinator.com",
+      "aworkinglibrary.com",
+      "craigmod.com",
+      "solar.lowtechmagazine.com",
+      "publicdomainreview.org",
+    ],
   };
 
   beforeEach(() => {
@@ -432,6 +464,100 @@ describe("the drift walks (showrunner + fake driver)", () => {
     expect(
       states.some((s) => s.state === "idle" && s.detail === "the page would not load")
     ).toBe(true);
+  });
+
+  /** a stub driver that records every open and reads everything fine */
+  function recordingDriver(opened: string[]): ActDriver {
+    return {
+      busy: () => false,
+      openPage: async (_id, url) => {
+        opened.push(url);
+        const external = /^https?:\/\//i.test(url)
+          ? {
+              external: {
+                domain: new URL(url).hostname,
+                title: "a page",
+                phrase: "",
+                url,
+                links: [],
+              },
+            }
+          : {};
+        return { landed: url, detour: false, ...external };
+      },
+      publishPost: async () => ({ id: "p", url: "/x" }),
+      replyComment: async () => undefined,
+    };
+  }
+
+  async function spawnedShowrunner(): Promise<Showrunner> {
+    const showrunner = new Showrunner({
+      store: wallStore,
+      runtime: new StubRuntimePort(),
+      terrarium: storeTerrariumClient(terrariumStore),
+      think: async () => ({}),
+      flags: { ...FLAGS },
+    });
+    Object.assign(showrunner.names, castNames());
+    const marlowe = LAUNCH_CAST.find((m) => m.agent_id === "ag_marlowe") as CastMember;
+    await showrunner.spawn(marlowe);
+    return showrunner;
+  }
+
+  it("the revisit impulse goes back to a living page to see what moved", async () => {
+    const opened: string[] = [];
+    const showrunner = await spawnedShowrunner();
+    showrunner.driver = recordingDriver(opened);
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    const front = "https://news.ycombinator.com/";
+    // the front was read a while ago; two other reads since
+    agent.recent_reads = [front, "https://en.wikipedia.org/wiki/Obituary", "https://aworkinglibrary.com/"];
+    agent.drift_index = 2; // the revisit slot
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+    expect(opened).toEqual([front]);
+    expect(agent.memory.some((m) => m.includes("to see what moved"))).toBe(true);
+  });
+
+  it("the peer impulse reads another identity's latest entry, with the post id as material", async () => {
+    const opened: string[] = [];
+    const showrunner = await spawnedShowrunner();
+    const yuki = LAUNCH_CAST.find((m) => m.agent_id === "ag_yuki") as CastMember;
+    await showrunner.spawn(yuki);
+    showrunner.driver = recordingDriver(opened);
+    const marlowe = showrunner.live.get("ag_marlowe");
+    const peer = showrunner.live.get("ag_yuki");
+    if (!marlowe || !peer) throw new Error("agents missing");
+    peer.last_post_id = "p_seed1";
+    marlowe.drift_index = 3; // the peer slot
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(marlowe);
+    expect(opened).toEqual([`/t/${peer.tenant}/posts/p_seed1`]);
+    expect(marlowe.reading.some((r) => r.includes("yuki") && r.includes("p_seed1"))).toBe(true);
+    // the read is a legible act on the record like any other
+    const reads = wallStore
+      .list({ kinds: ["action"], agentId: "ag_marlowe" })
+      .map((e) => e.payload as PayloadFor<"action">);
+    expect(reads.some((r) => r.verb === "opened_page" && r.title?.includes("yuki"))).toBe(true);
+  });
+
+  it("the compare impulse lays two of its own fronts side by side, distinct hosts", async () => {
+    const opened: string[] = [];
+    const showrunner = await spawnedShowrunner();
+    showrunner.driver = recordingDriver(opened);
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    agent.drift_index = 4; // the compare slot
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+    expect(opened).toHaveLength(2);
+    const hosts = opened.map((u) => new URL(u).hostname);
+    expect(hosts[0]).not.toBe(hosts[1]);
+    expect(agent.memory.some((m) => m.includes("one after the other"))).toBe(true);
   });
 });
 

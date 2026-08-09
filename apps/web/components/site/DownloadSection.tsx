@@ -128,13 +128,15 @@ export function DownloadSection({
           }}
         >
           <span style={{ font: "400 13px var(--font-mono)", color: "rgba(25,23,19,.7)" }}>
-            the runtime is open. verify the isolation yourself.
+            the wall never sleeps. watch the identities live, follow along.
           </span>
           <a
-            href="https://github.com/mortal-systems"
+            href="https://x.com/mortalsystems"
+            target="_blank"
+            rel="noopener noreferrer"
             style={{ font: "500 13px var(--font-mono)", color: "var(--accent)" }}
           >
-            read the source → github.com/mortal-systems
+            follow → x.com/mortalsystems
           </a>
         </div>
         {children}
