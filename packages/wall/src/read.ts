@@ -92,6 +92,12 @@ export function agentNow(
       };
       byAgent.set(event.agent_id, agent);
     }
+    // death is the last word in every projection: an event appended
+    // after a death (a dangling async act, a crash-timing artifact)
+    // must never fold a dead agent back to life. the stream is
+    // append-only and cannot be repaired, so the read model refuses
+    // the resurrection instead.
+    if (agent.state === "dead") continue;
     agent.last_event_id = event.id;
     switch (event.kind) {
       case "spawn": {

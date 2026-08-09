@@ -237,9 +237,18 @@ export class Showrunner {
 
   async die(agentId: string, cause: PayloadFor<"death">["cause"]): Promise<WallEvent> {
     const agent = this.mustLive(agentId);
-    // set piece: the final words come from one flagged think() call
+    // set piece: the final words come from one flagged think() call.
+    // the call can fail or come back empty (ash-1 died wordless when the
+    // set-piece call did), so the fallback chain is the agent's OWN
+    // material: the last thing it said, then the last thing it did, and
+    // only for a life that never said anything at all, a stated default.
+    // last words are captured, never invented.
     const thought = await this.runHeartbeat(agent, { occasion: "death" });
-    const finalWords = thought?.final_words ?? "";
+    const finalWords =
+      thought?.final_words?.trim() ||
+      agent.monologues.at(-1) ||
+      agent.memory.at(-1) ||
+      "the clock ran out mid-thought";
     const destroyed = await this.runtime.destroy(agent.identity_id, cause);
     const ts = this.now().toISOString();
     const lived = Math.max(0, Math.floor((Date.parse(ts) - Date.parse(agent.spawned_at)) / 1000));
@@ -254,6 +263,26 @@ export class Showrunner {
     if (agent.tenant) await this.terrarium.freeze(agent.tenant);
     this.live.delete(agentId);
     this.mailboxes.delete(agentId);
+    // succession is part of the death, not a calendar's business: a
+    // serial member's death produces its successor now, inheriting the
+    // chosen fragments (and the member's own words and work). the mon+thu
+    // slot remains for calendar top-ups; a mid-week death no longer
+    // leaves the cell empty for days.
+    if (agent.member.serial) {
+      const hasLiving = [...this.live.values()].some(
+        (a) => a.member.agent_id === agent.member.agent_id
+      );
+      if (!hasLiving) {
+        try {
+          await this.spawn(agent.member, {
+            inherited_fragments: this.chooseInheritance(agentId),
+          });
+        } catch (err) {
+          // a successor that cannot spawn must not lose the death itself
+          console.error(`succession failed for ${agentId}: ${String(err)}`);
+        }
+      }
+    }
     return event;
   }
 
@@ -294,6 +323,14 @@ export class Showrunner {
     const folded = agentNow(record);
     const recovered: string[] = [];
     const seenBases = new Set<string>();
+    const basesWithLiving = new Set<string>();
+    // the tombstones, read straight off the append-only stream: a death
+    // event is inviolable, whatever any later event or any fold says.
+    // resume checks it independently of the read model on purpose, so
+    // the mortality invariant survives even a future fold bug.
+    const deadIds = new Set(
+      record.filter((e) => e.kind === "death").map((e) => e.agent_id)
+    );
 
     for (const agent of folded) {
       const serialMatch = /_(\d+)$/.exec(agent.agent_id);
@@ -307,6 +344,14 @@ export class Showrunner {
         if (n > (this.serialCounters.get(member.agent_id) ?? 0)) {
           this.serialCounters.set(member.agent_id, n);
         }
+      }
+      if (deadIds.has(agent.agent_id)) {
+        // dead is dead. a death on the record can never be resumed,
+        // and saying so out loud is part of the guarantee.
+        console.warn(
+          `resume: refusing to resurrect ${agent.agent_id}: a death is on the record`
+        );
+        continue;
       }
       if (agent.state === "dead" || agent.state === "unborn") continue;
 
@@ -400,6 +445,7 @@ export class Showrunner {
       });
       this.names[agent.agent_id] = name;
       recovered.push(agent.agent_id);
+      basesWithLiving.add(member.agent_id);
       this.store.append({
         agent_id: agent.agent_id,
         kind: "system",
@@ -409,7 +455,14 @@ export class Showrunner {
       });
     }
 
-    const unspawned = members.filter((m) => !seenBases.has(m.agent_id));
+    // a member never seen on the record needs its first spawn. a SERIAL
+    // member whose incarnations are all dead needs its successor: ash-1
+    // dying while the process was down must still produce ash-2 at the
+    // next boot (the caller spawns with inheritance). a dead non-serial
+    // member is simply dead; nothing brings yuki back.
+    const unspawned = members.filter(
+      (m) => !seenBases.has(m.agent_id) || (m.serial && !basesWithLiving.has(m.agent_id))
+    );
     return { recovered, unspawned };
   }
 
@@ -611,6 +664,10 @@ export class Showrunner {
    * enforcement events with receipts. returns true when the act was
    * performed, false when policy refused it. */
   private async performAct(agent: LiveAgent, act: NonNullable<Thought["act"]>): Promise<boolean> {
+    // a dangling async (a drift mid-dwell while the tick killed its
+    // agent) must not write on a corpse: an act event appended after a
+    // death is exactly the corruption that resurrected ash-1
+    if (!this.live.has(agent.agent_id)) return false;
     try {
       switch (act.kind) {
         case "publish_post": {
@@ -884,7 +941,11 @@ export class Showrunner {
     if (!page) return;
     const prior: string[] = [];
     await waitWhile(this.narrationSettleMs, stillReading);
-    while (stillReading() && prior.length < this.narrationMaxLines) {
+    while (
+      stillReading() &&
+      this.live.has(agent.agent_id) &&
+      prior.length < this.narrationMaxLines
+    ) {
       const screen = await visibleExcerpt(page).catch(() => null);
       if (!screen || !stillReading()) break;
       // a hung model call may not hold the heartbeat hostage: past the
@@ -905,7 +966,9 @@ export class Showrunner {
         }),
       ]);
       const text = line?.text.trim();
-      if (text) {
+      // the model call is slow; the agent may have died under it, and a
+      // dead voice appends nothing
+      if (text && this.live.has(agent.agent_id)) {
         this.store.append({
           agent_id: agent.agent_id,
           kind: "narration",
@@ -1104,6 +1167,9 @@ export class Showrunner {
    * archive, which is at least its own.
    */
   private async driftWhileIdle(agent: LiveAgent): Promise<void> {
+    // fire-and-forget means this can outlive its agent; the dead do not
+    // drift
+    if (!this.live.has(agent.agent_id)) return;
     if (!this.driver) {
       this.restAtOwnBlog(agent.agent_id);
       return;
@@ -1135,6 +1201,8 @@ export class Showrunner {
   }
 
   private emitState(agentId: string, state: string, detail?: string): void {
+    // the dead have no state changes; see performAct's guard
+    if (!this.live.has(agentId)) return;
     this.store.append({
       agent_id: agentId,
       kind: "state_change",

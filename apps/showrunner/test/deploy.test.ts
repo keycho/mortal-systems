@@ -62,7 +62,7 @@ describe("restart continuity (resume)", () => {
     await first.spawn(marlowe);
     await first.heartbeat("ag_marlowe"); // publishes a post
     await first.spawn(ash, { inherited_fragments: [] });
-    await first.die("ag_ash_1", "ttl"); // ash-1 lived and died before the restart
+    await first.die("ag_ash_1", "ttl"); // dies before the restart; ash-2 succeeds immediately
 
     // the process restarts: a second showrunner over the same stores
     const second = mkShowrunner();
@@ -81,12 +81,14 @@ describe("restart continuity (resume)", () => {
     expect(live?.post_count).toBe(1);
     expect(live?.memory.join(" ")).toContain("published");
 
-    // yuki never spawned and comes back as unspawned; dead ash-1 stays dead
+    // yuki never spawned and comes back as unspawned; dead ash-1 stays
+    // dead while its successor ash-2 (spawned at the death) recovered
     expect(unspawned.map((m) => m.agent_id)).toContain("ag_yuki");
     expect(second.live.has("ag_ash_1")).toBe(false);
-    // serial numbering continues: the next ash is 2, never a reused 1
+    expect(recovered).toContain("ag_ash_2");
+    // serial numbering continues: the next ash is 3, never a reused number
     const nextAsh = await second.spawn(ash, { inherited_fragments: [] });
-    expect(nextAsh.agent_id).toBe("ag_ash_2");
+    expect(nextAsh.agent_id).toBe("ag_ash_3");
   });
 
   it("refuses to resume through a port without reattach", async () => {

@@ -119,22 +119,22 @@ describe("ash spawn calendar", () => {
     const ash = LAUNCH_CAST.find((m) => m.agent_id === "ag_ash") as CastMember;
     showrunner.registerSerialMember(ash);
 
-    // first incarnation off-calendar (launch day), then dies
+    // first incarnation off-calendar (launch day), then dies. death
+    // produces the successor immediately: a mid-week death no longer
+    // leaves the cell empty until the mon+thu slot
     await showrunner.spawn(ash, { inherited_fragments: [] });
     await showrunner.die("ag_ash_1", "ttl");
-
-    // saturday: no successor
-    await showrunner.calendarTick();
-    expect(showrunner.live.has("ag_ash_2")).toBe(false);
-
-    // monday 18:05 utc: the slot fires, successor carries fragments
-    clock = new Date("2026-08-10T18:05:00Z");
-    await showrunner.calendarTick();
     const second = showrunner.live.get("ag_ash_2");
     expect(second).toBeDefined();
     expect(second?.memory.length).toBeGreaterThan(0);
 
-    // still inside the slot hour: the living ash blocks a duplicate
+    // the calendar slot remains a top-up, and a living ash blocks it:
+    // saturday, then monday 18:05 inside the slot, no duplicate either way
+    await showrunner.calendarTick();
+    expect(showrunner.live.has("ag_ash_3")).toBe(false);
+    clock = new Date("2026-08-10T18:05:00Z");
+    await showrunner.calendarTick();
+    expect(showrunner.live.has("ag_ash_3")).toBe(false);
     clock = new Date("2026-08-10T18:40:00Z");
     await showrunner.calendarTick();
     expect(showrunner.live.has("ag_ash_3")).toBe(false);

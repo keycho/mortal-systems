@@ -220,7 +220,7 @@ describe("showrunner end to end", () => {
     ).not.toMatch(/revive|resurrect|undelete/i);
   });
 
-  it("ash succession: explicit fragments only, capped at 3, surfaced in the spawn event", async () => {
+  it("ash succession: death itself spawns the successor, explicit fragments only, capped at 3", async () => {
     showrunner.registerSerialMember(ash());
     const first = await showrunner.spawn(ash(), { inherited_fragments: [] });
     expect(first.agent_id).toBe("ag_ash_1");
@@ -228,17 +228,19 @@ describe("showrunner end to end", () => {
     await showrunner.heartbeat("ag_ash_1");
     await showrunner.die("ag_ash_1", "ttl");
 
-    const fragments = showrunner.chooseInheritance("ag_ash_1");
+    // succession is part of the death: ash-2 exists the moment ash-1 is
+    // gone, carrying the chosen fragments and nothing else
+    const second = showrunner.live.get("ag_ash_2");
+    expect(second).toBeDefined();
+    expect(showrunner.live.has("ag_ash_1")).toBe(false);
+    const fragments = second?.memory ?? [];
     expect(fragments.length).toBeGreaterThan(0);
     expect(fragments.length).toBeLessThanOrEqual(3);
-    const second = await showrunner.spawn(ash(), { inherited_fragments: fragments });
-    expect(second.agent_id).toBe("ag_ash_2");
     const spawns = wallStore.list({ kinds: ["spawn"], agentId: "ag_ash_2" });
     const payload = spawns[0]?.payload as PayloadFor<"spawn">;
+    // non-linkability elsewhere: the spawn event carries the fragments
+    // and the successor's memory holds them and nothing more
     expect(payload.inherited_fragments).toEqual(fragments);
-    // non-linkability elsewhere: the successor's memory holds the fragments
-    // and nothing else from the predecessor
-    expect(second.memory).toEqual(fragments);
   });
 
   it("ttl warnings fire once per window and the final hour is a set piece", async () => {
