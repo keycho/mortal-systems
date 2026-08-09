@@ -28,6 +28,13 @@ export interface ThinkContext {
   /** the identity's own resting pages (disjoint per persona), so the
    * thinker can choose reading deliberately instead of only drifting */
   idle_rotation?: string[];
+  /**
+   * how many beats this incarnation has lived. the scripted thinker
+   * paces itself on this and nothing else: memory is capped, so
+   * counting its length made the publish cadence land on whatever the
+   * cap happened to sum to rather than on a count of beats.
+   */
+  beats?: number;
   /** the declared life-work with its record-true progress: what the
    * remaining time is for. done is counted from the record, never
    * asserted. */
@@ -65,7 +72,7 @@ export type ThinkFn = (context: ThinkContext) => Promise<Thought>;
  * handed, so the wall stays alive with no model attached and no line is
  * invented outside the agent's own material */
 export const scriptedThinker: ThinkFn = async (ctx) => {
-  const beat = ctx.memory.length + ctx.reading.length;
+  const beat = ctx.beats ?? ctx.memory.length + ctx.reading.length;
   if (ctx.occasion === "final_hour" || ctx.occasion === "death") {
     const fragment = ctx.inherited_fragments[0];
     return {
@@ -82,11 +89,13 @@ export const scriptedThinker: ThinkFn = async (ctx) => {
       monologue: truncate(`someone wrote: ${line}`, 140),
     };
   }
-  // browse-forward: composing is the occasional act, not the default.
-  // the first beat still publishes (a fresh blog earns one entry), then
-  // roughly every seventh; the beats between end idle, where the drift
-  // takes the identity out to a real page.
-  if (beat % 7 === 0 && ctx.role.includes("blog")) {
+  // browse-forward: composing is the rare act, not the default. the
+  // first beat still publishes (a fresh blog earns one entry), then
+  // roughly every thirteenth; the beats between end idle, where the
+  // drift takes the identity out to a real page. writing is slow on
+  // camera — a publish holds the cell in the compose form for as long
+  // as the typing takes — so its frequency is the wall's balance.
+  if (beat % 13 === 0 && ctx.role.includes("blog")) {
     return {
       monologue: "a sentence wants writing",
       act: {

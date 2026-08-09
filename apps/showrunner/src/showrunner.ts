@@ -62,6 +62,11 @@ export interface LiveAgent {
   /** publishes today, and which day that is, for the cast's daily ceiling */
   posts_today: number;
   posts_today_date: string;
+  /** the day's on-camera draft has happened: a blocked publish drafts
+   * once, not every beat until midnight */
+  drafted_today: boolean;
+  /** beats lived this incarnation; paces the scripted thinker */
+  beats: number;
   /** how far through its idle rotation this identity has drifted */
   drift_index: number;
   /** the last external pages actually read, oldest first, capped: the
@@ -220,6 +225,8 @@ export class Showrunner {
       last_post_id: null,
       posts_today: 0,
       posts_today_date: "",
+      drafted_today: false,
+      beats: 0,
       monologues: [],
       recent_reads: [],
       page_links: [],
@@ -438,6 +445,11 @@ export class Showrunner {
         human_contacts: humanContacts,
         posts_today: postsToday,
         posts_today_date: today,
+        drafted_today: false,
+        // a resumed identity is not a fresh one: the first-beat entry is
+        // how a new blog earns its first post, and a restart must not
+        // hand out another
+        beats: 1,
         // a restart should not put every identity back on the same page
         drift_index: postCount,
         last_post_id: lastPostId,
@@ -511,6 +523,8 @@ export class Showrunner {
   ): Promise<Thought | null> {
     const dying = opts.occasion === "death";
     if (!dying) this.emitState(agent.agent_id, "waking");
+    const beats = agent.beats;
+    agent.beats += 1;
 
     // read: human comments since the cursor become human_contact events
     // and land in the reading list; agents earn their reactions
@@ -567,6 +581,7 @@ export class Showrunner {
       reading,
       recent_monologues: agent.monologues.slice(-3),
       idle_rotation: agent.member.idle_rotation ?? [],
+      beats,
       ...(memberWork
         ? {
             work: {
@@ -658,6 +673,7 @@ export class Showrunner {
     if (agent.posts_today_date !== today) {
       agent.posts_today_date = today;
       agent.posts_today = 0;
+      agent.drafted_today = false;
     }
     return agent.posts_today < ceiling;
   }
@@ -675,12 +691,20 @@ export class Showrunner {
         case "publish_post": {
           checkAction({ type: "post", platform: "terrarium" }, this.flags);
           if (!agent.tenant) return false;
-          this.emitState(agent.agent_id, "writing", act.title);
           // the daily ceiling is a publishing limit, not a writing one:
-          // the draft happens either way, at full length and on camera,
-          // and only the submit is withheld. an identity that has said
-          // its piece for the day is still an identity at work.
+          // the draft happens anyway, at full length and on camera, and
+          // only the submit is withheld. but it happens ONCE a day: an
+          // identity that spends every afternoon retyping into a form
+          // that will not submit is not a life at work, it is a cell
+          // stuck in the compose view. after the day's draft, a blocked
+          // publish is simply not the act, and the beat goes reading.
           if (!this.mayPublishToday(agent)) {
+            if (agent.drafted_today) {
+              agent.memory.push(`had more to say about "${act.title}"; the day's writing is done`);
+              return false;
+            }
+            agent.drafted_today = true;
+            this.emitState(agent.agent_id, "writing", act.title);
             const draft = (this.driver as ActDriver | null)?.draftPost;
             if (draft) {
               await this.actThroughDriver(
@@ -703,6 +727,7 @@ export class Showrunner {
             this.emitState(agent.agent_id, "writing", act.title);
             return true;
           }
+          this.emitState(agent.agent_id, "writing", act.title);
           const post = await this.actThroughDriver(
             agent.agent_id,
             () =>
@@ -1194,16 +1219,17 @@ export class Showrunner {
       this.restAtOwnBlog(agent.agent_id);
       return;
     }
-    // the idle roster: mostly the walk, but every few drifts a
-    // different legible act — going back to a living page to see what
-    // moved, reading another identity's latest entry, or laying two of
-    // its own fronts side by side. deterministic on drift_index so the
-    // variety is testable, and each impulse falls back to the walk when
-    // its precondition is missing, so a thin moment still drifts.
-    const impulse = agent.drift_index % 5;
-    if (impulse === 2 && (await this.revisitLivingPage(agent))) return;
-    if (impulse === 3 && (await this.readPeerEntry(agent))) return;
-    if (impulse === 4 && (await this.compareFronts(agent))) return;
+    // the idle roster: the walk is the default and stays the default
+    // (five drifts in six), punctuated by a different legible act —
+    // going back to a living page to see what moved, laying two of its
+    // own fronts side by side, or reading another identity's latest
+    // entry. deterministic on drift_index so the balance is testable,
+    // and each impulse falls back to the walk when its precondition is
+    // missing, so a thin moment still ends out on a page.
+    const impulse = idleImpulse(agent.drift_index);
+    if (impulse === "revisit" && (await this.revisitLivingPage(agent))) return;
+    if (impulse === "compare" && (await this.compareFronts(agent))) return;
+    if (impulse === "peer" && (await this.readPeerEntry(agent))) return;
     const next = chooseNextRead({
       pageLinks: agent.page_links,
       rotation: agent.member.idle_rotation ?? [],
@@ -1413,6 +1439,32 @@ export const RECENT_READS_MAX = 12;
  * many most-recent reads suppress it, against RECENT_READS_MAX for a
  * static article, because its content moves under the reader */
 export const LIVING_RECENT = 2;
+
+/**
+ * how many drifts pass between punctuation acts. the wall's default
+ * visible state is an identity out on a real page, so the roster is
+ * the exception that proves it: five walks, then one of the other
+ * acts. punctuation that happens every other beat is not punctuation,
+ * it is the sentence.
+ */
+export const IDLE_ROSTER_EVERY = 6;
+
+/** the punctuation, in the order it comes round. the peer read is the
+ * one act that lands on the terrarium rather than the open web, so it
+ * takes a single slot per turn of the roster (one drift in 24): a
+ * visit, not a habit. */
+const PUNCTUATION = ["revisit", "compare", "revisit", "peer"] as const;
+
+export type IdleImpulse = "walk" | (typeof PUNCTUATION)[number];
+
+/** what this drift is: the walk, or the rare act that punctuates it.
+ * pure and deterministic on the drift index, so the balance between
+ * browsing and everything else is a fact a test can hold. */
+export function idleImpulse(driftIndex: number): IdleImpulse {
+  if (driftIndex % IDLE_ROSTER_EVERY !== IDLE_ROSTER_EVERY - 1) return "walk";
+  const turn = Math.floor(driftIndex / IDLE_ROSTER_EVERY) % PUNCTUATION.length;
+  return PUNCTUATION[turn] as IdleImpulse;
+}
 
 /**
  * urls meet in one shape before they are compared: fragment gone,

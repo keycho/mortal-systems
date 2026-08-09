@@ -155,15 +155,33 @@ export class LiveRuntimePort implements RuntimePort {
     return this.homeForAgent?.(agentId) ?? this.homeUrl ?? "about:blank";
   }
 
-  /** send an idle identity back to its own blog, if it has drifted */
+  /**
+   * send an idle identity back to its own blog, if it has drifted. this
+   * is where every fallback lands, so it is also the last place a blank
+   * window can come from: a browser sitting on about:blank is never
+   * "already home", and a home that paints nothing falls back to the
+   * terrarium's own front rather than leaving the cell white.
+   */
   async restAtHome(agentId: string): Promise<void> {
     const identity = this.byAgent.get(agentId);
     if (!identity) return;
     const home = this.homeUrlFor(agentId);
-    if (identity.page.url().startsWith(home)) return;
+    const at = identity.page.url();
+    if (at !== "about:blank" && at.startsWith(home)) return;
     await identity.page
       .goto(home, { waitUntil: "domcontentloaded", timeout: 15_000 })
       .catch(() => undefined);
+    const painted = await identity.page
+      .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
+      .catch(() => 0);
+    if (painted >= 40) return;
+    // an identity with no blog of its own (or a tenant page that has not
+    // painted) still gets a real page to rest on
+    if (this.homeUrl && home !== this.homeUrl) {
+      await identity.page
+        .goto(this.homeUrl, { waitUntil: "domcontentloaded", timeout: 15_000 })
+        .catch(() => undefined);
+    }
   }
 
   private async launchBrowser(

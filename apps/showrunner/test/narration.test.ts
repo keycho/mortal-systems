@@ -356,7 +356,9 @@ describe("the anthropic narrator", () => {
       ?.content as string;
     expect(turn).toContain("pages you like to return to");
     expect(turn).toContain("https://craigmod.com/essays/fast_software/");
-    expect(turn).toContain("most beats the honest act is reading");
-    expect(turn).toContain("not a default");
+    expect(turn).toContain("the honest act, nearly every beat, is reading");
+    // the frequency is stated outright, not implied: writing is slow on
+    // camera, so how often it happens is the wall's whole balance
+    expect(turn).toContain("writing is the rare one, roughly a beat in ten");
   });
 });

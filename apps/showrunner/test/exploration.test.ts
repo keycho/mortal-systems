@@ -16,9 +16,11 @@ import {
   StubRuntimePort,
   castNames,
   chooseNextRead,
+  idleImpulse,
   linkCandidates,
   normalizeReadUrl,
   personaAllowlist,
+  scriptedThinker,
   storeTerrariumClient,
   type ActDriver,
   type CastMember,
@@ -504,6 +506,22 @@ describe("the drift walks (showrunner + fake driver)", () => {
     return showrunner;
   }
 
+  it("keeps browsing dominant: five drifts in six are the walk, and the terrarium visit is rarest", () => {
+    const roster = Array.from({ length: 48 }, (_, i) => idleImpulse(i));
+    const walks = roster.filter((r) => r === "walk").length;
+    // the wall's default visible state is an identity out on a page
+    expect(walks / roster.length).toBeCloseTo(5 / 6, 5);
+    // the peer read is the one act on terrarium ground, so it is the
+    // rarest of the punctuation: once per turn of the roster
+    expect(roster.filter((r) => r === "peer")).toHaveLength(2);
+    expect(roster.filter((r) => r === "revisit")).toHaveLength(4);
+    expect(roster.filter((r) => r === "compare")).toHaveLength(2);
+    // and no two punctuation acts ever land back to back
+    for (let i = 1; i < roster.length; i++) {
+      if (roster[i] !== "walk") expect(roster[i - 1]).toBe("walk");
+    }
+  });
+
   it("the revisit impulse goes back to a living page to see what moved", async () => {
     const opened: string[] = [];
     const showrunner = await spawnedShowrunner();
@@ -513,7 +531,7 @@ describe("the drift walks (showrunner + fake driver)", () => {
     const front = "https://news.ycombinator.com/";
     // the front was read a while ago; two other reads since
     agent.recent_reads = [front, "https://en.wikipedia.org/wiki/Obituary", "https://aworkinglibrary.com/"];
-    agent.drift_index = 2; // the revisit slot
+    agent.drift_index = 5; // the first punctuation slot: revisit
     await (
       showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
     ).driftWhileIdle(agent);
@@ -531,7 +549,7 @@ describe("the drift walks (showrunner + fake driver)", () => {
     const peer = showrunner.live.get("ag_yuki");
     if (!marlowe || !peer) throw new Error("agents missing");
     peer.last_post_id = "p_seed1";
-    marlowe.drift_index = 3; // the peer slot
+    marlowe.drift_index = 23; // the peer slot: once per full turn of the roster
     await (
       showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
     ).driftWhileIdle(marlowe);
@@ -544,13 +562,89 @@ describe("the drift walks (showrunner + fake driver)", () => {
     expect(reads.some((r) => r.verb === "opened_page" && r.title?.includes("yuki"))).toBe(true);
   });
 
+  it("paces the scripted cadence on beats lived, not on the capped memory list", async () => {
+    // the bug this pins: `beat` used to be memory.length + reading.length,
+    // and memory is capped at 12, so the publish modulus landed on
+    // whatever that cap happened to sum to rather than on a count of
+    // beats — a cadence that could fire on nearly every beat or never.
+    const publishAt = (beats: number) =>
+      scriptedThinker({
+        agent_id: "ag_marlowe",
+        name: "marlowe",
+        role: "slow blog",
+        locale: "en-GB",
+        tier: "ambient",
+        memory: Array.from({ length: 12 }, (_, i) => `m${i}`), // the cap
+        reading: [],
+        beats,
+        ttl_remaining_seconds: 1000,
+        inherited_fragments: [],
+      }).then((t) => t.act?.kind === "publish_post");
+
+    // a fresh blog earns its first entry, then roughly one beat in 13
+    expect(await publishAt(0)).toBe(true);
+    expect(await publishAt(13)).toBe(true);
+    for (const quiet of [1, 5, 7, 12, 14, 20]) {
+      expect({ beat: quiet, published: await publishAt(quiet) }).toEqual({
+        beat: quiet,
+        published: false,
+      });
+    }
+  });
+
+  it("drafts on camera once a day at the ceiling, not every beat until midnight", async () => {
+    const drafted: string[] = [];
+    const published: string[] = [];
+    const driver: ActDriver = {
+      busy: () => false,
+      openPage: async (_id, url) => ({ landed: url, detour: false }),
+      draftPost: async (_id, _tenant, title) => {
+        drafted.push(title);
+      },
+      publishPost: async (_id, _tenant, title) => {
+        published.push(title);
+        return { id: "p_1", url: "/t/marlowe/posts/p_1" };
+      },
+      replyComment: async () => undefined,
+    };
+    const showrunner = await spawnedShowrunner();
+    showrunner.driver = driver;
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    const write = (title: string) =>
+      (
+        showrunner as unknown as {
+          performAct: (a: unknown, act: unknown) => Promise<boolean>;
+        }
+      ).performAct(agent, { kind: "publish_post", title, body_md: "b" });
+
+    // marlowe's ceiling is one a day: the first publishes
+    expect(await write("one")).toBe(true);
+    expect(published).toEqual(["one"]);
+    // the second is blocked, and still drafts on camera — a day at the
+    // ceiling is still a day at work
+    expect(await write("two")).toBe(true);
+    expect(drafted).toEqual(["two"]);
+    // every later one is simply not the act: the cell goes reading
+    // instead of retyping into a form that will not submit
+    expect(await write("three")).toBe(false);
+    expect(await write("four")).toBe(false);
+    expect(drafted).toEqual(["two"]);
+    expect(published).toEqual(["one"]);
+    // and the record never implies a publish that did not happen
+    const acts = wallStore
+      .list({ kinds: ["action"], agentId: "ag_marlowe" })
+      .map((e) => (e.payload as PayloadFor<"action">).title);
+    expect(acts).toEqual(["one"]);
+  });
+
   it("the compare impulse lays two of its own fronts side by side, distinct hosts", async () => {
     const opened: string[] = [];
     const showrunner = await spawnedShowrunner();
     showrunner.driver = recordingDriver(opened);
     const agent = showrunner.live.get("ag_marlowe");
     if (!agent) throw new Error("no agent");
-    agent.drift_index = 4; // the compare slot
+    agent.drift_index = 11; // the compare slot
     await (
       showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
     ).driftWhileIdle(agent);
@@ -662,6 +756,44 @@ describe.skipIf(chromiumPath === null)("a real page's links reach the walk (real
       if (finalPath !== "/wiki/genji-monogatari") {
         expect(links.length).toBeGreaterThan(0);
       }
+    } finally {
+      await port.close();
+    }
+  }, 60_000);
+
+  it("guards internal pages too, and never leaves the browser on a blank tab", async () => {
+    const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    // "home" for this identity is a page that paints: where a failed
+    // read must end up, instead of about:blank
+    port.setHome(`${base}/`, () => `${base}/wiki/genji-monogatari`);
+    try {
+      await port.spawn({
+        agent_id: "ag_walker",
+        class: "minimal",
+        region: null,
+        locale: null,
+        ttl_seconds: 3600,
+      });
+      const driver = new BrowserDriver({
+        runtime: port,
+        baseUrl: base,
+        terrariumToken: "t",
+        paceScale: 0,
+        readingAllowlist: ["127.0.0.1"],
+        externalEnabled: true,
+      });
+      // an internal path (the shape the peer read uses) that answers
+      // with a blank shell is refused exactly like a dead external link
+      await expect(driver.openPage("ag_walker", "/wiki/blank-shell", 0)).rejects.toThrow(
+        DeadPageError
+      );
+      // and the browser is left somewhere real: a white cell is the
+      // symptom the whole guard exists to prevent
+      const page = (port as unknown as { byAgent: Map<string, { page: { url(): string } }> }).byAgent.get(
+        "ag_walker"
+      )?.page;
+      expect(page?.url()).not.toBe("about:blank");
+      expect(page?.url()).toContain("/wiki/genji-monogatari");
     } finally {
       await port.close();
     }

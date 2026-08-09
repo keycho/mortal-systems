@@ -50,6 +50,11 @@ export const EXTERNAL_PHRASE_MAX = 90;
  * in any sense a reader would recognize; a real article has hundreds */
 export const RENDERED_MIN_CHARS = 40;
 
+/** how long a page gets to put words on the screen before it counts as
+ * blank. slow is not dead: a page still painting at 2s is a page, and
+ * only one that never paints inside this budget is skipped. */
+export const PAINT_BUDGET_MS = 8_000;
+
 /**
  * a navigation that never became a page: refused connection, http
  * error, or a load that painted nothing. the showrunner treats this as
@@ -284,11 +289,86 @@ export class BrowserDriver {
    * for posts. the front pages (a tenant's home, the terrarium index)
    * are the addresses an agent knows by heart, so goto is honest there.
    */
-  private async gotoFront(page: Page, tenant: string): Promise<void> {
-    await page.goto(`${this.opts.baseUrl}/t/${tenant}/`, {
-      waitUntil: "domcontentloaded",
-      timeout: 30_000,
-    });
+  private async gotoFront(page: Page, tenant: string, agentId: string): Promise<void> {
+    // home ground is still a page that has to paint: a terrarium that
+    // answers with an empty shell would put a white cell on the wall
+    // exactly like a dead external link does
+    await this.navigate(page, agentId, `${this.opts.baseUrl}/t/${tenant}/`);
+  }
+
+  /**
+   * every navigation the wall shows goes through here, internal and
+   * external alike: a cell must never dwell on a page that is not
+   * there. the checks, in order — the navigation itself (a refused
+   * connection, a hang), the status (a 404 is not a read), and then
+   * the only test that matches what a viewer sees: did words actually
+   * paint. slow is not dead, so paint is waited for up to
+   * PAINT_BUDGET_MS rather than sampled once.
+   *
+   * on failure the browser is parked somewhere real (the identity's own
+   * ground) rather than on a blank tab, because a white window on the
+   * wall is the exact symptom this guard exists to prevent, and the
+   * showrunner is about to choose another page anyway.
+   */
+  private async navigate(page: Page, agentId: string, url: string): Promise<void> {
+    const gotoOnce = () => page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    let response: Awaited<ReturnType<typeof gotoOnce>>;
+    try {
+      try {
+        response = await gotoOnce();
+      } catch (err) {
+        // a prior corpse's error page can commit exactly as this
+        // navigation starts, interrupting it; that race has one round,
+        // so one clean retry settles it
+        if (!String(err).includes("is interrupted by another navigation")) throw err;
+        response = await gotoOnce();
+      }
+    } catch (err) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(url, String(err).split("\n")[0] ?? "navigation failed");
+    }
+    if (response && !response.ok()) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(url, `http ${response.status()}`);
+    }
+    const painted = await this.waitForPaint(page);
+    if (painted < RENDERED_MIN_CHARS) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(url, `blank page (${painted} chars painted)`);
+    }
+  }
+
+  /** how many visible characters are on the screen right now */
+  private async paintedChars(page: Page): Promise<number> {
+    return page
+      .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
+      .catch(() => 0);
+  }
+
+  /** wait for the page to put real words on the screen, up to the paint
+   * budget; returns what it had when it got there or gave up */
+  private async waitForPaint(page: Page): Promise<number> {
+    const deadline = Date.now() + PAINT_BUDGET_MS;
+    let painted = await this.paintedChars(page);
+    while (painted < RENDERED_MIN_CHARS && Date.now() < deadline) {
+      await page.waitForTimeout(250).catch(() => undefined);
+      painted = await this.paintedChars(page);
+    }
+    return painted;
+  }
+
+  /** leave the browser on something a viewer would recognize as a page:
+   * the identity's own ground, never a blank tab */
+  private async parkSomewhereReal(page: Page, agentId: string): Promise<void> {
+    // chromium may still be committing its own error page; let that
+    // land first so this navigation is not the one interrupted
+    await page.waitForEvent("framenavigated", { timeout: 600 }).catch(() => undefined);
+    const home = (this.opts.runtime as { homeUrlFor?: (id: string) => string }).homeUrlFor?.(
+      agentId
+    );
+    await page
+      .goto(home ?? `${this.opts.baseUrl}/`, { waitUntil: "domcontentloaded", timeout: 10_000 })
+      .catch(() => undefined);
   }
 
   /** click the first rendered link whose href ends with the target path;
@@ -307,11 +387,24 @@ export class BrowserDriver {
   /** reach a post the human way: land on the tenant's front page, find
    * the post in the listing, click it. throws TargetGoneError, with the
    * browser honestly left on the front page, when the post is not there. */
-  private async clickThroughToPost(page: Page, tenant: string, postId: string): Promise<void> {
-    await this.gotoFront(page, tenant);
+  private async clickThroughToPost(
+    page: Page,
+    tenant: string,
+    postId: string,
+    agentId: string
+  ): Promise<void> {
+    await this.gotoFront(page, tenant, agentId);
     const clicked = await this.clickLink(page, `/posts/${postId}`);
     if (!clicked) {
       throw new TargetGoneError(`post ${postId} is not on ${tenant}'s page`, `/t/${tenant}/`);
+    }
+    // the click landed somewhere; the post itself must have painted
+    // before the reader dwells on it (a peer's entry is a read like
+    // any other, and gets the same guard)
+    const painted = await this.waitForPaint(page);
+    if (painted < RENDERED_MIN_CHARS) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(`/t/${tenant}/posts/${postId}`, `blank page (${painted} chars)`);
     }
   }
 
@@ -331,20 +424,29 @@ export class BrowserDriver {
       const postUrl = /^\/t\/([a-z0-9-]+)\/posts\/([A-Za-z0-9_]+)$/.exec(url);
       if (postUrl) {
         try {
-          await this.clickThroughToPost(page, postUrl[1] as string, postUrl[2] as string);
+          await this.clickThroughToPost(
+            page,
+            postUrl[1] as string,
+            postUrl[2] as string,
+            agentId
+          );
         } catch (err) {
           if (!(err instanceof TargetGoneError)) throw err;
           landed = err.landedUrl;
           detour = true;
+          // the front page is where the reader honestly ended up, and it
+          // has to have painted too
+          const painted = await this.waitForPaint(page);
+          if (painted < RENDERED_MIN_CHARS) {
+            await this.parkSomewhereReal(page, agentId);
+            throw new DeadPageError(err.landedUrl, `blank page (${painted} chars)`);
+          }
         }
       } else if (/^https?:\/\//i.test(url)) {
         external = await this.readExternal(page, agentId, url, dwellMs);
         landed = url;
       } else {
-        await page.goto(`${this.opts.baseUrl}${url}`, {
-          waitUntil: "domcontentloaded",
-          timeout: 30_000,
-        });
+        await this.navigate(page, agentId, `${this.opts.baseUrl}${url}`);
       }
       const steps = 6;
       for (let i = 0; i < steps; i++) {
@@ -396,40 +498,8 @@ export class BrowserDriver {
         `browse ${host}`
       );
     }
-    // a dead link, a hang or an http error must surface as exactly what
-    // it is, before the agent commits to "reading" it: the cell never
-    // dwells on a page that is not there
-    const gotoOnce = () => page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    const response = await gotoOnce()
-      .catch((err: unknown) => {
-        // a prior corpse's error page can commit exactly as this
-        // navigation starts, interrupting it; that race has one round,
-        // so one clean retry settles it
-        if (String(err).includes("is interrupted by another navigation")) return gotoOnce();
-        throw err;
-      })
-      .catch(async (err: unknown) => {
-        // chromium may still be committing its own error page for the
-        // failed navigation; wait that commit out (bounded), then park
-        // on a clean blank so the caller's next navigation (the retry
-        // link, or home) is not interrupted by this corpse. the blank
-        // lasts milliseconds: the showrunner immediately walks on.
-        await page.waitForEvent("framenavigated", { timeout: 600 }).catch(() => undefined);
-        await page.goto("about:blank", { timeout: 3000 }).catch(() => undefined);
-        throw new DeadPageError(url, String(err).split("\n")[0] ?? "navigation failed");
-      });
-    if (response && !response.ok()) {
-      throw new DeadPageError(url, `http ${response.status()}`);
-    }
+    await this.navigate(page, agentId, url);
     await this.pace(1500 + Math.random() * 1500); // arrive, settle
-    // the page must have actually painted words: a 200 that renders
-    // blank (broken script shell, empty document) is as dead as a 404
-    const painted = await page
-      .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
-      .catch(() => 0);
-    if (painted < RENDERED_MIN_CHARS) {
-      throw new DeadPageError(url, `blank page (${painted} chars painted)`);
-    }
     // one short phrase is all a page may contribute; material, not voice
     const phrase = (
       (await page
@@ -661,7 +731,7 @@ export class BrowserDriver {
   ): Promise<void> {
     return this.withBusy(agentId, async () => {
       const page = this.page(agentId);
-      await this.clickThroughToPost(page, tenant, postId);
+      await this.clickThroughToPost(page, tenant, postId, agentId);
       // reread the thread before answering, like anyone decent
       await this.pace(2500 + Math.random() * 2500);
       await page.fill('input[name="author"]', author);

@@ -182,8 +182,12 @@ export function buildAnthropicThinker(opts: AnthropicThinkerOptions = {}): Think
         ? "this is the end. give your monologue and your final_words."
         : // the editorial call, settled (DECISIONS): mostly reading,
           // punctuated by writing. the camera still cuts to a live draft
-          // when one happens; what this changes is frequency, not priority.
-          "live the next beat: one monologue line if a new thought is actually there, and one act only if the moment truly asks for it. most beats the honest act is reading: open_page on one of your pages, or no act at all and you will drift out to one. publishing and replying are for when something has genuinely asked to be written, not a default."
+          // when one happens; what this changes is frequency, not
+          // priority. the frequency is stated outright because writing
+          // is slow on camera: one publish holds the cell in the compose
+          // form for as long as the typing takes, and a wall of compose
+          // forms is a wall of nobody reading anything.
+          "live the next beat: one monologue line if a new thought is actually there, and one act only if the moment truly asks for it. the honest act, nearly every beat, is reading: open_page on one of your pages, or no act at all and you will drift out to one. writing is the rare one, roughly a beat in ten: publishing and replying are for when something has genuinely asked to be written, and an unwritten thought keeps until it has. a day spent reading and thinking is a full day here."
     );
 
     const response = await client.messages.create({
