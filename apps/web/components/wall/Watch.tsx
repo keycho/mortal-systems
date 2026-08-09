@@ -12,9 +12,11 @@ import {
   countdownLabel,
   finalHourLabel,
   formatCount,
+  postPermalink,
   recentlyDead,
   remainingSeconds,
   useRecap,
+  usePublishedPosts,
   useWall,
   utcClock,
 } from "../../lib/wall-client";
@@ -77,6 +79,21 @@ export function Watch() {
         .slice(0, WIRE_LINES),
     [events]
   );
+
+  // the identity's published writing, off the record. the count of its
+  // publish events is the refetch key: the list changes exactly when it
+  // publishes again, and never on an ordinary beat.
+  const publishedCount = useMemo(
+    () =>
+      events.filter(
+        (e) =>
+          e.agent_id === hero?.agent_id &&
+          e.kind === "action" &&
+          (e.payload as { verb?: string }).verb === "published_post"
+      ).length,
+    [events, hero?.agent_id]
+  );
+  const posts = usePublishedPosts(hero?.agent_id ?? null, publishedCount);
 
   const spawnHref = hero
     ? `/download?class=${encodeURIComponent(hero.class ?? "persona")}&region=${encodeURIComponent(hero.region ?? "")}&ttl=${
@@ -155,6 +172,27 @@ export function Watch() {
             </a>
           ) : null}
         </div>
+
+        {/* what this identity has published, from the record: a visitor
+            who arrives from a republication elsewhere lands here and can
+            open the writing itself, on the identity's own page, under
+            the timestamp the store stamped. */}
+        {hero && posts.length > 0 ? (
+          <section className="wall-published">
+            <span className="label">published · {hero.name}</span>
+            <ul>
+              {posts.map((post) => (
+                <li key={post.event_id}>
+                  <a href={postPermalink(post.url)}>{post.title}</a>
+                  <span className="when">{post.ts.slice(0, 10)}</span>
+                </li>
+              ))}
+            </ul>
+            <span className="note">
+              every entry above is on the append-only record, with the timestamp the wall stamped
+            </span>
+          </section>
+        ) : null}
 
         {/* everyone else, smaller, on the wall's own grid grammar */}
         {rest.length > 0 ? (

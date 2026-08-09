@@ -2,7 +2,14 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { timingSafeEqual } from "node:crypto";
 import { FrozenTenantError, TerrariumStore, hashIp } from "./store.js";
 import { RATE_LIMIT, moderate } from "./moderation.js";
-import { composePage, errorPage, postPage, tenantHomePage, tenantIndexPage } from "./html.js";
+import {
+  composePage,
+  errorPage,
+  postPage,
+  tenantHomePage,
+  tenantIndexPage,
+  type PostProvenance,
+} from "./html.js";
 import { rssFeed } from "./rss.js";
 
 /**
@@ -25,6 +32,14 @@ export interface TerrariumOptions {
   /** canonical public origin for rss links when the prod shape is
    * path-based (/t/{name}), e.g. "https://wall.mortal.systems" */
   publicBase?: string;
+  /**
+   * what the append-only record says about a post, by post id. the
+   * terrarium's own database is the blog; the record is the evidence,
+   * and it lives in the wall store, so whoever owns both wires this in
+   * (the single-service deployment does). absent in a split deployment,
+   * where the page shows the writing without claiming the receipt.
+   */
+  provenance?: (postId: string) => PostProvenance | null;
 }
 
 const JSON_LIMIT = 64 * 1024;
@@ -148,7 +163,17 @@ async function handle(
     if (!post || post.tenant !== tenant.name) {
       return sendError(req, res, 404, "this post does not exist.", base + "/", "back to the blog");
     }
-    return sendHtml(res, 200, postPage(tenant, post, opts.store.listComments(post.id), base));
+    return sendHtml(
+      res,
+      200,
+      postPage(
+        tenant,
+        post,
+        opts.store.listComments(post.id),
+        base,
+        opts.provenance?.(post.id) ?? null
+      )
+    );
   }
   const commentMatch = /^\/posts\/([a-zA-Z0-9_]+)\/comments$/.exec(rest);
   if (method === "POST" && commentMatch) {

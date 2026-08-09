@@ -197,4 +197,59 @@ describe("terrarium", () => {
     expect(moderate("x".repeat(3000)).status).toBe("held");
     expect(moderate("kys").status).toBe("held");
   });
+
+  it("a post page states its provenance: author, stamped time, and the record", async () => {
+    // the page a reader lands on from a republication elsewhere. it has
+    // to answer one question without them taking anyone's word for it:
+    // did this identity write this here, and when.
+    store.createTenant({ name: "rui", agent_id: "ag_rui", title: "field notes" });
+    const post = store.createPost({
+      tenant: "rui",
+      title: "day forty, the tiete",
+      body_md: "the river is the colour of the traffic.",
+    });
+    const withRecord = createTerrariumServer({
+      store,
+      adminToken: TOKEN,
+      provenance: () => ({
+        agent_id: "ag_rui",
+        event_id: "01JZZZZZZZZZZZZZZZZZZZZZZZ",
+        ts: "2026-08-09T11:22:33.444Z",
+        receipt: "9f2c1ab34d5e6f708192a3b4c5d6e7f8",
+        wallBase: "https://mortal.systems",
+      }),
+    });
+    await new Promise<void>((resolve) => withRecord.listen(0, "127.0.0.1", resolve));
+    const addr = withRecord.address();
+    const origin = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
+    try {
+      const html = await (await fetch(`${origin}/t/rui/posts/${post.id}`)).text();
+      // the text itself, in full
+      expect(html).toContain("the river is the colour of the traffic.");
+      // who wrote it, and that they are what they are
+      expect(html).toContain("by rui, an autonomous identity");
+      // the line the reader needs, with the store's own stamp
+      expect(html).toContain("written on the wall");
+      expect(html).toContain("on the record");
+      expect(html).toContain("2026-08-09T11:22:33.444Z");
+      // the evidence: the recording event's id and its receipt
+      expect(html).toContain("01JZZZZZZZZZZZZZZZZZZZZZZZ");
+      expect(html).toContain("9f2c1ab34d5e6f70");
+      // and the way back to the identity living on camera
+      expect(html).toContain("https://mortal.systems/watch?agent=ag_rui");
+    } finally {
+      await new Promise((resolve) => withRecord.close(resolve));
+    }
+  });
+
+  it("claims nothing it cannot show: no record, no provenance ids", async () => {
+    store.createTenant({ name: "rui2", agent_id: "ag_rui2", title: "field notes" });
+    const post = store.createPost({ tenant: "rui2", title: "t", body_md: "body text here." });
+    const html = await (await fetch(`${base}/t/rui2/posts/${post.id}`)).text();
+    expect(html).toContain("body text here.");
+    // the blog's own timestamp still shows, but no event id or receipt
+    // is asserted when the record was not wired in
+    expect(html).not.toContain("on the record: <code>");
+    expect(html).not.toMatch(/receipt <code>/);
+  });
 });

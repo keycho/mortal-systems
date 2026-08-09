@@ -370,6 +370,55 @@ export interface AgentStats {
 }
 
 /**
+ * provenance: what an identity published, straight off the append-only
+ * record rather than out of the blog's own database.
+ *
+ * this is the projection that makes republication checkable. when a
+ * field note appears somewhere else on the internet, a reader can open
+ * the identity's own page and find the same text under an older
+ * timestamp, next to the id of the event that recorded it. the event id
+ * is a ulid, so it is also the position: ids sort in the order the
+ * store stamped them, and the store stamps id, ts and receipt itself.
+ * nothing here is a claim by the writer; it is all the record's.
+ */
+export interface PublishedPost {
+  agent_id: string;
+  /** the recording event's id: a ulid, so it sorts as its position */
+  event_id: string;
+  /** the store's own stamp, not the blog's — the verifiable timestamp */
+  ts: string;
+  title: string;
+  /** the post's path on the terrarium, e.g. /t/rui/posts/p_01H... */
+  url: string;
+  receipt?: string;
+}
+
+export function publishedPosts(
+  events: WallEvent[],
+  opts: { agentId?: string } = {}
+): PublishedPost[] {
+  const posts: PublishedPost[] = [];
+  for (const event of events) {
+    if (event.visibility !== "public" || event.kind !== "action") continue;
+    if (opts.agentId && event.agent_id !== opts.agentId) continue;
+    const payload = event.payload as PayloadFor<"action">;
+    if (payload.verb !== "published_post") continue;
+    if (!payload.target_url) continue;
+    posts.push({
+      agent_id: event.agent_id,
+      event_id: event.id,
+      ts: event.ts,
+      title: payload.title ?? "untitled",
+      url: payload.target_url,
+      ...(event.receipt ? { receipt: event.receipt } : {}),
+    });
+  }
+  // newest first: a reader arriving from elsewhere is looking for the
+  // piece they just read, which is usually the latest
+  return posts.reverse();
+}
+
+/**
  * the plate-border figures: every number the corner chips print. counted
  * from the same public stream every other surface renders from, so the
  * chips can never disagree with the wall. a "page read" is an opened_page

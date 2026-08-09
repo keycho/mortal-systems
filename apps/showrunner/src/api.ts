@@ -7,6 +7,7 @@ import {
 import {
   agentNow,
   depthScore,
+  publishedPosts,
   recap,
   tickerLines,
   wallStats,
@@ -177,6 +178,23 @@ export function createWallApiHandler(
       return true;
     }
 
+    /**
+     * what an identity has published, off the append-only record. this
+     * is the provenance route: a reader who met a piece of writing
+     * somewhere else can ask the wall what it actually recorded, and
+     * get the title, the store's own timestamp, the permalink and the
+     * id of the event that recorded it.
+     */
+    if (url.pathname === "/posts") {
+      const agentId = url.searchParams.get("agent");
+      const posts = publishedPosts(store.list({ publicOnly: true }), {
+        ...(agentId ? { agentId } : {}),
+      });
+      const limit = Math.min(Number(url.searchParams.get("limit") ?? 200) || 200, 500);
+      sendJson(res, 200, { posts: posts.slice(0, limit) });
+      return true;
+    }
+
     if (url.pathname === "/events") {
       if (sseOpen >= maxSse) {
         res.writeHead(503, {
@@ -257,6 +275,7 @@ const WALL_ROUTES = new Set([
   "/wire",
   "/events",
   "/recent",
+  "/posts",
   "/recap",
   "/graveyard",
 ]);

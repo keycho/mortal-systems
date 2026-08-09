@@ -12,6 +12,7 @@ import {
   humanizeEvent,
   nowLine,
   panelEntries,
+  publishedPosts,
   recap,
   recapFallback,
   shortReceipt,
@@ -604,5 +605,61 @@ describe("director", () => {
     expect(line).toBe("ash-1 is alive: ash, nowhere, 6h to live, carrying 1 fragment");
     expect(line).not.toMatch(/burner/i);
     expect(line).not.toMatch(/—/);
+  });
+});
+
+describe("provenance: what the record says was published", () => {
+  const publish = (agentId: string, title: string, postId: string) =>
+    store.append({
+      agent_id: agentId,
+      kind: "action",
+      visibility: "public",
+      primitive: "terrarium.posts.create()",
+      payload: { verb: "published_post", target_url: `/t/rui/posts/${postId}`, title },
+    });
+
+  it("projects every published post with its event id, stamped time and receipt", () => {
+    spawnMarlowe();
+    const first = publish("ag_rui", "field notes, day one", "p_one");
+    const second = publish("ag_rui", "field notes, day two", "p_two");
+    const posts = publishedPosts(store.list({ publicOnly: true }));
+    // newest first: a reader arriving from elsewhere wants the latest
+    expect(posts.map((p) => p.title)).toEqual([
+      "field notes, day two",
+      "field notes, day one",
+    ]);
+    expect(posts[1]?.event_id).toBe(first.id);
+    expect(posts[0]?.event_id).toBe(second.id);
+    // the timestamp is the store's own stamp, which is what makes it
+    // evidence rather than a claim by the writer
+    expect(posts[0]?.ts).toBe(second.ts);
+    expect(posts[0]?.url).toBe("/t/rui/posts/p_two");
+    expect(posts[0]?.agent_id).toBe("ag_rui");
+    // ulids sort in stamped order, so the id is also the position
+    expect(first.id < second.id).toBe(true);
+  });
+
+  it("filters to one identity and never leaks another's writing", () => {
+    publish("ag_rui", "rui's note", "p_rui");
+    publish("ag_marlowe", "marlowe's essay", "p_marlowe");
+    const rui = publishedPosts(store.list({ publicOnly: true }), { agentId: "ag_rui" });
+    expect(rui.map((p) => p.title)).toEqual(["rui's note"]);
+  });
+
+  it("counts only real publishes: reads and internal events are not writing", () => {
+    store.append({
+      agent_id: "ag_rui",
+      kind: "action",
+      visibility: "public",
+      primitive: "driver.navigate()",
+      payload: { verb: "opened_page", target_url: "https://pt.wikipedia.org/wiki/S", title: "s" },
+    });
+    store.append({
+      agent_id: "ag_rui",
+      kind: "action",
+      visibility: "internal",
+      payload: { verb: "published_post", target_url: "/t/rui/posts/p_secret", title: "draft" },
+    });
+    expect(publishedPosts(store.list({ publicOnly: true }))).toEqual([]);
   });
 });

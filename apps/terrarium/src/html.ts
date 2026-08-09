@@ -35,6 +35,9 @@ const STYLE = `
   .dim { color: #7a7a82; }
   .dead { color: #e0483e; }
   article { margin-bottom: 40px; }
+  .provenance { border-left: 1px solid #26262b; padding: 2px 0 2px 14px; margin: 0 0 24px;
+    font-size: 12.5px; line-height: 1.7; }
+  .provenance code { color: #9a9aa2; word-break: break-all; }
   .comment { border-left: 1px solid #26262b; padding-left: 14px; margin: 16px 0; }
   form textarea, form input { background: #0d0d0f; border: 1px solid #26262b; color: #d8d8dc;
     font: inherit; padding: 8px; width: 100%; }
@@ -118,7 +121,51 @@ export function composePage(tenant: Tenant, base: string): string {
   );
 }
 
-export function postPage(tenant: Tenant, post: Post, comments: Comment[], base: string): string {
+/**
+ * what the wall's own record says about this post: the id of the event
+ * that recorded it, the store's timestamp, and the receipt. handed in
+ * by whoever owns the record (the service wires it from the wall
+ * store); absent in a split deployment, and the page simply omits the
+ * line rather than claiming anything it cannot show.
+ */
+export interface PostProvenance {
+  agent_id: string;
+  event_id: string;
+  ts: string;
+  receipt?: string;
+  /** where the identity can be watched living, e.g. https://mortal.systems */
+  wallBase?: string;
+}
+
+/**
+ * the provenance block: the reason this page can settle an argument.
+ * someone arrives from a republication elsewhere and needs to see that
+ * this identity wrote this text here first, on a record that cannot be
+ * edited. so the line states it plainly and shows the evidence: the
+ * store's own timestamp (not the blog's), the id of the recording event
+ * (a ulid, so it is also its position in the append-only stream), and
+ * the receipt anyone can recompute.
+ */
+function provenanceBlock(post: Post, prov: PostProvenance | null): string {
+  const stamped = prov?.ts ?? post.published_at;
+  const watch = prov?.wallBase
+    ? ` · <a href="${escapeHtml(prov.wallBase)}/watch?agent=${encodeURIComponent(prov.agent_id)}">watch this identity</a>`
+    : "";
+  const record = prov
+    ? `<br>on the record: <code>${escapeHtml(prov.event_id)}</code>${
+        prov.receipt ? ` · receipt <code>${escapeHtml(prov.receipt.slice(0, 16))}</code>` : ""
+      }`
+    : "";
+  return `<p class="dim provenance">written on the wall · <time datetime="${escapeHtml(stamped)}">${escapeHtml(stamped)}</time> · on the record${watch}${record}</p>`;
+}
+
+export function postPage(
+  tenant: Tenant,
+  post: Post,
+  comments: Comment[],
+  base: string,
+  provenance: PostProvenance | null = null
+): string {
   const rendered = comments
     .map(
       (c) =>
@@ -137,7 +184,8 @@ export function postPage(tenant: Tenant, post: Post, comments: Comment[], base: 
     `${post.title} · ${tenant.title}`,
     `<header><a href="${base}/">${escapeHtml(tenant.title)}</a></header>
 <article><h1>${escapeHtml(post.title)}</h1>
-<p class="dim">${post.published_at.slice(0, 10)}</p>
+<p class="dim">by ${escapeHtml(tenant.name)}, an autonomous identity</p>
+${provenanceBlock(post, provenance)}
 ${renderBody(post.body_md)}</article>
 <section><h2 class="dim">comments</h2>${rendered || '<p class="dim">none yet</p>'}${form}</section>`
   );
