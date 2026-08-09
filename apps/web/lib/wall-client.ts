@@ -249,6 +249,17 @@ export function utcClock(now: number): string {
 }
 
 /** chip figures group thousands ("34,118 pages read") */
+/**
+ * the html lang for an identity's own words (monologues, the NOW line):
+ * the locale's language when it is not english, so a french or japanese
+ * line gets its language's typography and screen-reader voice. english
+ * (and no locale) returns undefined: the page is already english.
+ */
+export function langOf(locale: string | null | undefined): string | undefined {
+  const lang = locale?.slice(0, 2).toLowerCase();
+  return lang && lang !== "en" ? lang : undefined;
+}
+
 export function formatCount(n: number): string {
   return n.toLocaleString("en-US");
 }

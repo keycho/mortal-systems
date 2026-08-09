@@ -8,6 +8,7 @@ import {
 } from "@mortal/wall";
 import type { CastMember } from "./cast.js";
 import { isAshSpawnSlot, isAsleep } from "./calendar.js";
+import { DeadPageError } from "./driver.js";
 import {
   NARRATION_INTERVAL_MS,
   NARRATION_LINE_TIMEOUT_MS,
@@ -22,6 +23,7 @@ import {
   PolicyViolation,
   checkAction,
   checkSponsorExtension,
+  hostAllowed,
   type PolicyFlags,
 } from "./policy.js";
 import type { RuntimePort } from "./runtime-port.js";
@@ -845,10 +847,14 @@ export class Showrunner {
             let readInProgress = true;
             const opening = this.driver
               .openPage(agent.agent_id, act.url)
-              .catch((err: unknown) => {
-                console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
-                return null;
-              })
+              .then(
+                (landing) => landing as Awaited<ReturnType<ActDriver["openPage"]>> | { dead: DeadPageError },
+                (err: unknown) => {
+                  if (err instanceof DeadPageError) return { dead: err };
+                  console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
+                  return null;
+                }
+              )
               .finally(() => {
                 readInProgress = false;
               });
@@ -857,6 +863,20 @@ export class Showrunner {
             );
             const landing = await opening;
             await narrated;
+            if (landing && "dead" in landing) {
+              // the page never became a page (dead link, http error,
+              // blank render): no opened_page event, because the record
+              // must not claim a read that did not happen. the corpse
+              // joins recent reads so the walk avoids it, and the state
+              // says honestly why the cell is not dwelling there.
+              agent.recent_reads.push(act.url);
+              if (agent.recent_reads.length > RECENT_READS_MAX) {
+                agent.recent_reads.splice(0, agent.recent_reads.length - RECENT_READS_MAX);
+              }
+              agent.memory.push(`went to read ${act.title}; the page would not load`);
+              this.emitState(agent.agent_id, "idle", "the page would not load");
+              return false;
+            }
             if (landing?.detour) {
               // the link was gone; the record says where the reader
               // actually ended up, never where they meant to go
@@ -1179,6 +1199,10 @@ export class Showrunner {
       rotation: agent.member.idle_rotation ?? [],
       recentReads: agent.recent_reads,
       driftIndex: agent.drift_index,
+      // the persona border, applied again at the decision: even a stale
+      // harvest from before a cast change cannot walk this identity
+      // into another's language
+      allowedHosts: agent.member.reading_domains,
     });
     agent.drift_index += 1;
     if (!next) {
@@ -1195,9 +1219,39 @@ export class Showrunner {
       return;
     }
     const title = titleFromUrl(next.url);
-    await this.performAct(agent, { kind: "open_page", url: next.url, title }).catch(() =>
-      this.restAtOwnBlog(agent.agent_id)
+    const acted = await this.performAct(agent, { kind: "open_page", url: next.url, title }).catch(
+      () => false
     );
+    if (acted) return;
+    // the page was dead (or the act degraded): one more try somewhere
+    // else, rather than a cell sitting on a page that is not there. the
+    // dead url just joined recent reads, so the walk will not choose it
+    // again; a second failure rests at home.
+    if (!this.live.has(agent.agent_id)) return;
+    const retry = chooseNextRead({
+      pageLinks: agent.page_links,
+      rotation: agent.member.idle_rotation ?? [],
+      recentReads: agent.recent_reads,
+      driftIndex: agent.drift_index,
+      allowedHosts: agent.member.reading_domains,
+    });
+    agent.drift_index += 1;
+    if (!retry || normalizeReadUrl(retry.url) === normalizeReadUrl(next.url)) {
+      this.restAtOwnBlog(agent.agent_id);
+      return;
+    }
+    try {
+      checkAction({ type: "browse", url: retry.url }, this.flags);
+    } catch {
+      this.restAtOwnBlog(agent.agent_id);
+      return;
+    }
+    const secondActed = await this.performAct(agent, {
+      kind: "open_page",
+      url: retry.url,
+      title: titleFromUrl(retry.url),
+    }).catch(() => false);
+    if (!secondActed) this.restAtOwnBlog(agent.agent_id);
   }
 
   private emitState(agentId: string, state: string, detail?: string): void {
@@ -1257,22 +1311,35 @@ export function chooseNextRead(opts: {
   rotation: string[];
   recentReads: string[];
   driftIndex: number;
+  /** the persona's own hosts; a link elsewhere is not this walk's to
+   * take, whatever a stale harvest or an old memory offers */
+  allowedHosts?: string[];
 }): { url: string; via: "link" | "seed" | "stale" } | null {
+  const inWorld = (url: string): boolean => {
+    if (!opts.allowedHosts || opts.allowedHosts.length === 0) return true;
+    try {
+      return hostAllowed(new URL(url).hostname, opts.allowedHosts);
+    } catch {
+      return false;
+    }
+  };
+  const pageLinks = opts.pageLinks.filter(inWorld);
+  const rotation = opts.rotation.filter(inWorld);
   const recent = opts.recentReads.map(normalizeReadUrl);
   const isRecent = (url: string): boolean => recent.includes(normalizeReadUrl(url));
 
-  const freshLinks = opts.pageLinks.filter((url) => !isRecent(url));
+  const freshLinks = pageLinks.filter((url) => !isRecent(url));
   if (freshLinks.length > 0) {
     return { url: freshLinks[opts.driftIndex % freshLinks.length] as string, via: "link" };
   }
-  const freshSeeds = opts.rotation.filter((url) => !isRecent(url));
+  const freshSeeds = rotation.filter((url) => !isRecent(url));
   if (freshSeeds.length > 0) {
     return { url: freshSeeds[opts.driftIndex % freshSeeds.length] as string, via: "seed" };
   }
   // everything nearby has been read lately: go back to the page read
   // longest ago (recent_reads is oldest first), so even the return leg
   // is the longest loop available, never a ping-pong
-  const everything = [...opts.pageLinks, ...opts.rotation];
+  const everything = [...pageLinks, ...rotation];
   if (everything.length === 0) return null;
   let stalest: string | null = null;
   let stalestRank = Number.POSITIVE_INFINITY;

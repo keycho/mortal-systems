@@ -7,8 +7,10 @@ import { WallStore, type PayloadFor } from "@mortal/wall";
 import { TerrariumStore } from "terrarium";
 import {
   BrowserDriver,
+  DeadPageError,
   LAUNCH_CAST,
   LiveRuntimePort,
+  READING_ALLOWLIST_DEFAULT,
   RECENT_READS_MAX,
   Showrunner,
   StubRuntimePort,
@@ -16,6 +18,7 @@ import {
   chooseNextRead,
   linkCandidates,
   normalizeReadUrl,
+  personaAllowlist,
   storeTerrariumClient,
   type ActDriver,
   type CastMember,
@@ -83,6 +86,101 @@ describe("the walk's decision", () => {
     expect(
       chooseNextRead({ pageLinks: [], rotation: [], recentReads: [], driftIndex: 0 })
     ).toBeNull();
+  });
+});
+
+describe("the walk cannot leave the persona's ground", () => {
+  it("intersects a persona's own hosts with the global allowlist, never widening it", () => {
+    expect(
+      personaAllowlist(["ja.wikipedia.org"], ["ja.wikipedia.org", "en.wikipedia.org"])
+    ).toEqual(["ja.wikipedia.org"]);
+    // absent or empty own list: the global wall alone governs
+    expect(personaAllowlist(undefined, ["en.wikipedia.org"])).toEqual(["en.wikipedia.org"]);
+    expect(personaAllowlist([], ["en.wikipedia.org"])).toEqual(["en.wikipedia.org"]);
+    // an own host outside the global wall is dropped, never granted
+    expect(
+      personaAllowlist(["evil.example", "en.wikipedia.org"], ["en.wikipedia.org"])
+    ).toEqual(["en.wikipedia.org"]);
+  });
+
+  it("drops interlanguage links for a reader whose world is english", () => {
+    // the exact production bug: every one of these hosts is on the
+    // global allowlist, so the old harvest let an en reader walk into
+    // ja.wikipedia through the sidebar. the persona border drops them.
+    const effective = personaAllowlist(
+      ["en.wikipedia.org", "news.ycombinator.com"],
+      [...READING_ALLOWLIST_DEFAULT]
+    );
+    const links = linkCandidates(
+      [
+        { href: "https://en.wikipedia.org/wiki/Epitaph", text: "epitaphs and their history" },
+        { href: "https://ja.wikipedia.org/wiki/墓碑銘", text: "日本語版の記事" },
+        { href: "https://fr.wikipedia.org/wiki/Épitaphe", text: "article en français ici" },
+        { href: "https://de.wikipedia.org/wiki/Grabinschrift", text: "deutscher artikel dazu" },
+      ],
+      effective,
+      "https://en.wikipedia.org/wiki/Eulogy"
+    );
+    expect(links).toEqual(["https://en.wikipedia.org/wiki/Epitaph"]);
+  });
+
+  it("keeps the interlanguage link that is the reader's own language", () => {
+    const effective = personaAllowlist(["ja.wikipedia.org"], [...READING_ALLOWLIST_DEFAULT]);
+    const links = linkCandidates(
+      [
+        { href: "https://ja.wikipedia.org/wiki/翻訳", text: "翻訳" },
+        { href: "https://en.wikipedia.org/wiki/Translation", text: "Translation in english" },
+      ],
+      effective,
+      "https://ja.wikipedia.org/wiki/日記"
+    );
+    // hrefs come back percent-encoded from the URL parser; same page
+    expect(links.map(normalizeReadUrl)).toEqual(["https://ja.wikipedia.org/wiki/翻訳"]);
+  });
+
+  it("applies the mainspace rule to wikisource namespaces too", () => {
+    const links = linkCandidates(
+      [
+        {
+          href: "https://pt.wikisource.org/wiki/Memórias_Póstumas_de_Brás_Cubas",
+          text: "o livro inteiro para ler",
+        },
+        {
+          href: "https://pt.wikisource.org/wiki/Autor:Machado_de_Assis",
+          text: "a página do autor aqui",
+        },
+        {
+          href: "https://fr.wikisource.org/wiki/Spécial:Recherche",
+          text: "chercher dans la bibliothèque",
+        },
+      ],
+      ["pt.wikisource.org", "fr.wikisource.org"],
+      "https://pt.wikisource.org/wiki/Dom_Casmurro"
+    );
+    expect(links.map(normalizeReadUrl)).toEqual([
+      "https://pt.wikisource.org/wiki/Memórias_Póstumas_de_Brás_Cubas",
+    ]);
+  });
+
+  it("chooseNextRead never picks outside the persona's hosts, even from stale memory", () => {
+    // a pre-border harvest left a foreign link in the walk's memory
+    const next = chooseNextRead({
+      pageLinks: ["https://ja.wikipedia.org/wiki/俳句", "https://en.wikipedia.org/wiki/Haiku"],
+      rotation: ["https://en.wikipedia.org/wiki/Memento_mori"],
+      recentReads: [],
+      driftIndex: 0,
+      allowedHosts: ["en.wikipedia.org"],
+    });
+    expect(next).toEqual({ url: "https://en.wikipedia.org/wiki/Haiku", via: "link" });
+    // and the stale fallback stays in-world too
+    const stale = chooseNextRead({
+      pageLinks: ["https://ja.wikipedia.org/wiki/俳句"],
+      rotation: ["https://en.wikipedia.org/wiki/Memento_mori"],
+      recentReads: ["https://en.wikipedia.org/wiki/Memento_mori"],
+      driftIndex: 3,
+      allowedHosts: ["en.wikipedia.org"],
+    });
+    expect(stale).toEqual({ url: "https://en.wikipedia.org/wiki/Memento_mori", via: "stale" });
   });
 });
 
@@ -271,6 +369,70 @@ describe("the drift walks (showrunner + fake driver)", () => {
     expect(back?.recent_reads).toEqual(recent.slice(0, 3));
     expect(back?.recent_reads.length).toBeLessThanOrEqual(RECENT_READS_MAX);
   });
+
+  it("a dead page never lands on the record, and the drift walks somewhere else", async () => {
+    const deadUrl = "https://en.wikipedia.org/wiki/Memento_mori";
+    const opened: string[] = [];
+    const driver: ActDriver = {
+      busy: () => false,
+      openPage: async (_id, url) => {
+        opened.push(url);
+        if (url === deadUrl) throw new DeadPageError(url, "http 404");
+        return {
+          landed: url,
+          detour: false,
+          external: {
+            domain: new URL(url).hostname,
+            title: "a page that loaded",
+            phrase: "",
+            url,
+            links: [],
+          },
+        };
+      },
+      publishPost: async () => ({ id: "p", url: "/x" }),
+      replyComment: async () => undefined,
+    };
+    const showrunner = new Showrunner({
+      store: wallStore,
+      runtime: new StubRuntimePort(),
+      terrarium: storeTerrariumClient(terrariumStore),
+      think: async () => ({}),
+      flags: { ...FLAGS },
+    });
+    Object.assign(showrunner.names, castNames());
+    const marlowe = LAUNCH_CAST.find((m) => m.agent_id === "ag_marlowe") as CastMember;
+    await showrunner.spawn(marlowe);
+    showrunner.driver = driver;
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    // the page the walk will choose first is dead
+    agent.page_links = [deadUrl];
+
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+
+    // the record never claims the read that did not happen
+    const reads = wallStore
+      .list({ kinds: ["action"], agentId: "ag_marlowe" })
+      .map((e) => (e.payload as PayloadFor<"action">).target_url);
+    expect(reads).not.toContain(deadUrl);
+    // the corpse is remembered, so the walk will not choose it again
+    expect(agent.recent_reads).toContain(deadUrl);
+    // and the drift tried somewhere else instead of dwelling on white
+    expect(opened[0]).toBe(deadUrl);
+    expect(opened.length).toBe(2);
+    expect(opened[1]).not.toBe(deadUrl);
+    expect(reads).toContain(opened[1]);
+    // the honest beat is on the stream: the state says why, then moves on
+    const states = wallStore
+      .list({ kinds: ["state_change"], agentId: "ag_marlowe" })
+      .map((e) => e.payload as PayloadFor<"state_change">);
+    expect(
+      states.some((s) => s.state === "idle" && s.detail === "the page would not load")
+    ).toBe(true);
+  });
 });
 
 /** chromium for the live test: CHROME_PATH, a playwright browsers dir,
@@ -307,10 +469,12 @@ describe.skipIf(chromiumPath === null)("a real page's links reach the walk (real
       <a href="/login">login to the archive here</a>
       </body></html>`,
     "/wiki/motoori-norinaga": `<html><head><title>motoori norinaga</title></head><body>
-      <p>the scholar who named the feeling.</p>
+      <p>the scholar who named the feeling, and spent a life reading the classics for it.</p>
       <a href="/wiki/genji-monogatari">the tale of genji, his subject</a>
       </body></html>`,
-    "/wiki/genji-monogatari": `<html><head><title>genji</title></head><body><p>the novel itself.</p></body></html>`,
+    "/wiki/genji-monogatari": `<html><head><title>genji</title></head><body><p>the novel itself, a thousand pages of court life and weather and grief.</p></body></html>`,
+    // a page that answers 200 and paints nothing: as dead as a 404
+    "/wiki/blank-shell": `<html><head><title>shell</title></head><body></body></html>`,
   };
 
   beforeEach(async () => {
@@ -372,6 +536,45 @@ describe.skipIf(chromiumPath === null)("a real page's links reach the walk (real
       if (finalPath !== "/wiki/genji-monogatari") {
         expect(links.length).toBeGreaterThan(0);
       }
+    } finally {
+      await port.close();
+    }
+  }, 60_000);
+
+  it("a 404, a blank render and a refused connection all read as dead pages", async () => {
+    const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    port.setHome(`${base}/`);
+    try {
+      await port.spawn({
+        agent_id: "ag_walker",
+        class: "minimal",
+        region: null,
+        locale: null,
+        ttl_seconds: 3600,
+      });
+      const driver = new BrowserDriver({
+        runtime: port,
+        baseUrl: base,
+        terrariumToken: "t",
+        paceScale: 0,
+        readingAllowlist: ["127.0.0.1"],
+        externalEnabled: true,
+      });
+      // a 404: the server answers, but there is no page there
+      await expect(driver.openPage("ag_walker", `${base}/wiki/no-such-page`, 0)).rejects.toThrow(
+        DeadPageError
+      );
+      // a 200 that paints nothing: a white cell, refused before the dwell
+      await expect(driver.openPage("ag_walker", `${base}/wiki/blank-shell`, 0)).rejects.toThrow(
+        DeadPageError
+      );
+      // a refused connection: nothing is listening at all
+      await expect(
+        driver.openPage("ag_walker", "http://127.0.0.1:9/wiki/nowhere", 0)
+      ).rejects.toThrow(DeadPageError);
+      // and after all three corpses, a real page still reads normally
+      const alive = await driver.openPage("ag_walker", `${base}/wiki/genji-monogatari`, 0);
+      expect(alive.external?.title).toContain("genji");
     } finally {
       await port.close();
     }

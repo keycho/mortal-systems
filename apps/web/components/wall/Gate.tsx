@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { directorScore, humanizeEvent, spotlightAt, type PayloadFor } from "@mortal/wall/browser";
-import { formatCount, recentlyDead, remainingSeconds, useWall, utcClock } from "../../lib/wall-client";
+import { formatCount, langOf, recentlyDead, remainingSeconds, useWall, utcClock } from "../../lib/wall-client";
 import { Wordmark } from "../Wordmark";
 import { AgentCell, VacantCell, type CellCaption } from "./AgentCell";
 import { WallChrome } from "./WallChrome";
@@ -92,7 +92,7 @@ export function Gate() {
       ? {
           text: typed,
           gloss: speaker.last_monologue_gloss ?? null,
-          lang: speaker.locale?.startsWith("ja") ? "ja" : undefined,
+          lang: langOf(speaker.locale),
         }
       : null;
 
@@ -190,7 +190,7 @@ export function Gate() {
         {/* the wall is the front door now; this leaves it for the room
             behind: the product page */}
         <a className="enter" href="/about">
-          about mortal ▸
+          enter mortal.systems ▸
         </a>
       </div>
     </main>

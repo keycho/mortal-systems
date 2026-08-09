@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { panelEntries, type PanelEntry, type WallEvent } from "@mortal/wall/browser";
-import { workLabel, type AgentNowLive } from "../../lib/wall-client";
+import { langOf, workLabel, type AgentNowLive } from "../../lib/wall-client";
 
 /**
  * surface B: the reasoning panel (docs/surface-b-brief.md). drawn by the
@@ -29,7 +29,9 @@ export function ReasoningPanel({
     () => panelEntries(events, agent.agent_id, { limit: PANEL_LINES }),
     [events, agent.agent_id]
   );
-  const ja = agent.locale?.startsWith("ja") ?? false;
+  // the identity's own words carry its language (ja, fr, de, pt...);
+  // the gloss beneath them is always the english window
+  const lang = langOf(agent.locale);
   const work = workLabel(agent, now);
   return (
     <aside className="wall-panel" data-agent={agent.agent_id}>
@@ -46,7 +48,7 @@ export function ReasoningPanel({
         <span className="label">now</span>
         <div className="intent-block">
           {agent.now_line ? (
-            <div className="intent" lang={ja ? "ja" : undefined}>
+            <div className="intent" lang={lang}>
               {agent.now_line}
             </div>
           ) : (
@@ -70,7 +72,7 @@ export function ReasoningPanel({
       ) : null}
       <div className="wall-record">
         {entries.map((entry) => (
-          <RecordLine key={entry.id} entry={entry} ja={ja} />
+          <RecordLine key={entry.id} entry={entry} lang={lang} />
         ))}
         {entries.length === 0 ? (
           <div className="wall-record-empty">nothing on the record yet</div>
@@ -80,13 +82,13 @@ export function ReasoningPanel({
   );
 }
 
-function RecordLine({ entry, ja }: { entry: PanelEntry; ja: boolean }) {
+function RecordLine({ entry, lang }: { entry: PanelEntry; lang: string | undefined }) {
   return (
     <div className={`entry ${entry.tag}`}>
       <span className="t">{clock(entry.ts)}</span>
       <span className="tag">{entry.tag}</span>
       <span className="text">
-        <span lang={ja && entry.tag === "THOUGHT" ? "ja" : undefined}>{entry.text}</span>
+        <span lang={entry.tag === "THOUGHT" ? lang : undefined}>{entry.text}</span>
         {entry.about_url && domainOf(entry.about_url) ? (
           <span className="about"> · {domainOf(entry.about_url)}</span>
         ) : null}

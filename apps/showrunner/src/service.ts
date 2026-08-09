@@ -320,6 +320,15 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       baseUrl: `http://127.0.0.1:${port}`,
       terrariumToken,
       readingAllowlist: flags.readingAllowlist ?? [],
+      // each identity reads inside its own linguistic world: the live
+      // member's domains when it is on the wall, the base member's when
+      // a serial id (ag_ash_2) asks before its live entry lands
+      readingDomainsFor: (agentId) => {
+        const live = showrunner.live.get(agentId)?.member.reading_domains;
+        if (live) return live;
+        const base = agentId.replace(/_\d+$/, "");
+        return cast.find((m) => m.agent_id === base)?.reading_domains ?? null;
+      },
       externalEnabled: flags.externalBrowsing ?? false,
     });
   }

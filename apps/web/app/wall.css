@@ -169,10 +169,17 @@
 }
 
 /* ---- the wall page ---- */
+/* the front door is a fixed tableau: the whole gate lives inside one
+   viewport, nothing scrolls. the header, wire and foot compress on
+   short screens (clamp) and the grid absorbs whatever height remains,
+   frames growing to their §3 height and no further. */
 .wall-gate {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 /* the wordmark, centered in the wall header (ink on cream) */
 .wall-head {
@@ -183,6 +190,10 @@
   padding: 52px var(--w-margin-x) 0;
   margin-bottom: 34px;
 }
+.wall-gate .wall-head {
+  padding-top: clamp(22px, 5vh, 52px);
+  margin-bottom: clamp(14px, 3.5vh, 34px);
+}
 .wall-grid {
   position: relative;
   z-index: 2;
@@ -190,6 +201,23 @@
   grid-template-columns: repeat(3, 1fr);
   gap: var(--w-gap);
   padding: 0 var(--w-margin-x);
+}
+/* inside the fixed gate the grid takes the leftover height, rows share
+   it, and each frame flexes into its row up to the §3 height; the cue
+   and the caption slot keep their fixed lines beneath it */
+.wall-gate .wall-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-auto-rows: minmax(0, 1fr);
+}
+.wall-gate .wall-grid .wall-cell {
+  min-height: 0;
+  justify-content: center;
+}
+.wall-gate .wall-grid .wall-frame {
+  height: auto;
+  flex: 0 1 var(--w-frame-h);
+  min-height: 110px;
 }
 /* the grid sizes to the cast (data-cols = min(3, cells)): a small cast
    fills its row instead of sitting beside vacant filler. :where() keeps
@@ -439,7 +467,8 @@ a.wall-cell .wall-frame:hover {
 .wall-wirestrip {
   position: relative;
   z-index: 2;
-  margin: 28px var(--w-margin-x) 0;
+  flex: none;
+  margin: clamp(10px, 2.5vh, 28px) var(--w-margin-x) 0;
   border-top: 1px solid var(--w-wire-hair);
   border-bottom: 1px solid var(--w-wire-hair);
   overflow: hidden;
@@ -478,11 +507,12 @@ a.wall-cell .wall-frame:hover {
 .wall-foot {
   position: relative;
   z-index: 2;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 48px;
-  padding: 40px 0 46px;
+  padding: clamp(16px, 3.5vh, 40px) 0 clamp(18px, 4vh, 46px);
 }
 .wall-foot .count {
   font-family: var(--font-display, "Instrument Serif", serif);

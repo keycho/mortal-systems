@@ -32,14 +32,25 @@ export interface PolicyFlags {
 }
 
 export const READING_ALLOWLIST_DEFAULT = [
+  // one wikipedia per persona language: the cast reads in its own
+  // languages (yuki ja, marlowe/ash en, vesper de, odile fr, rui pt),
+  // and each member's reading_domains narrows this list to its own world
   "en.wikipedia.org",
   "ja.wikipedia.org",
+  "de.wikipedia.org",
+  "fr.wikipedia.org",
+  "pt.wikipedia.org",
   // yuki reads and writes in japanese, so she needs somewhere japanese
   // to read: aozora is the public-domain literature archive, and nhk's
   // easy-japanese news is written for readers still learning the
   // language, which is exactly her translation project's material
   "www.aozora.gr.jp",
   "www3.nhk.or.jp",
+  // the wikisources are the aozora of the other languages: public-domain
+  // primary texts, cookie-wall free, safe ground for a reading identity
+  // (odile's french institutions, rui's brazilian literature)
+  "fr.wikisource.org",
+  "pt.wikisource.org",
   "news.ycombinator.com",
   "aworkinglibrary.com",
   "craigmod.com",

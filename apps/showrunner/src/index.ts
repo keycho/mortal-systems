@@ -113,11 +113,14 @@ export type {
 } from "./sandbox-probe.js";
 export { READING_ALLOWLIST_DEFAULT, hostAllowed } from "./policy.js";
 export {
+  DeadPageError,
   EXTERNAL_PHRASE_MAX,
   EXTERNAL_WRITE_CAPS,
   HARVEST_MAX,
+  RENDERED_MIN_CHARS,
   WRITE_UI,
   linkCandidates,
+  personaAllowlist,
 } from "./driver.js";
 export type { ExternalReadResult } from "./driver.js";
 export { WRITE_ALLOWLIST_DEFAULT, parseWriteAllowlist } from "./policy.js";

@@ -28,6 +28,11 @@ export interface DriverOptions {
   /** tier-1: external domains agents may read. empty or absent means the
    * driver refuses every external url, sandbox or not. */
   readingAllowlist?: string[];
+  /** the persona's own hosts, by agent id (serial ids resolve to their
+   * base member). when present, a read's effective allowlist is this
+   * list intersected with the global one, so each identity stays in its
+   * own linguistic world; absent means the global list alone governs. */
+  readingDomainsFor?: (agentId: string) => string[] | null | undefined;
   /** flipped true only when the boot sandbox probe passed */
   externalEnabled?: boolean;
 }
@@ -40,6 +45,26 @@ const FORBIDDEN_LINK =
 /** the one short phrase an external page may contribute to an agent's
  * material; anything longer starts to be the page speaking */
 export const EXTERNAL_PHRASE_MAX = 90;
+
+/** a page that painted fewer visible characters than this never loaded
+ * in any sense a reader would recognize; a real article has hundreds */
+export const RENDERED_MIN_CHARS = 40;
+
+/**
+ * a navigation that never became a page: refused connection, http
+ * error, or a load that painted nothing. the showrunner treats this as
+ * "skip and read something else", never as a read: an agent must not
+ * sit on camera dwelling on a white page, and the record must not
+ * claim a read that did not happen.
+ */
+export class DeadPageError extends Error {
+  readonly url: string;
+  constructor(url: string, reason: string) {
+    super(`page would not load: ${url} (${reason})`);
+    this.name = "DeadPageError";
+    this.url = url;
+  }
+}
 
 /** how many onward links a page may offer the wander; enough to give a
  * path real choices, few enough that a link farm contributes noise, not
@@ -59,15 +84,31 @@ export interface ExternalReadResult {
 }
 
 /**
+ * a persona's effective reading ground: its own hosts intersected with
+ * the global allowlist, so the persona border can only ever narrow the
+ * outer wall, never widen it. no own list means the global list governs
+ * alone. pure, so the interlanguage rule is testable without a browser.
+ */
+export function personaAllowlist(
+  own: string[] | null | undefined,
+  global: string[]
+): string[] {
+  if (!own || own.length === 0) return global;
+  return own.filter((domain) => hostAllowed(domain, global));
+}
+
+/**
  * which harvested anchors count as places a reader would go next. pure
  * and node-side (the page only reports raw {href, text} pairs), so the
  * wander's edge of the allowlist is testable without a browser:
  * http(s) only, allowlisted host only, real link text, none of the
  * forbidden surfaces (login/subscribe/checkout), no self-links, and on
- * wikipedia hosts only mainspace articles (/wiki/ with no namespace
- * colon, which also excludes 特別:, ノート: and their kin in any
- * language). fragments are stripped so a table-of-contents anchor is
- * not a destination.
+ * wikipedia/wikisource hosts only mainspace pages (/wiki/ with no
+ * namespace colon, which also excludes 特別:, Auteur:, Spécial: and
+ * their kin in any language). fragments are stripped so a
+ * table-of-contents anchor is not a destination. the allowlist passed
+ * here is the reader's own effective one, so an interlanguage sidebar
+ * link survives only when it points into the reader's own language.
  */
 export function linkCandidates(
   raw: Array<{ href: string; text: string }>,
@@ -98,7 +139,7 @@ export function linkCandidates(
     if (!/^https?:$/.test(url.protocol)) continue;
     if (!hostAllowed(url.hostname, allowlist)) continue;
     if (FORBIDDEN_LINK.test(text) || FORBIDDEN_LINK.test(anchor.href)) continue;
-    if (/wikipedia\.org$/i.test(url.hostname)) {
+    if (/(wikipedia|wikisource)\.org$/i.test(url.hostname)) {
       if (!url.pathname.startsWith("/wiki/")) continue;
       const article = decodeURIComponentSafe(url.pathname.slice("/wiki/".length));
       if (article.includes(":") || article.length === 0) continue;
@@ -297,7 +338,7 @@ export class BrowserDriver {
           detour = true;
         }
       } else if (/^https?:\/\//i.test(url)) {
-        external = await this.readExternal(page, url, dwellMs);
+        external = await this.readExternal(page, agentId, url, dwellMs);
         landed = url;
       } else {
         await page.goto(`${this.opts.baseUrl}${url}`, {
@@ -324,6 +365,7 @@ export class BrowserDriver {
    */
   private async readExternal(
     page: Page,
+    agentId: string,
     url: string,
     dwellMs: number
   ): Promise<ExternalReadResult> {
@@ -336,18 +378,58 @@ export class BrowserDriver {
         `browse ${url}`
       );
     }
+    // the reader's effective ground: its persona's own hosts, inside the
+    // global wall. the landing, the mid-read follow and the harvest all
+    // measure against this one list, so a read cannot start, move or
+    // point outside the identity's own linguistic world.
+    const allowlist = personaAllowlist(
+      this.opts.readingDomainsFor?.(agentId),
+      this.opts.readingAllowlist ?? []
+    );
     const host = new URL(url).hostname;
-    if (!hostAllowed(host, this.opts.readingAllowlist ?? [])) {
+    if (!hostAllowed(host, allowlist)) {
       throw new PolicyViolation(
         {
           rule_id: "tier1.reading_allowlist",
-          rule_text: "reading happens on allowlisted domains only",
+          rule_text: "reading happens on this identity's own allowlisted domains only",
         },
         `browse ${host}`
       );
     }
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    // a dead link, a hang or an http error must surface as exactly what
+    // it is, before the agent commits to "reading" it: the cell never
+    // dwells on a page that is not there
+    const gotoOnce = () => page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    const response = await gotoOnce()
+      .catch((err: unknown) => {
+        // a prior corpse's error page can commit exactly as this
+        // navigation starts, interrupting it; that race has one round,
+        // so one clean retry settles it
+        if (String(err).includes("is interrupted by another navigation")) return gotoOnce();
+        throw err;
+      })
+      .catch(async (err: unknown) => {
+        // chromium may still be committing its own error page for the
+        // failed navigation; wait that commit out (bounded), then park
+        // on a clean blank so the caller's next navigation (the retry
+        // link, or home) is not interrupted by this corpse. the blank
+        // lasts milliseconds: the showrunner immediately walks on.
+        await page.waitForEvent("framenavigated", { timeout: 600 }).catch(() => undefined);
+        await page.goto("about:blank", { timeout: 3000 }).catch(() => undefined);
+        throw new DeadPageError(url, String(err).split("\n")[0] ?? "navigation failed");
+      });
+    if (response && !response.ok()) {
+      throw new DeadPageError(url, `http ${response.status()}`);
+    }
     await this.pace(1500 + Math.random() * 1500); // arrive, settle
+    // the page must have actually painted words: a 200 that renders
+    // blank (broken script shell, empty document) is as dead as a 404
+    const painted = await page
+      .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
+      .catch(() => 0);
+    if (painted < RENDERED_MIN_CHARS) {
+      throw new DeadPageError(url, `blank page (${painted} chars painted)`);
+    }
     // one short phrase is all a page may contribute; material, not voice
     const phrase = (
       (await page
@@ -393,13 +475,21 @@ export class BrowserDriver {
         )
         .catch(() => null);
       // a url found in page content is followed only if it is itself on
-      // the allowlist; same-domain filtering above makes this a
-      // tautology today, and the explicit check keeps it true forever
-      if (next && hostAllowed(new URL(next).hostname, this.opts.readingAllowlist ?? [])) {
+      // the reader's own allowlist; same-domain filtering above makes
+      // this a tautology today, and the explicit check keeps it true
+      if (next && hostAllowed(new URL(next).hostname, allowlist)) {
         await this.pace(dwellMs / 3);
-        await page
+        const followed = await page
           .goto(next, { waitUntil: "domcontentloaded", timeout: 45_000 })
-          .catch(() => undefined);
+          .catch(() => null);
+        // a follow that lands nowhere is walked back: the reader was
+        // already on a real page, and stays there rather than white
+        const followedPaint = await page
+          .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
+          .catch(() => 0);
+        if ((followed && !followed.ok()) || followedPaint < RENDERED_MIN_CHARS) {
+          await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => undefined);
+        }
       }
     }
 
@@ -427,7 +517,7 @@ export class BrowserDriver {
           }))
       )
       .catch(() => [] as Array<{ href: string; text: string }>);
-    const links = linkCandidates(rawAnchors, this.opts.readingAllowlist ?? [], finalUrl);
+    const links = linkCandidates(rawAnchors, allowlist, finalUrl);
     return { domain: finalHost, title: title.slice(0, 120), phrase, url: finalUrl, links };
   }
 
