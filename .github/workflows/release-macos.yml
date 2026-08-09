@@ -99,6 +99,25 @@ jobs:
           fi
           echo "portability gate: OK — nothing in the sidecar points at this build machine"
 
+      - name: csp gate — the webview must be allowed to reach the shell
+        run: |
+          set -uo pipefail
+          # tauri v2 sends invoke() over ipc://localhost (http://ipc.localhost
+          # on windows). a csp without those in connect-src blocks every
+          # runtime_call, and the window reports "runtime unreachable" while
+          # the runtime is healthy — exactly the bug this gate prevents.
+          CSP=$(node -p "require('./apps/manager/src-tauri/tauri.conf.json').app.security.csp")
+          echo "csp: $CSP"
+          case "$CSP" in
+            *connect-src*ipc:*) : ;;
+            *) echo "FAIL: csp does not admit tauri's ipc transport in connect-src"; exit 1 ;;
+          esac
+          case "$CSP" in
+            *http://ipc.localhost*) : ;;
+            *) echo "FAIL: csp omits http://ipc.localhost (windows ipc transport)"; exit 1 ;;
+          esac
+          echo "csp gate: OK — invoke() can reach the shell"
+
       - name: tauri build (unsigned .app)
         run: pnpm --filter manager exec tauri build --bundles app
 
@@ -159,11 +178,27 @@ jobs:
             *"/Applications/"*) : ;;
             *) echo "FAIL: resolved browser is not in a standard user location"; exit 1 ;;
           esac
+          # a healthy runtime is NOT a working app. the window talks to the
+          # runtime only through the shell's ipc bridge, and a csp that
+          # forbids ipc leaves the runtime up while the ui shows "runtime
+          # unreachable" (shipped exactly once; never again). the shell
+          # writes this marker on its first completed call FROM THE WEBVIEW,
+          # so its absence means the window never got through.
+          BRIDGE="$HOME/.mortal/ui-bridge.json"
+          for _ in $(seq 1 45); do [ -s "$BRIDGE" ] && break; sleep 1; done
+          if [ ! -s "$BRIDGE" ]; then
+            echo "FAIL: the runtime is healthy but the WINDOW never reached it"
+            echo "(no ui-bridge.json — invoke() is not getting through; check the csp)"
+            cat "$RUNNER_TEMP/app-stdout.log" || true
+            kill $APP_PID 2>/dev/null || true
+            exit 1
+          fi
+          echo "ui bridge: $(cat "$BRIDGE")"
           sleep 2
           screencapture -x "$RUNNER_TEMP/launch.png" || true
           tail -n 40 "$HOME/.mortal/sidecar.log" || true
           kill $APP_PID || true
-          echo "LAUNCH SMOKE OK — browser resolved on this machine, not baked at build time"
+          echo "LAUNCH SMOKE OK — window reached the runtime, browser resolved on this machine"
 
       - name: quarantine smoke — the app a stranger actually downloads
         run: |
@@ -197,9 +232,16 @@ jobs:
           fi
           QPORT=$(node -p "JSON.parse(require('fs').readFileSync(process.env.HOME+'/.mortal/runtime.json','utf8')).port")
           curl -fsS "http://127.0.0.1:$QPORT/v1/health" || { kill $QPID 2>/dev/null; exit 1; }
+          # and the window must reach it here too, from the quarantined copy
+          for _ in $(seq 1 45); do [ -s "$HOME/.mortal/ui-bridge.json" ] && break; sleep 1; done
+          if [ ! -s "$HOME/.mortal/ui-bridge.json" ]; then
+            echo "FAIL: quarantined bundle's runtime is up but its window never reached it"
+            kill $QPID 2>/dev/null || true
+            exit 1
+          fi
           kill $QPID 2>/dev/null || true
           echo
-          echo "QUARANTINE SMOKE OK — the downloaded-app path starts its runtime"
+          echo "QUARANTINE SMOKE OK — the downloaded-app path starts its runtime and its window connects"
 
       - uses: actions/upload-artifact@v4
         with:

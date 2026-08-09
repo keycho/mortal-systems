@@ -28,6 +28,34 @@ struct RuntimeHandle {
     child: Mutex<Option<Child>>,
     endpoint: Mutex<Option<(String, String)>>, // (base_url, admin_token)
     diag: Mutex<SidecarDiag>,
+    /// set once the webview has actually completed a call through this shell
+    bridged: Mutex<bool>,
+}
+
+/// record, once, that the window reached the runtime through the ipc bridge.
+///
+/// this exists because a healthy runtime and a working app are different
+/// claims: a csp that forbids tauri's ipc transport leaves the runtime
+/// perfectly up and the window unable to speak to it. the marker is the
+/// difference, observable from outside the app — release ci asserts it, and
+/// it answers "did the ui ever connect?" in a support thread.
+fn mark_bridged(state: &tauri::State<'_, RuntimeHandle>, method: &str) {
+    let Ok(mut done) = state.bridged.lock() else {
+        return;
+    };
+    if *done {
+        return;
+    }
+    *done = true;
+    let at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let root = mortal_root();
+    let _ = std::fs::write(
+        root.join("ui-bridge.json"),
+        serde_json::json!({ "ok": true, "method": method, "at": at }).to_string(),
+    );
 }
 
 fn mortal_root() -> PathBuf {
@@ -205,11 +233,13 @@ async fn runtime_call(
     let res = client
         .post(format!("{base}/v1/rpc"))
         .bearer_auth(token)
-        .json(&serde_json::json!({ "method": method, "params": params }))
+        .json(&serde_json::json!({ "method": &method, "params": params }))
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    res.json::<Value>().await.map_err(|e| e.to_string())
+    let body = res.json::<Value>().await.map_err(|e| e.to_string())?;
+    mark_bridged(&state, &method);
+    Ok(body)
 }
 
 /// what the ui shows when it cannot reach the runtime. reports the real
@@ -271,6 +301,7 @@ pub fn run() {
             child: Mutex::new(None),
             endpoint: Mutex::new(None),
             diag: Mutex::new(SidecarDiag::default()),
+            bridged: Mutex::new(false),
         })
         .setup(|app| {
             let (child, diag) = spawn_runtime(app.handle());

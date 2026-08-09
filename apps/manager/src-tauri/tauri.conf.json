@@ -20,7 +20,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'"
+      "//": "connect-src MUST admit tauri's ipc transport (invoke() is a fetch to ipc://localhost, http://ipc.localhost on windows). without it every runtime_call is blocked by the webview's own csp and the window reports the runtime unreachable while the runtime is running fine.",
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:"
     }
   },
   "bundle": {
