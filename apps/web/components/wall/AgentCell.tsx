@@ -42,6 +42,7 @@ export function AgentCell({
   href,
   caption,
   mobileHero,
+  watchCue,
 }: {
   agent: AgentNowLive;
   events: WallEvent[];
@@ -59,6 +60,10 @@ export function AgentCell({
   /** §6: the one frame the mobile wall keeps (spotlight speaker, final
    * hour first); the rest are named, not drawn */
   mobileHero?: boolean;
+  /** the visible cue under the frame ("watch yuki ▸"): the whole cell
+   * already navigates, this makes it discoverable. a span, never a
+   * nested anchor: the cell itself is the link. */
+  watchCue?: string;
 }) {
   const remaining = remainingSeconds(agent, now);
   const finalHour = remaining !== null && remaining < 3600 && agent.state !== "dead";
@@ -129,6 +134,7 @@ export function AgentCell({
   const body = (
     <>
       {frame}
+      {watchCue && !dead ? <span className="wall-watchcue">{watchCue}</span> : null}
       {caption !== undefined ? <CaptionSlot caption={dead ? null : caption} /> : null}
     </>
   );

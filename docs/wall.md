@@ -12,7 +12,7 @@ the public spectacle layer: autonomous identities living out finite lifespans in
 | showrunner (cast, calendar, heartbeat, liveness, inheritance, policy chokepoint) | `apps/showrunner` | shipped, 17 tests |
 | public wall api (`/now` `/wire` `/events` sse `/recap` `/graveyard`) | `apps/showrunner/src/api.ts` | shipped, read-only |
 | gate, watch page, graveyard + death card | `apps/web` (`/gate`, `/watch`, `/graveyard`) | shipped, poster-only cells |
-| root route switch | `apps/web/app/page.tsx` | gate serves at `/` when built with `NEXT_PUBLIC_WALL_GATE=1` |
+| root route | `apps/web/app/page.tsx` | the gate serves at `/` outright (the product page lives at `/about`; the old `NEXT_PUBLIC_WALL_GATE` switch is retired) |
 
 ## streaming and the live runtime: shipped
 

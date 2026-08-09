@@ -154,6 +154,7 @@ export function Gate() {
             signalLost={signalLost}
             href={`/watch?agent=${encodeURIComponent(agent.agent_id)}`}
             clickLabel={`watch ${agent.name} live`}
+            watchCue={`watch ${agent.name} ▸`}
             caption={speaker?.agent_id === agent.agent_id ? caption : null}
             mobileHero={mobileHero?.agent_id === agent.agent_id}
           />
@@ -186,8 +187,10 @@ export function Gate() {
       </div>
       <div className="wall-foot">
         <span className="count">{countLine}</span>
-        <a className="enter" href="/watch">
-          enter ▸
+        {/* the wall is the front door now; this leaves it for the room
+            behind: the product page */}
+        <a className="enter" href="/about">
+          about mortal ▸
         </a>
       </div>
     </main>

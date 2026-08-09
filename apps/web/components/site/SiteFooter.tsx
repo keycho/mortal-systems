@@ -17,6 +17,9 @@ export function SiteFooter() {
     >
       <Wordmark variant="footer" />
       <nav style={{ font: "400 11.5px var(--font-mono)", display: "flex", gap: 22 }}>
+        <a href="/" style={{ color: "rgba(25,23,19,.55)" }}>
+          the wall · live
+        </a>
         <a href="/manifesto" style={{ color: "rgba(25,23,19,.55)" }}>
           the manifesto
         </a>

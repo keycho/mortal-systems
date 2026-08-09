@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * the gate, always reachable here for previews. the root route serves it
- * instead of the landing page when the site is built with
- * NEXT_PUBLIC_WALL_GATE=1 (see DECISIONS.md).
+ * an alias for the front door: the root serves the gate outright now
+ * (the product page moved to /about), and this route survives for old
+ * links and previews.
  */
 export default function GatePage() {
   return <Gate />;

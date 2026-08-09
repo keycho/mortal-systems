@@ -208,6 +208,19 @@
   flex-direction: column;
   min-width: 0;
 }
+/* the visible cue that a frame is a door: quiet mono under the frame,
+   warming to oxide when the cell is hovered. a span, not an anchor:
+   the whole cell is already the link. */
+.wall-watchcue {
+  margin-top: 7px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--w-dim);
+  transition: color 0.15s ease;
+}
+.wall-cell[data-clickable="1"]:hover .wall-watchcue {
+  color: var(--w-oxide);
+}
 .wall-frame {
   position: relative;
   z-index: 2; /* above the room chrome: streams stay unaltered */

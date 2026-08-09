@@ -8,10 +8,13 @@ import { Wordmark } from "../Wordmark";
  * (the handoff ships no mobile menu).
  */
 export function Nav({ home = false }: { home?: boolean }) {
-  const anchor = (id: string) => (home ? `#${id}` : `/#${id}`);
+  // the wall took the root; the product page lives at /about, and the
+  // nav's anchors and wordmark follow it (the way back to the wall is
+  // the footer's "the wall · live" and the hero's watch cta)
+  const anchor = (id: string) => (home ? `#${id}` : `/about#${id}`);
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <Link href={home ? "#top" : "/"} aria-label="mortal systems home">
+      <Link href={home ? "#top" : "/about"} aria-label="mortal systems product page">
         <Wordmark variant="nav" />
       </Link>
       <div className="m-nav" style={{ display: "flex", gap: 34, font: "400 13px var(--font-mono)" }}>
