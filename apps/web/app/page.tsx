@@ -9,6 +9,7 @@ import { LifecycleTicker } from "../components/site/LifecycleTicker";
 import { Nav } from "../components/site/Nav";
 import { SectionHead } from "../components/site/SectionHead";
 import { Simulator } from "../components/simulator/Simulator";
+import { WalkthroughVideo } from "../components/site/WalkthroughVideo";
 import {
   ALPHA_INSTALL_NOTE,
   BLUEPRINT_CARDS,
@@ -432,14 +433,13 @@ function ManagerSection() {
           }
         />
         <div style={{ marginTop: 42 }}>
-          <CaptureFrame>
-            <img
-              className="m-img"
-              src="/captures/manager-home.png"
-              alt="the manager, home screen · real capture"
-              style={{ display: "block", width: "100%", height: 640, objectFit: "contain" }}
-            />
-          </CaptureFrame>
+          {/* no frame and no fixed height: the recording keeps its own
+              aspect ratio rather than being letterboxed into a still's box */}
+          <WalkthroughVideo
+            src="/captures/manager-walkthrough.mp4"
+            poster="/captures/manager-walkthrough-poster.jpg"
+            label="the manager, recorded walkthrough of the alpha"
+          />
           <div
             style={{
               display: "flex",
@@ -452,7 +452,7 @@ function ManagerSection() {
           >
             <span style={{ display: "flex", alignItems: "center", gap: 10, color: "rgba(25,23,19,.45)" }}>
               <EnforcementChip tid="G1" tone="enforced" />
-              the manager · real capture · alpha · home
+              the manager · real capture · alpha · recorded walkthrough
             </span>
             <span style={{ color: "var(--accent)" }}>
               an active identity counts down in the sidebar while a persistent one waits:
