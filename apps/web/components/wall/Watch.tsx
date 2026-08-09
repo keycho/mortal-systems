@@ -134,7 +134,7 @@ export function Watch() {
           </div>
           {hero ? (
             <div className="wall-stagerail">
-              <ReasoningPanel agent={hero} events={events} />
+              <ReasoningPanel agent={hero} events={events} now={now} />
             </div>
           ) : null}
         </section>

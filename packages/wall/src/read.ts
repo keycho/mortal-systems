@@ -353,10 +353,14 @@ export function depthScore(inputs: DepthInputs): number {
 
 // ---- wall stats ----
 
-/** per-agent slice of the running figures, for the gate's corner chips */
+/** per-agent slice of the running figures, for the gate's corner chips
+ * and each identity's declared work (published and human_contacts are
+ * what the work counters count) */
 export interface AgentStats {
   pages_read: number;
   thoughts_today: number;
+  published: number;
+  human_contacts: number;
 }
 
 /**
@@ -378,7 +382,12 @@ export function wallStats(events: WallEvent[], opts: { todayStart?: string } = {
   const todayStart = opts.todayStart ?? `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
   const stats: WallStats = { destroyed: 0, pages_read: 0, thoughts: 0, by_agent: {} };
   const agent = (id: string): AgentStats =>
-    (stats.by_agent[id] ??= { pages_read: 0, thoughts_today: 0 });
+    (stats.by_agent[id] ??= {
+      pages_read: 0,
+      thoughts_today: 0,
+      published: 0,
+      human_contacts: 0,
+    });
   for (const event of events) {
     if (event.visibility !== "public") continue;
     switch (event.kind) {
@@ -386,11 +395,18 @@ export function wallStats(events: WallEvent[], opts: { todayStart?: string } = {
         stats.destroyed += 1;
         break;
       case "action": {
-        if ((event.payload as PayloadFor<"action">).verb !== "opened_page") break;
-        stats.pages_read += 1;
-        agent(event.agent_id).pages_read += 1;
+        const verb = (event.payload as PayloadFor<"action">).verb;
+        if (verb === "opened_page") {
+          stats.pages_read += 1;
+          agent(event.agent_id).pages_read += 1;
+        } else if (verb === "published_post") {
+          agent(event.agent_id).published += 1;
+        }
         break;
       }
+      case "human_contact":
+        agent(event.agent_id).human_contacts += 1;
+        break;
       case "monologue":
       case "narration": {
         stats.thoughts += 1;

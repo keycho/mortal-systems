@@ -283,7 +283,14 @@ describe("read models", () => {
     expect(stats.destroyed).toBe(1);
     expect(stats.pages_read).toBe(1);
     expect(stats.thoughts).toBe(2);
-    expect(stats.by_agent["ag_marlowe"]).toEqual({ pages_read: 1, thoughts_today: 1 });
+    // published counts the earlier published_post; the work counters ride
+    // in the same per-agent slice the chips read
+    expect(stats.by_agent["ag_marlowe"]).toEqual({
+      pages_read: 1,
+      thoughts_today: 1,
+      published: 1,
+      human_contacts: 0,
+    });
     // the internal read never crossed the boundary
     expect(stats.by_agent["ag_yuki"]).toBeUndefined();
   });

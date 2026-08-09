@@ -67,6 +67,30 @@ export interface AgentNowLive extends AgentNow {
   /** corner-chip figures for this agent, counted by the runtime */
   pages_read?: number;
   thoughts_today?: number;
+  /** the declared life-work with record-true progress: what this life
+   * is for, and where it stands against its clock */
+  work?: { line: string; unit: string; done: number; target?: number };
+}
+
+/** the work as one line: "12 of 90 entries · day 41 of 90" (finite) or
+ * "31 essays · day 41 of 270" (open-ended). day math from the same
+ * spawned_at/dies_at the countdown runs on. */
+export function workLabel(agent: AgentNowLive, now: number): string | null {
+  const work = agent.work;
+  if (!work) return null;
+  const progress = `${work.done}${work.target !== undefined ? ` of ${work.target}` : ""} ${work.unit}`;
+  if (!agent.spawned_at || !agent.dies_at) return progress;
+  const dayOf = Math.max(1, Math.ceil((now - Date.parse(agent.spawned_at)) / 86_400_000));
+  const days = Math.max(
+    1,
+    Math.round((Date.parse(agent.dies_at) - Date.parse(agent.spawned_at)) / 86_400_000)
+  );
+  // a six-hour life has no days to speak of; the countdown already
+  // carries its clock
+  if (days < 1 || Date.parse(agent.dies_at) - Date.parse(agent.spawned_at) < 86_400_000) {
+    return progress;
+  }
+  return `${progress} · day ${Math.min(dayOf, days)} of ${days}`;
 }
 
 const EVENT_BUFFER = 400;

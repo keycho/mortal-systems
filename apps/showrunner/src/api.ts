@@ -51,6 +51,15 @@ export interface WallApiOptions {
   /** streaming phase one: generic hls playback url per agent, provider
    * details never cross this boundary */
   streamUrl?: (agentId: string) => string | null;
+  /** the identity's declared work (cast configuration); /now pairs it
+   * with progress counted from the public record, so the figure on
+   * screen is never a claim */
+  workFor?: (agentId: string) => {
+    line: string;
+    counts: "published_post" | "opened_page" | "human_contact";
+    unit: string;
+    target?: number;
+  } | null;
   /** concurrent sse connections before new ones get 503 + poll advice;
    * default 200, env WALL_SSE_MAX in serve */
   maxSseConnections?: number;
@@ -100,12 +109,32 @@ export function createWallApiHandler(
         const inputs = opts.depthInputs?.(agent.agent_id) ?? null;
         const stream = opts.streamUrl?.(agent.agent_id) ?? null;
         const own = stats.by_agent[agent.agent_id];
+        const work = opts.workFor?.(agent.agent_id) ?? null;
+        // the work's progress is the record's own count of the act the
+        // work declares, never a number anyone typed
+        const done = work
+          ? work.counts === "published_post"
+            ? (own?.published ?? 0)
+            : work.counts === "opened_page"
+              ? (own?.pages_read ?? 0)
+              : (own?.human_contacts ?? 0)
+          : 0;
         return {
           ...agent,
           ...(inputs ? { depth: depthScore(inputs), depth_inputs: inputs } : {}),
           stream_url: stream,
           pages_read: own?.pages_read ?? 0,
           thoughts_today: own?.thoughts_today ?? 0,
+          ...(work
+            ? {
+                work: {
+                  line: work.line,
+                  unit: work.unit,
+                  done,
+                  ...(work.target !== undefined ? { target: work.target } : {}),
+                },
+              }
+            : {}),
         };
       });
       sendJson(res, 200, {

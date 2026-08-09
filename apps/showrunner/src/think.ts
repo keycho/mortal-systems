@@ -28,6 +28,10 @@ export interface ThinkContext {
   /** the identity's own resting pages (disjoint per persona), so the
    * thinker can choose reading deliberately instead of only drifting */
   idle_rotation?: string[];
+  /** the declared life-work with its record-true progress: what the
+   * remaining time is for. done is counted from the record, never
+   * asserted. */
+  work?: { line: string; unit: string; done: number; target?: number };
   ttl_remaining_seconds: number | null;
   inherited_fragments: string[];
 }

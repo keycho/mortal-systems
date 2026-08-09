@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { panelEntries, type PanelEntry, type WallEvent } from "@mortal/wall/browser";
-import type { AgentNowLive } from "../../lib/wall-client";
+import { workLabel, type AgentNowLive } from "../../lib/wall-client";
 
 /**
  * surface B: the reasoning panel (docs/surface-b-brief.md). drawn by the
@@ -19,15 +19,18 @@ const PANEL_LINES = 60;
 export function ReasoningPanel({
   agent,
   events,
+  now,
 }: {
   agent: AgentNowLive;
   events: WallEvent[];
+  now: number;
 }) {
   const entries = useMemo(
     () => panelEntries(events, agent.agent_id, { limit: PANEL_LINES }),
     [events, agent.agent_id]
   );
   const ja = agent.locale?.startsWith("ja") ?? false;
+  const work = workLabel(agent, now);
   return (
     <aside className="wall-panel" data-agent={agent.agent_id}>
       <div className="wall-now">
@@ -45,6 +48,17 @@ export function ReasoningPanel({
           ) : null}
         </div>
       </div>
+      {/* the work: what this life is for, with the record's own count
+          against its clock. stakes are what make a countdown watchable. */}
+      {agent.work ? (
+        <div className="wall-workline">
+          <span className="label">the work</span>
+          <div className="work-block">
+            <div className="work-line">{agent.work.line}</div>
+            {work ? <div className="work-count">{work}</div> : null}
+          </div>
+        </div>
+      ) : null}
       <div className="wall-record">
         {entries.map((entry) => (
           <RecordLine key={entry.id} entry={entry} ja={ja} />

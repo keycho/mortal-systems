@@ -51,6 +51,11 @@ export interface LiveAgent {
   read_cursor: string;
   warned: Set<"final_hour" | "final_10m">;
   post_count: number;
+  /** work counters beside post_count: pages opened and human contacts,
+   * kept live so every beat can tell the thinker where the work stands
+   * without a store scan (rebuilt from the record on resume) */
+  pages_read: number;
+  human_contacts: number;
   last_post_id: string | null;
   /** publishes today, and which day that is, for the cast's daily ceiling */
   posts_today: number;
@@ -194,6 +199,8 @@ export class Showrunner {
       read_cursor: ts,
       warned: new Set(),
       post_count: 0,
+      pages_read: 0,
+      human_contacts: 0,
       last_post_id: null,
       posts_today: 0,
       posts_today_date: "",
@@ -304,6 +311,8 @@ export class Showrunner {
       const spokenMonologues: string[] = [];
       let postCount = 0;
       let postsToday = 0;
+      let pagesRead = 0;
+      let humanContacts = 0;
       const today = new Date().toISOString().slice(0, 10);
       let lastPostId: string | null = null;
       let readCursor = agent.spawned_at ?? new Date(0).toISOString();
@@ -323,8 +332,14 @@ export class Showrunner {
             memory.push(`published "${p.title ?? ""}"`);
             const idMatch = /\/posts\/([A-Za-z0-9_]+)$/.exec(p.target_url ?? "");
             lastPostId = idMatch?.[1] ?? lastPostId;
+          } else if (p.verb === "opened_page") {
+            // the work's counters continue across restarts like the
+            // ceiling does: a life's progress is the record's, not the
+            // process's
+            pagesRead += 1;
           }
         } else if (event.kind === "human_contact") {
+          humanContacts += 1;
           // the reading cursor advances past comments already reacted to
           readCursor = event.ts > readCursor ? event.ts : readCursor;
         } else if (event.kind === "ttl_warning") {
@@ -350,6 +365,8 @@ export class Showrunner {
         read_cursor: readCursor,
         warned,
         post_count: postCount,
+        pages_read: pagesRead,
+        human_contacts: humanContacts,
         posts_today: postsToday,
         posts_today_date: today,
         // a restart should not put every identity back on the same page
@@ -424,6 +441,7 @@ export class Showrunner {
       const comments = await this.terrarium.humanCommentsSince(agent.tenant, agent.read_cursor);
       for (const comment of comments) {
         agent.read_cursor = comment.created_at;
+        agent.human_contacts += 1;
         const excerpt = comment.body.slice(0, 140);
         this.store.append({
           agent_id: agent.agent_id,
@@ -447,6 +465,16 @@ export class Showrunner {
     const remaining = Math.max(0, Math.floor((agent.dies_at - this.now().getTime()) / 1000));
     const occasion =
       opts.occasion ?? (reading.some((r) => r.includes(":")) ? "human_contact" : undefined);
+    // the work rides into every beat with its record-true count, so the
+    // identity feels where it stands against its own clock
+    const memberWork = agent.member.work;
+    const workDone = memberWork
+      ? memberWork.counts === "published_post"
+        ? agent.post_count
+        : memberWork.counts === "opened_page"
+          ? agent.pages_read
+          : agent.human_contacts
+      : 0;
     const context: ThinkContext = {
       agent_id: agent.agent_id,
       name: this.names[agent.agent_id] ?? agent.member.name,
@@ -460,6 +488,16 @@ export class Showrunner {
       reading,
       recent_monologues: agent.monologues.slice(-3),
       idle_rotation: agent.member.idle_rotation ?? [],
+      ...(memberWork
+        ? {
+            work: {
+              line: memberWork.line,
+              unit: memberWork.unit,
+              done: workDone,
+              ...(memberWork.target !== undefined ? { target: memberWork.target } : {}),
+            },
+          }
+        : {}),
       ttl_remaining_seconds: remaining,
       inherited_fragments: agent.memory.slice(0, MAX_INHERITED_FRAGMENTS),
     };
@@ -638,6 +676,7 @@ export class Showrunner {
                   title: "a page that was gone",
                 },
               });
+              agent.pages_read += 1;
               agent.memory.push("went to reply and the post was gone");
               return true;
             }
@@ -761,6 +800,7 @@ export class Showrunner {
             primitive: "driver.navigate()",
             payload: { verb: "opened_page", target_url: landedUrl, title: landedTitle },
           });
+          agent.pages_read += 1;
           agent.memory.push(
             landedTitle === "a page that was gone"
               ? `went looking for ${act.title}; the page was gone`

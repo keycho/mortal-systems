@@ -268,7 +268,12 @@ describe("showrunner end to end", () => {
   });
 
   it("liveness: a quiet wall force-wakes someone", async () => {
-    const past = new Date(Date.now() - 20 * 60_000);
+    // a fixed daytime clock: on the real clock this test failed every
+    // london night, when marlowe (the only agent here) is asleep and
+    // there is nobody left to wake
+    const noon = new Date();
+    noon.setUTCHours(12, 0, 0, 0);
+    const past = new Date(noon.getTime() - 20 * 60_000);
     let clock = past;
     const quiet = new Showrunner({
       store: wallStore,
@@ -279,9 +284,9 @@ describe("showrunner end to end", () => {
       now: () => clock,
     });
     await quiet.spawn(marlowe());
-    clock = new Date();
+    clock = noon;
     const before = wallStore.list({ publicOnly: true }).length;
-    await quiet.ensureLiveness(new Date());
+    await quiet.ensureLiveness(noon);
     expect(wallStore.list({ publicOnly: true }).length).toBeGreaterThan(before);
   });
 

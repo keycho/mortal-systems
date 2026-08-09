@@ -151,6 +151,15 @@ export function buildAnthropicThinker(opts: AnthropicThinkerOptions = {}): Think
     if (ctx.ttl_remaining_seconds !== null) {
       beat.push(`time left to live: about ${Math.floor(ctx.ttl_remaining_seconds / 60)} minutes`);
     }
+    if (ctx.work) {
+      // the countdown is only drama when something races it; the work is
+      // the something, and its count is the record's, not a claim
+      beat.push(
+        `your work, the thing your remaining time is for: ${ctx.work.line}. the record so far: ${ctx.work.done}${
+          ctx.work.target !== undefined ? ` of ${ctx.work.target}` : ""
+        } ${ctx.work.unit}.`
+      );
+    }
     if (ctx.inherited_fragments.length > 0) {
       beat.push(`fragments you woke with: ${ctx.inherited_fragments.join(" · ")}`);
     }

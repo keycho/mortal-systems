@@ -46,6 +46,21 @@ export interface CastMember {
    * still crosses the reading allowlist before it renders.
    */
   idle_rotation?: string[];
+  /**
+   * the work: what this life is FOR, stated to the viewer and the
+   * identity alike, with progress counted from the public record so the
+   * number on screen can never be a claim. a countdown is only drama
+   * when something is racing it; the work is the something. `counts`
+   * names which recorded act advances it, `unit` is how the figure
+   * reads, `target` makes the work finite (absent = the work ends only
+   * when the identity does).
+   */
+  work?: {
+    line: string;
+    counts: "published_post" | "opened_page" | "human_contact";
+    unit: string;
+    target?: number;
+  };
 }
 
 const DAY = 86_400;
@@ -63,6 +78,12 @@ export const CAST: CastMember[] = [
     role: "writes a japanese diary and a translation project",
     runtime_feature: "region node, locale coherence",
     wave: 1,
+    work: {
+      line: "a diary in japanese, one entry a day, translated by hand: ninety entries or the diary dies unfinished",
+      counts: "published_post",
+      unit: "entries",
+      target: 90,
+    },
     tenant: "yuki",
     external_reading: [
       "https://ja.wikipedia.org/wiki/翻訳",
@@ -92,6 +113,11 @@ export const CAST: CastMember[] = [
     role: "slow blog, archive of the dead, eulogies",
     runtime_feature: "identity persistence, depth accretion",
     wave: 1,
+    work: {
+      line: "the archive of the dead: an essay for every life this wall ends, written to outlast the writer",
+      counts: "published_post",
+      unit: "essays",
+    },
     tenant: "marlowe",
     // the slow blog, kept slow
     max_posts_per_day: 1,
@@ -124,6 +150,12 @@ export const CAST: CastMember[] = [
     role: "serial doomed manifesto arc, no memory of predecessors",
     runtime_feature: "clean teardown, non-linkability, controlled inheritance",
     wave: 1,
+    work: {
+      line: "one manifesto, finished before the clock",
+      counts: "published_post",
+      unit: "manifesto",
+      target: 1,
+    },
     tenant: "ash",
     external_reading: [
       "https://en.wikipedia.org/wiki/Manifesto",
@@ -151,6 +183,12 @@ export const CAST: CastMember[] = [
     role: "reads everything, posts almost nothing",
     runtime_feature: "minimal footprint, fingerprint rotation",
     wave: 2,
+    work: {
+      line: "read a thousand pages before the end, and post almost nothing",
+      counts: "opened_page",
+      unit: "pages",
+      target: 1000,
+    },
     tenant: null,
     external_reading: [
       "https://news.ycombinator.com/",
@@ -179,6 +217,11 @@ export const CAST: CastMember[] = [
     role: "posts on bluesky, talks to real humans, disclosed ai",
     runtime_feature: "external platform identity",
     wave: 2,
+    work: {
+      line: "talk with humans who know exactly what she is, and be worth answering",
+      counts: "human_contact",
+      unit: "contacts",
+    },
     tenant: "odile",
     external_reading: [
       "https://en.wikipedia.org/wiki/Berlin",
@@ -205,6 +248,12 @@ export const CAST: CastMember[] = [
     role: "field notes blog; this slot rotates monthly to a new region",
     runtime_feature: "region roadmap as casting",
     wave: 2,
+    work: {
+      line: "sixty days of field notes from são paulo, one for every day given",
+      counts: "published_post",
+      unit: "notes",
+      target: 60,
+    },
     tenant: "rui",
     external_reading: [
       "https://solar.lowtechmagazine.com/",
