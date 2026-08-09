@@ -1180,16 +1180,23 @@ export class Showrunner {
   // ---- helpers ----
 
   /**
-   * an identity at rest sits on its own blog. the terrarium's lobby is a
-   * directory, and a cell showing a directory tells a viewer nothing
-   * about the life in it; the same cell showing that identity's own
-   * published writing is the show. best-effort and never awaited: where
-   * a browser rests must not be able to hold up a beat.
+   * an identity at rest stays on the page it was last reading. the gap
+   * between finishing one page and choosing the next is a few seconds
+   * of thinking, not an absence, and the browser frozen on real ground
+   * is what those seconds actually look like. sending it home instead
+   * made a working wall look like a dead one, six cells at a time.
+   *
+   * the runtime falls back to the identity's own blog only when there
+   * is nothing real on screen. best-effort and never awaited: where a
+   * browser rests must not be able to hold up a beat.
    */
-  private restAtOwnBlog(agentId: string): void {
-    // (see driftWhileIdle: this is the fallback, not the resting place)
-    const runtime = this.runtime as { restAtHome?: (id: string) => Promise<void> };
-    void runtime.restAtHome?.(agentId).catch(() => undefined);
+  private restWhereItIs(agentId: string): void {
+    const runtime = this.runtime as {
+      settleIdle?: (id: string) => Promise<void>;
+      restAtHome?: (id: string) => Promise<void>;
+    };
+    const settle = runtime.settleIdle ?? runtime.restAtHome;
+    void settle?.call(runtime, agentId).catch(() => undefined);
   }
 
   /**
@@ -1216,7 +1223,7 @@ export class Showrunner {
     // drift
     if (!this.live.has(agent.agent_id)) return;
     if (!this.driver) {
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
     // the idle roster: the walk is the default and stays the default
@@ -1243,7 +1250,7 @@ export class Showrunner {
     });
     agent.drift_index += 1;
     if (!next) {
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
     try {
@@ -1252,7 +1259,7 @@ export class Showrunner {
       // external reading is off, or this url is not on the list. the
       // refusal is not news -- the scheduler's real reads already
       // surface it -- so the agent simply stays home.
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
     const title = titleFromUrl(next.url);
@@ -1275,14 +1282,14 @@ export class Showrunner {
     });
     agent.drift_index += 1;
     if (!retry || normalizeReadUrl(retry.url) === normalizeReadUrl(next.url)) {
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
     // (the retry keeps the same borders as the first choice)
     try {
       checkAction({ type: "browse", url: retry.url }, this.flags);
     } catch {
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
     const secondActed = await this.performAct(agent, {
@@ -1290,7 +1297,7 @@ export class Showrunner {
       url: retry.url,
       title: titleFromUrl(retry.url),
     }).catch(() => false);
-    if (!secondActed) this.restAtOwnBlog(agent.agent_id);
+    if (!secondActed) this.restWhereItIs(agent.agent_id);
   }
 
   /**

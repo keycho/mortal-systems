@@ -156,11 +156,42 @@ export class LiveRuntimePort implements RuntimePort {
   }
 
   /**
-   * send an idle identity back to its own blog, if it has drifted. this
-   * is where every fallback lands, so it is also the last place a blank
-   * window can come from: a browser sitting on about:blank is never
-   * "already home", and a home that paints nothing falls back to the
-   * terrarium's own front rather than leaving the cell white.
+   * where an identity's browser sits between reads.
+   *
+   * the honest answer is: exactly where it left off. an agent that has
+   * just finished a page is still on that page, and the frozen browser
+   * on real ground is the truest picture of what it is doing -- it read
+   * that, a moment ago, and is thinking about it now. sending it home
+   * on every idle gap was the wall going dark while everybody worked:
+   * six agents mid-thought looked like six agents gone.
+   *
+   * so idle stays put, and only a browser with nothing real on screen
+   * (a fresh tab, an error page, a page that never painted) is sent
+   * home, because something must be on camera.
+   */
+  async settleIdle(agentId: string): Promise<void> {
+    const identity = this.byAgent.get(agentId);
+    if (!identity) return;
+    if (await this.showingRealPage(identity.page)) return;
+    await this.restAtHome(agentId);
+  }
+
+  /** is there a page on this screen a viewer would recognize as one */
+  private async showingRealPage(page: Page): Promise<boolean> {
+    const at = page.url();
+    if (!at || at === "about:blank" || at.startsWith("chrome-error")) return false;
+    const painted = await page
+      .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
+      .catch(() => 0);
+    return painted >= 40;
+  }
+
+  /**
+   * send an identity to its own blog. this is the fallback when there is
+   * nothing real on screen, so it is also the last place a blank window
+   * can come from: a browser sitting on about:blank is never "already
+   * home", and a home that paints nothing falls back to the terrarium's
+   * own front rather than leaving the cell white.
    */
   async restAtHome(agentId: string): Promise<void> {
     const identity = this.byAgent.get(agentId);
@@ -171,10 +202,7 @@ export class LiveRuntimePort implements RuntimePort {
     await identity.page
       .goto(home, { waitUntil: "domcontentloaded", timeout: 15_000 })
       .catch(() => undefined);
-    const painted = await identity.page
-      .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
-      .catch(() => 0);
-    if (painted >= 40) return;
+    if (await this.showingRealPage(identity.page)) return;
     // an identity with no blog of its own (or a tenant page that has not
     // painted) still gets a real page to rest on
     if (this.homeUrl && home !== this.homeUrl) {

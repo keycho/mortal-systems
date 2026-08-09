@@ -562,6 +562,40 @@ describe("the drift walks (showrunner + fake driver)", () => {
     expect(reads.some((r) => r.verb === "opened_page" && r.title?.includes("yuki"))).toBe(true);
   });
 
+  it("idle leaves the browser where it was: it never sends the reader home", async () => {
+    const calls: string[] = [];
+    const runtime = new StubRuntimePort() as StubRuntimePort & {
+      settleIdle?: (id: string) => Promise<void>;
+      restAtHome?: (id: string) => Promise<void>;
+    };
+    runtime.settleIdle = async (id) => {
+      calls.push(`settle:${id}`);
+    };
+    runtime.restAtHome = async (id) => {
+      calls.push(`home:${id}`);
+    };
+    const showrunner = new Showrunner({
+      store: wallStore,
+      runtime,
+      terrarium: storeTerrariumClient(terrariumStore),
+      think: async () => ({}),
+      flags: { ...FLAGS },
+    });
+    Object.assign(showrunner.names, castNames());
+    const marlowe = LAUNCH_CAST.find((m) => m.agent_id === "ag_marlowe") as CastMember;
+    await showrunner.spawn(marlowe);
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    // no driver: the drift cannot act, which is exactly the gap that
+    // used to march every idle browser back to its dark blog
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+    await new Promise((r) => setTimeout(r, 20)); // best-effort, not awaited
+    expect(calls).toEqual(["settle:ag_marlowe"]);
+    expect(calls).not.toContain("home:ag_marlowe");
+  });
+
   it("paces the scripted cadence on beats lived, not on the capped memory list", async () => {
     // the bug this pins: `beat` used to be memory.length + reading.length,
     // and memory is capped at 12, so the publish modulus landed on
@@ -756,6 +790,48 @@ describe.skipIf(chromiumPath === null)("a real page's links reach the walk (real
       if (finalPath !== "/wiki/genji-monogatari") {
         expect(links.length).toBeGreaterThan(0);
       }
+    } finally {
+      await port.close();
+    }
+  }, 60_000);
+
+  it("settling idle freezes on the page just read, and only rescues a blank one", async () => {
+    const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    port.setHome(`${base}/`, () => `${base}/wiki/genji-monogatari`);
+    try {
+      await port.spawn({
+        agent_id: "ag_walker",
+        class: "minimal",
+        region: null,
+        locale: null,
+        ttl_seconds: 3600,
+      });
+      const driver = new BrowserDriver({
+        runtime: port,
+        baseUrl: base,
+        terrariumToken: "t",
+        paceScale: 0,
+        readingAllowlist: ["127.0.0.1"],
+        externalEnabled: true,
+      });
+      const pageOf = () =>
+        (
+          port as unknown as { byAgent: Map<string, { page: { url(): string; goto(u: string): Promise<unknown> } }> }
+        ).byAgent.get("ag_walker")?.page;
+
+      // the agent finishes a read, then goes idle: the browser stays on
+      // the page it was just on, which is what the wall should show
+      await driver.openPage("ag_walker", `${base}/wiki/mono-no-aware`, 0);
+      const afterRead = pageOf()?.url();
+      await port.settleIdle("ag_walker");
+      expect(pageOf()?.url()).toBe(afterRead);
+      expect(afterRead).toContain("/wiki/");
+      expect(afterRead).not.toContain("genji"); // not sent home
+
+      // but a browser with nothing real on screen is still rescued
+      await pageOf()?.goto("about:blank");
+      await port.settleIdle("ag_walker");
+      expect(pageOf()?.url()).toContain("/wiki/genji-monogatari");
     } finally {
       await port.close();
     }
