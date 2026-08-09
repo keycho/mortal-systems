@@ -102,6 +102,16 @@ jobs:
       - name: csp gate — the webview must be allowed to reach the shell
         run: |
           set -uo pipefail
+          # the config must PARSE before anything else is worth checking.
+          # tauri's schema denies unknown keys and json has no comments, so a
+          # stray annotation key fails `tauri build` one second in with a
+          # message that never reaches this log. catch it here, plainly.
+          INFO=$(pnpm --filter manager exec tauri info 2>&1 || true)
+          if echo "$INFO" | grep -q 'error on `'; then
+            echo "$INFO" | grep -B1 -A3 'error on `'
+            echo "FAIL: tauri.conf.json does not parse"
+            exit 1
+          fi
           # tauri v2 sends invoke() over ipc://localhost (http://ipc.localhost
           # on windows). a csp without those in connect-src blocks every
           # runtime_call, and the window reports "runtime unreachable" while

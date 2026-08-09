@@ -7,6 +7,12 @@
 // action. the ui also works headlessly via `pnpm dev` (vite + runtime
 // loopback proxy).
 //
+// the csp in tauri.conf.json MUST keep `connect-src ipc: http://ipc.localhost`.
+// invoke() is a fetch to the ipc scheme, so without it the webview blocks
+// every runtime_call and the window reports the runtime unreachable while the
+// runtime is perfectly healthy. (that config is json: it cannot carry this
+// comment itself, and its schema rejects unknown keys.) release ci gates on it.
+//
 // responsibilities of this shell, per the architecture:
 // - spawn/monitor the @mortal/runtime sidecar (node dist/cli.js serve)
 // - read <root>/runtime.json + <root>/admin.token once the sidecar is up
