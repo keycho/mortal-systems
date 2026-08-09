@@ -62,6 +62,12 @@ export interface LiveAgent {
   posts_today_date: string;
   /** how far through its idle rotation this identity has drifted */
   drift_index: number;
+  /** the last external pages actually read, oldest first, capped: the
+   * walk refuses to revisit these except through a genuine link */
+  recent_reads: string[];
+  /** allowlisted links harvested from the page currently on screen:
+   * where the walk can genuinely go next */
+  page_links: string[];
   /** last few spoken monologues, fed back to the thinker as
    * do-not-restate context */
   monologues: string[];
@@ -105,7 +111,15 @@ export interface ActDriver {
   ): Promise<{
     landed: string;
     detour: boolean;
-    external?: { domain: string; title: string; phrase: string };
+    external?: {
+      domain: string;
+      title: string;
+      phrase: string;
+      /** the url actually on screen when the read ended */
+      url?: string;
+      /** allowlisted links the final page offers the walk */
+      links?: string[];
+    };
   }>;
   publishPost(
     agentId: string,
@@ -205,6 +219,8 @@ export class Showrunner {
       posts_today: 0,
       posts_today_date: "",
       monologues: [],
+      recent_reads: [],
+      page_links: [],
     };
     this.live.set(agentId, agent);
     this.names[agentId] = name;
@@ -313,6 +329,7 @@ export class Showrunner {
       let postsToday = 0;
       let pagesRead = 0;
       let humanContacts = 0;
+      const recentReads: string[] = [];
       const today = new Date().toISOString().slice(0, 10);
       let lastPostId: string | null = null;
       let readCursor = agent.spawned_at ?? new Date(0).toISOString();
@@ -337,6 +354,11 @@ export class Showrunner {
             // ceiling does: a life's progress is the record's, not the
             // process's
             pagesRead += 1;
+            // the walk's memory continues too: a restart must not send
+            // an identity straight back to pages it just read
+            if (p.target_url && /^https?:\/\//i.test(p.target_url)) {
+              recentReads.push(p.target_url);
+            }
           }
         } else if (event.kind === "human_contact") {
           humanContacts += 1;
@@ -373,6 +395,8 @@ export class Showrunner {
         drift_index: postCount,
         last_post_id: lastPostId,
         monologues: spokenMonologues.slice(-3),
+        recent_reads: recentReads.slice(-RECENT_READS_MAX),
+        page_links: [],
       });
       this.names[agent.agent_id] = name;
       recovered.push(agent.agent_id);
@@ -783,7 +807,10 @@ export class Showrunner {
               landedTitle = "a page that was gone";
             } else if (landing?.external) {
               // external reads surface honestly: real domain, real title,
-              // one capped phrase as material for later thought
+              // one capped phrase as material for later thought. the url
+              // is the FINAL page (a mid-read follow moves the reader),
+              // so the record shows where the read actually ended
+              landedUrl = landing.external.url ?? landedUrl;
               landedTitle = `${landing.external.domain}: ${landing.external.title}`;
               this.emitState(agent.agent_id, "reading", landedTitle);
               agent.reading.push(
@@ -791,6 +818,13 @@ export class Showrunner {
                   landing.external.phrase ? `. one line that stayed: "${landing.external.phrase}"` : ""
                 }`
               );
+              // the walk remembers: where this identity now is, what the
+              // page offers next, and that this page was just read
+              agent.page_links = landing.external.links ?? [];
+              agent.recent_reads.push(landedUrl);
+              if (agent.recent_reads.length > RECENT_READS_MAX) {
+                agent.recent_reads.splice(0, agent.recent_reads.length - RECENT_READS_MAX);
+              }
             }
           }
           this.store.append({
@@ -1053,28 +1087,40 @@ export class Showrunner {
   /**
    * where an identity drifts when it has nothing to say.
    *
-   * resting on its own diary was a still picture of a page it wrote
-   * yesterday: two glances at that cell a minute apart looked identical,
-   * and a wall of those is a screenshot, not a live room. so an idle
-   * agent goes out to the next page in its own rotation instead --
-   * different every time, in character, and a real page being read.
+   * a fixed rotation cycled forever was a playlist on repeat: rich for
+   * a minute, then visibly a loop. the drift is a walk now. from the
+   * page an identity is actually on, it follows a link the page really
+   * offers (harvested by the driver, allowlist-filtered) to somewhere
+   * it has not been lately; when the page offers nothing fresh, the
+   * rotation is a set of trailheads to start a new path from, not an
+   * itinerary; and only when everything nearby has been read recently
+   * does it return to the stalest of them. checking back in an hour
+   * should find somewhere new.
    *
-   * this is a read like any other: it crosses the policy chokepoint, so
-   * it cannot reach a domain the allowlist does not name and cannot
-   * happen at all while the sandbox probe has external browsing gated
-   * off. when it cannot, the agent falls back to its own archive, which
-   * is at least its own.
+   * every step is a read like any other: it crosses the policy
+   * chokepoint, so it cannot reach a domain the allowlist does not name
+   * and cannot happen at all while the sandbox probe has external
+   * browsing gated off. when it cannot, the agent falls back to its own
+   * archive, which is at least its own.
    */
   private async driftWhileIdle(agent: LiveAgent): Promise<void> {
-    const rotation = agent.member.idle_rotation ?? [];
-    if (rotation.length === 0 || !this.driver) {
+    if (!this.driver) {
       this.restAtOwnBlog(agent.agent_id);
       return;
     }
-    const url = rotation[agent.drift_index % rotation.length] as string;
+    const next = chooseNextRead({
+      pageLinks: agent.page_links,
+      rotation: agent.member.idle_rotation ?? [],
+      recentReads: agent.recent_reads,
+      driftIndex: agent.drift_index,
+    });
     agent.drift_index += 1;
+    if (!next) {
+      this.restAtOwnBlog(agent.agent_id);
+      return;
+    }
     try {
-      checkAction({ type: "browse", url }, this.flags);
+      checkAction({ type: "browse", url: next.url }, this.flags);
     } catch {
       // external reading is off, or this url is not on the list. the
       // refusal is not news -- the scheduler's real reads already
@@ -1082,8 +1128,8 @@ export class Showrunner {
       this.restAtOwnBlog(agent.agent_id);
       return;
     }
-    const title = titleFromUrl(url);
-    await this.performAct(agent, { kind: "open_page", url, title }).catch(() =>
+    const title = titleFromUrl(next.url);
+    await this.performAct(agent, { kind: "open_page", url: next.url, title }).catch(() =>
       this.restAtOwnBlog(agent.agent_id)
     );
   }
@@ -1109,6 +1155,70 @@ export class Showrunner {
 /** a human label for a url the scheduler chose. the wire says "yuki is
  * reading ja.wikipedia.org: 枕草子", so the last path segment, decoded,
  * is nearly always the right words. */
+/** how many reads back the walk refuses to retrace */
+export const RECENT_READS_MAX = 12;
+
+/**
+ * urls meet in one shape before they are compared: fragment gone,
+ * percent-encoding decoded (a wikipedia href arrives encoded while a
+ * cast seed is written in unicode, and 翻訳 must equal %E7%BF%BB%E8%A8%B3),
+ * trailing slash trimmed off the path.
+ */
+export function normalizeReadUrl(url: string): string {
+  let s = url;
+  const hash = s.indexOf("#");
+  if (hash !== -1) s = s.slice(0, hash);
+  try {
+    s = decodeURIComponent(s);
+  } catch {
+    // malformed escapes stay as they are; equality still works per-side
+  }
+  return s.endsWith("/") ? s.slice(0, -1) : s;
+}
+
+/**
+ * the walk's one decision, pure so the wander is testable without a
+ * browser: prefer a link the current page genuinely offers to somewhere
+ * not read lately; else start a fresh trail from the rotation; else,
+ * with everything nearby recently read, return to the stalest known
+ * page rather than the latest. driftIndex rotates ties so two agents on
+ * the same page do not shadow each other.
+ */
+export function chooseNextRead(opts: {
+  pageLinks: string[];
+  rotation: string[];
+  recentReads: string[];
+  driftIndex: number;
+}): { url: string; via: "link" | "seed" | "stale" } | null {
+  const recent = opts.recentReads.map(normalizeReadUrl);
+  const isRecent = (url: string): boolean => recent.includes(normalizeReadUrl(url));
+
+  const freshLinks = opts.pageLinks.filter((url) => !isRecent(url));
+  if (freshLinks.length > 0) {
+    return { url: freshLinks[opts.driftIndex % freshLinks.length] as string, via: "link" };
+  }
+  const freshSeeds = opts.rotation.filter((url) => !isRecent(url));
+  if (freshSeeds.length > 0) {
+    return { url: freshSeeds[opts.driftIndex % freshSeeds.length] as string, via: "seed" };
+  }
+  // everything nearby has been read lately: go back to the page read
+  // longest ago (recent_reads is oldest first), so even the return leg
+  // is the longest loop available, never a ping-pong
+  const everything = [...opts.pageLinks, ...opts.rotation];
+  if (everything.length === 0) return null;
+  let stalest: string | null = null;
+  let stalestRank = Number.POSITIVE_INFINITY;
+  for (const url of everything) {
+    const rank = recent.indexOf(normalizeReadUrl(url));
+    const effective = rank === -1 ? -1 : rank;
+    if (effective < stalestRank) {
+      stalestRank = effective;
+      stalest = url;
+    }
+  }
+  return stalest ? { url: stalest, via: "stale" } : null;
+}
+
 function titleFromUrl(url: string): string {
   try {
     const parsed = new URL(url);

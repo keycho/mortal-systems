@@ -41,10 +41,89 @@ const FORBIDDEN_LINK =
  * material; anything longer starts to be the page speaking */
 export const EXTERNAL_PHRASE_MAX = 90;
 
+/** how many onward links a page may offer the wander; enough to give a
+ * path real choices, few enough that a link farm contributes noise, not
+ * an itinerary */
+export const HARVEST_MAX = 16;
+
 export interface ExternalReadResult {
   domain: string;
   title: string;
   phrase: string;
+  /** the url actually on screen when the read ended (a mid-read follow
+   * moves it); the record and the walk both start from here */
+  url?: string;
+  /** allowlisted article links harvested from the final page: where the
+   * walk can genuinely go next */
+  links?: string[];
+}
+
+/**
+ * which harvested anchors count as places a reader would go next. pure
+ * and node-side (the page only reports raw {href, text} pairs), so the
+ * wander's edge of the allowlist is testable without a browser:
+ * http(s) only, allowlisted host only, real link text, none of the
+ * forbidden surfaces (login/subscribe/checkout), no self-links, and on
+ * wikipedia hosts only mainspace articles (/wiki/ with no namespace
+ * colon, which also excludes 特別:, ノート: and their kin in any
+ * language). fragments are stripped so a table-of-contents anchor is
+ * not a destination.
+ */
+export function linkCandidates(
+  raw: Array<{ href: string; text: string }>,
+  allowlist: string[],
+  currentUrl?: string
+): string[] {
+  const seen = new Set<string>();
+  // the current page may arrive unicode (a cast seed) while hrefs come
+  // back percent-encoded from the URL parser; the self-check compares
+  // decoded so a page can never offer itself under another spelling
+  const current = currentUrl ? decodeURIComponentSafe(stripFragment(currentUrl)) : null;
+  const out: string[] = [];
+  for (const anchor of raw) {
+    if (out.length >= HARVEST_MAX) break;
+    const text = (anchor.text ?? "").trim();
+    // "real link text" cannot be a latin character count alone: 本居宣長
+    // is a whole destination in four characters. cjk text earns its way
+    // at two; everything else at nine.
+    const meaningful =
+      text.length > 8 || (text.length >= 2 && /[぀-ヿ㐀-鿿]/.test(text));
+    if (!meaningful) continue;
+    let url: URL;
+    try {
+      url = new URL(anchor.href);
+    } catch {
+      continue;
+    }
+    if (!/^https?:$/.test(url.protocol)) continue;
+    if (!hostAllowed(url.hostname, allowlist)) continue;
+    if (FORBIDDEN_LINK.test(text) || FORBIDDEN_LINK.test(anchor.href)) continue;
+    if (/wikipedia\.org$/i.test(url.hostname)) {
+      if (!url.pathname.startsWith("/wiki/")) continue;
+      const article = decodeURIComponentSafe(url.pathname.slice("/wiki/".length));
+      if (article.includes(":") || article.length === 0) continue;
+    }
+    url.hash = "";
+    const href = url.toString();
+    if (current && decodeURIComponentSafe(stripFragment(href)) === current) continue;
+    if (seen.has(href)) continue;
+    seen.add(href);
+    out.push(href);
+  }
+  return out;
+}
+
+function stripFragment(url: string): string {
+  const i = url.indexOf("#");
+  return i === -1 ? url : url.slice(0, i);
+}
+
+function decodeURIComponentSafe(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 }
 
 /** driver-enforced tier-2 write caps; breaches throw PolicyViolation and
@@ -269,7 +348,6 @@ export class BrowserDriver {
     }
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
     await this.pace(1500 + Math.random() * 1500); // arrive, settle
-    const title = (await page.title().catch(() => "")) || host;
     // one short phrase is all a page may contribute; material, not voice
     const phrase = (
       (await page
@@ -324,7 +402,33 @@ export class BrowserDriver {
           .catch(() => undefined);
       }
     }
-    return { domain: host, title: title.slice(0, 120), phrase };
+
+    // the read's truth is the FINAL page: a mid-read follow moved the
+    // reader, and the record, the material and the walk all start from
+    // where it actually ended, never where it meant to go
+    const finalUrl = page.url();
+    const finalHost = (() => {
+      try {
+        return new URL(finalUrl).hostname;
+      } catch {
+        return host;
+      }
+    })();
+    const title = (await page.title().catch(() => "")) || finalHost;
+    // harvest where this page can genuinely lead: raw anchors from the
+    // browser, the wander's edge decided node-side where it is testable
+    const rawAnchors = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll("a[href]"))
+          .slice(0, 400)
+          .map((a) => ({
+            href: (a as HTMLAnchorElement).href,
+            text: (a.textContent ?? "").trim(),
+          }))
+      )
+      .catch(() => [] as Array<{ href: string; text: string }>);
+    const links = linkCandidates(rawAnchors, this.opts.readingAllowlist ?? [], finalUrl);
+    return { domain: finalHost, title: title.slice(0, 120), phrase, url: finalUrl, links };
   }
 
   /** write and publish a post through the real compose form; the browser
