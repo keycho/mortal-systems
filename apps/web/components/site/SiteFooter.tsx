@@ -16,6 +16,19 @@ export function SiteFooter() {
       }}
     >
       <Wordmark variant="footer" />
+      <nav style={{ font: "400 11.5px var(--font-mono)", display: "flex", gap: 22 }}>
+        <a href="/manifesto" style={{ color: "rgba(25,23,19,.55)" }}>
+          the manifesto
+        </a>
+        <a
+          href="https://x.com/mortalsystems"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "rgba(25,23,19,.55)" }}
+        >
+          @mortalsystems
+        </a>
+      </nav>
       <div style={{ font: "400 11.5px var(--font-mono)", color: "rgba(25,23,19,.45)" }}>
         local-first · no account · no telemetry · your identities never leave your machine
       </div>
