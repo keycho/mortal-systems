@@ -608,6 +608,29 @@ a.wall-cell .wall-frame:hover {
   border: 1px solid var(--w-border);
   background: var(--w-bar);
 }
+/* the self-introduction: the rail's one serif voice, quiet and
+   editorial, above the machinery of now/work/record */
+.wall-self {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--w-hair);
+}
+.wall-self .label {
+  flex: none;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--w-dim);
+}
+.wall-self .voice {
+  margin: 0;
+  font-family: var(--font-display, "Instrument Serif", serif);
+  font-style: italic;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--w-text-2);
+}
 .wall-now {
   display: flex;
   align-items: baseline;

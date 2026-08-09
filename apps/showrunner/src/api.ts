@@ -60,6 +60,10 @@ export interface WallApiOptions {
     unit: string;
     target?: number;
   } | null;
+  /** the identity introducing itself (cast configuration, first person,
+   * founder's copy verbatim); serial incarnations inherit their base
+   * member's words */
+  selfDescriptionFor?: (agentId: string) => string | null;
   /** concurrent sse connections before new ones get 503 + poll advice;
    * default 200, env WALL_SSE_MAX in serve */
   maxSseConnections?: number;
@@ -119,6 +123,7 @@ export function createWallApiHandler(
               ? (own?.pages_read ?? 0)
               : (own?.human_contacts ?? 0)
           : 0;
+        const selfDescription = opts.selfDescriptionFor?.(agent.agent_id) ?? null;
         return {
           ...agent,
           ...(inputs ? { depth: depthScore(inputs), depth_inputs: inputs } : {}),
@@ -135,6 +140,7 @@ export function createWallApiHandler(
                 },
               }
             : {}),
+          ...(selfDescription ? { self_description: selfDescription } : {}),
         };
       });
       sendJson(res, 200, {

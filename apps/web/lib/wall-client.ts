@@ -70,6 +70,9 @@ export interface AgentNowLive extends AgentNow {
   /** the declared life-work with record-true progress: what this life
    * is for, and where it stands against its clock */
   work?: { line: string; unit: string; done: number; target?: number };
+  /** the identity introducing itself, first person; shown where a
+   * viewer focuses its cell */
+  self_description?: string;
 }
 
 /** the work as one line: "12 of 90 entries · day 41 of 90" (finite) or

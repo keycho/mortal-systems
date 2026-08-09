@@ -33,6 +33,15 @@ export function ReasoningPanel({
   const work = workLabel(agent, now);
   return (
     <aside className="wall-panel" data-agent={agent.agent_id}>
+      {/* the identity introducing itself: the one serif voice in the
+          rail, the register the wall reserves for a life speaking in
+          its own person. a viewer meets a character before the clock. */}
+      {agent.self_description ? (
+        <div className="wall-self">
+          <span className="label">{agent.name}</span>
+          <p className="voice">{agent.self_description}</p>
+        </div>
+      ) : null}
       <div className="wall-now">
         <span className="label">now</span>
         <div className="intent-block">

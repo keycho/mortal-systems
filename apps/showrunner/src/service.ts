@@ -245,11 +245,18 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       };
     },
     streamUrl: (agentId) => streams?.playbackUrl(agentId) ?? null,
-    // the declared work comes from the cast; serial incarnations
-    // (ag_ash_1) inherit their base member's work
+    // the declared work and the self-introduction come from the cast;
+    // serial incarnations (ag_ash_1) inherit their base member's
     workFor: (agentId) => {
       const baseId = agentId.replace(/_\d+$/, "");
       return cast.find((m) => m.agent_id === agentId || m.agent_id === baseId)?.work ?? null;
+    },
+    selfDescriptionFor: (agentId) => {
+      const baseId = agentId.replace(/_\d+$/, "");
+      return (
+        cast.find((m) => m.agent_id === agentId || m.agent_id === baseId)?.self_description ??
+        null
+      );
     },
     maxSseConnections: Number(env.WALL_SSE_MAX ?? 200),
     health: () => ({
