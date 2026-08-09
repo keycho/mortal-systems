@@ -41,7 +41,7 @@ describe("terrarium errors render in-world", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("a missing post is a dark mono page with a way home, never raw json", async () => {
+  it("a missing post is an in-world page with a way home, never raw json", async () => {
     const res = await fetch(`${base}/t/marlowe/posts/pst_nope`);
     expect(res.status).toBe(404);
     expect(res.headers.get("content-type")).toContain("text/html");

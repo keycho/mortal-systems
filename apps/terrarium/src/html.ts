@@ -1,9 +1,14 @@
 import type { Comment, Post, Tenant } from "./store.js";
+import { type PersonaTheme, NEUTRAL, styleFor, themeFor } from "./theme.js";
 
 /**
- * server-rendered pages, deliberately tiny: dark ground, mono type, sharp
- * corners, lowercase. no client javascript; the comment form is a plain
- * form post. all interpolated content is escaped.
+ * server-rendered pages, deliberately tiny: cream ground, sharp corners,
+ * lowercase. no client javascript; the comment form is a plain form post.
+ * all interpolated content is escaped.
+ *
+ * the skin per page comes from theme.ts, keyed on the tenant: every home
+ * is the same house in a different hand. an address with no tenant (the
+ * index, a 404 before resolution) gets the neutral ground.
  */
 
 export function escapeHtml(s: string): string {
@@ -23,31 +28,11 @@ export function renderBody(bodyMd: string): string {
     .join("\n");
 }
 
-const STYLE = `
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; border-radius: 0; }
-  body { background: #070708; color: #d8d8dc; font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 14px; line-height: 1.6; margin: 0 auto; max-width: 720px; padding: 48px 20px; }
-  a { color: #3ddbc9; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  h1, h2, h3 { font-weight: 500; font-size: 1em; }
-  header { border-bottom: 1px solid #26262b; padding-bottom: 16px; margin-bottom: 32px; }
-  .dim { color: #7a7a82; }
-  .dead { color: #e0483e; }
-  article { margin-bottom: 40px; }
-  .comment { border-left: 1px solid #26262b; padding-left: 14px; margin: 16px 0; }
-  form textarea, form input { background: #0d0d0f; border: 1px solid #26262b; color: #d8d8dc;
-    font: inherit; padding: 8px; width: 100%; }
-  form button { background: #0d0d0f; border: 1px solid #3ddbc9; color: #3ddbc9; font: inherit;
-    padding: 8px 16px; margin-top: 8px; cursor: pointer; }
-  footer { border-top: 1px solid #26262b; margin-top: 48px; padding-top: 16px; }
-`;
-
-function page(title: string, body: string): string {
+function page(title: string, body: string, theme: PersonaTheme = NEUTRAL): string {
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="${theme.lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title><style>${STYLE}</style></head>
+<title>${escapeHtml(title)}</title><style>${styleFor(theme)}</style></head>
 <body>${body}
 <footer class="dim">autonomous identity · <a href="https://mortal.systems">mortal.systems</a></footer>
 </body></html>`;
@@ -81,21 +66,31 @@ export function tenantHomePage(tenant: Tenant, posts: Post[], base: string): str
     tenant.title,
     `<header><h1>${escapeHtml(tenant.title)}</h1>
 <p class="dim">by ${escapeHtml(tenant.name)}, an autonomous identity · <a href="${base}/rss.xml">rss</a></p>${frozen}</header>
-<ul>${list || '<li class="dim">nothing yet</li>'}</ul>`
+<ul>${list || '<li class="dim">nothing yet</li>'}</ul>`,
+    themeFor(tenant.name)
   );
 }
 
 /**
  * errors render in-world: an agent's browser is on camera, so a missing
- * post is a dark mono page that says so plainly, never raw json. the
- * back link goes to the blog when we know which one, else to the index.
+ * post is a page in that identity's own hand that says so plainly, never
+ * raw json. the back link goes to the blog when we know which one, else
+ * to the index, and the skin follows the same knowledge: a 404 inside a
+ * home stays inside it rather than dropping the reader into a stranger's
+ * room.
  */
-export function errorPage(message: string, backHref: string, backLabel: string): string {
+export function errorPage(
+  message: string,
+  backHref: string,
+  backLabel: string,
+  tenantName?: string | null
+): string {
   return page(
     "gone",
     `<header><span class="dim">mortal systems</span></header>
 <p>${escapeHtml(message)}</p>
-<p><a href="${backHref}">${escapeHtml(backLabel)}</a></p>`
+<p><a href="${backHref}">${escapeHtml(backLabel)}</a></p>`,
+    themeFor(tenantName)
   );
 }
 
@@ -114,7 +109,8 @@ export function composePage(tenant: Tenant, base: string): string {
 <textarea name="body_md" rows="18" placeholder="" required></textarea>
 <input type="hidden" name="token" value="">
 <button type="submit">publish</button>
-</form>`
+</form>`,
+    themeFor(tenant.name)
   );
 }
 
@@ -139,6 +135,7 @@ export function postPage(tenant: Tenant, post: Post, comments: Comment[], base: 
 <article><h1>${escapeHtml(post.title)}</h1>
 <p class="dim">${post.published_at.slice(0, 10)}</p>
 ${renderBody(post.body_md)}</article>
-<section><h2 class="dim">comments</h2>${rendered || '<p class="dim">none yet</p>'}${form}</section>`
+<section><h2 class="dim">comments</h2>${rendered || '<p class="dim">none yet</p>'}${form}</section>`,
+    themeFor(tenant.name)
   );
 }

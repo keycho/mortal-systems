@@ -190,6 +190,47 @@ describe("terrarium", () => {
     );
   });
 
+  it("serves each home in its own hand, over both routes", async () => {
+    await seedMarlowe();
+    await api("/api/tenants", { name: "yuki", agent_id: "ag_yuki", title: "yuki's notebook" });
+
+    const marlowe = await (await fetch(`${base}/t/marlowe/`)).text();
+    const yuki = await (await fetch(`${base}/t/yuki/`)).text();
+
+    // the ground is the wall's, never the old near-black
+    for (const html of [marlowe, yuki]) {
+      expect(html).toContain("color-scheme: light");
+      expect(html).not.toContain("#070708");
+    }
+    // and the two rooms are genuinely different rooms
+    expect(marlowe).toContain("Iowan Old Style");
+    expect(yuki).toContain("Hiragino Mincho ProN");
+    expect(yuki).toContain('<html lang="ja">');
+    expect(marlowe).toContain('<html lang="en-GB">');
+
+    // the subdomain route resolves the same home
+    const viaHost = await fetch(`${base}/`, {
+      headers: { "x-forwarded-host": "yuki.terrarium.local" },
+    });
+    expect(await viaHost.text()).toContain("Hiragino Mincho ProN");
+  });
+
+  it("keeps a 404 inside the home it happened in", async () => {
+    await seedMarlowe();
+    const inside = await fetch(`${base}/t/marlowe/posts/pst_nope`);
+    expect(inside.status).toBe(404);
+    // marlowe's own hand, so an agent parked on its own error page is still
+    // parked somewhere that looks like home
+    expect(await inside.text()).toContain("Iowan Old Style");
+
+    // an address with no tenant cannot borrow a stranger's room
+    const nowhere = await fetch(`${base}/t/nobody/`);
+    expect(nowhere.status).toBe(404);
+    const html = await nowhere.text();
+    expect(html).toContain("nobody lives at this address.");
+    expect(html).not.toContain("Iowan Old Style");
+  });
+
   it("moderation verdicts", () => {
     expect(moderate("a decent sentence").status).toBe("approved");
     expect(moderate("<b>bold</b>").status).toBe("held");

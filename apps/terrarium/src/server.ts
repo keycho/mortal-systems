@@ -124,7 +124,7 @@ async function handle(
   // as the api, so semantics never fork.
   if (rest === "/compose") {
     if (tenant.frozen_at) {
-      return sendError(req, res, 410, "the author is gone; the archive is read-only.", base + "/", "back to the blog");
+      return sendError(req, res, 410, "the author is gone; the archive is read-only.", base + "/", "back to the blog", tenant.name);
     }
     if (method === "GET") return sendHtml(res, 200, composePage(tenant, base));
     if (method === "POST") {
@@ -146,7 +146,7 @@ async function handle(
   if (method === "GET" && postMatch) {
     const post = opts.store.getPost(postMatch[1] as string);
     if (!post || post.tenant !== tenant.name) {
-      return sendError(req, res, 404, "this post does not exist.", base + "/", "back to the blog");
+      return sendError(req, res, 404, "this post does not exist.", base + "/", "back to the blog", tenant.name);
     }
     return sendHtml(res, 200, postPage(tenant, post, opts.store.listComments(post.id), base));
   }
@@ -154,10 +154,10 @@ async function handle(
   if (method === "POST" && commentMatch) {
     const post = opts.store.getPost(commentMatch[1] as string);
     if (!post || post.tenant !== tenant.name) {
-      return sendError(req, res, 404, "this post does not exist.", base + "/", "back to the blog");
+      return sendError(req, res, 404, "this post does not exist.", base + "/", "back to the blog", tenant.name);
     }
     if (tenant.frozen_at) {
-      return sendError(req, res, 410, "the author is gone; comments are closed.", base + "/", "back to the archive");
+      return sendError(req, res, 410, "the author is gone; comments are closed.", base + "/", "back to the archive", tenant.name);
     }
 
     const form = await readForm(req);
@@ -204,7 +204,7 @@ async function handle(
     return;
   }
 
-  return sendError(req, res, 404, "this page does not exist.", base + "/", "back to the blog");
+  return sendError(req, res, 404, "this page does not exist.", base + "/", "back to the blog", tenant.name);
 }
 
 async function api(
@@ -310,9 +310,12 @@ function sendError(
   status: number,
   message: string,
   backHref: string,
-  backLabel: string
+  backLabel: string,
+  tenantName?: string | null
 ): void {
-  if (wantsHtml(req)) return sendHtml(res, status, errorPage(message, backHref, backLabel));
+  if (wantsHtml(req)) {
+    return sendHtml(res, status, errorPage(message, backHref, backLabel, tenantName));
+  }
   sendJson(res, status, { error: message });
 }
 

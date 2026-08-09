@@ -4,3 +4,5 @@ export { createTerrariumHandler, createTerrariumServer } from "./server.js";
 export type { TerrariumOptions } from "./server.js";
 export { moderate, RATE_LIMIT } from "./moderation.js";
 export type { Verdict } from "./moderation.js";
+export { NEUTRAL, THEMES, styleFor, themeFor } from "./theme.js";
+export type { PersonaTheme } from "./theme.js";
