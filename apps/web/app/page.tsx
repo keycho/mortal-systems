@@ -396,23 +396,6 @@ function TrySection() {
   );
 }
 
-function CaptureFrame({ children, height }: { children: React.ReactNode; height?: number }) {
-  return (
-    <div
-      style={{
-        border: "1px solid var(--line-l-mid)",
-        borderRadius: "var(--r-card-dark)",
-        overflow: "hidden",
-        boxShadow: "0 24px 56px rgba(25,23,19,.14)",
-        background: "var(--frame)",
-        height,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 function ManagerSection() {
   return (
     <div data-screen-label="the manager" id="manager" style={{ position: "relative" }}>
@@ -470,70 +453,45 @@ function ManagerSection() {
           }}
         >
           <div>
-            <CaptureFrame>
-              <img
-                className="m-img"
-                src="/captures/running-identity.png"
-                alt="the manager, running identity overview · real capture"
-                style={{ display: "block", width: "100%", height: 400, objectFit: "contain" }}
-              />
-            </CaptureFrame>
+            {/* unframed, and both captures are the same 1704x980 so the pair
+                renders identically side by side */}
+            <img
+              className="m-img"
+              src="/captures/identity-overview.png"
+              alt="the manager, an identity's overview with destroy behind a menu · real capture"
+              style={{ display: "block", width: "100%", height: "auto" }}
+            />
             <div style={{ font: "400 11px/1.6 var(--font-mono)", marginTop: 10 }}>
               <span style={captionChip}>
-                <EnforcementChip tid="G11" tone="enforced" />
+                <EnforcementChip tid="G1" tone="enforced" />
               </span>
               <span style={{ color: "rgba(25,23,19,.45)" }}>
-                the manager · real capture · alpha · running identity · live countdown
+                the manager · real capture · alpha · identity overview
               </span>
               <br />
               <span style={{ color: "var(--accent)" }}>
-                the countdown is enforced by the runtime · a real chromium process, never a webview
+                its own chromium profile, its own memory and files · destruction sits behind a menu,
+                never a stray click
               </span>
             </div>
           </div>
           <div>
-            <CaptureFrame height={400}>
-              <div
-                style={{
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 24,
-                  boxSizing: "border-box",
-                }}
-              >
-                <div
-                  style={{
-                    border: "1px dashed rgba(25,23,19,.3)",
-                    borderRadius: "var(--r-btn)",
-                    padding: "18px 22px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 10,
-                    maxWidth: 380,
-                    textAlign: "center",
-                  }}
-                >
-                  <span style={{ font: "400 11px/1.6 var(--font-mono)", color: "rgba(25,23,19,.45)" }}>
-                    destruction receipt · receipt id, verified outcomes, deletion counts, D0–D7
-                    timeline
-                  </span>
-                  <Tag kind="dashed">REAL CAPTURE · COMING</Tag>
-                </div>
-              </div>
-            </CaptureFrame>
+            <img
+              className="m-img"
+              src="/captures/destruction-receipt.png"
+              alt="the manager, a real destruction receipt · real capture"
+              style={{ display: "block", width: "100%", height: "auto" }}
+            />
             <div style={{ font: "400 11px/1.6 var(--font-mono)", marginTop: 10 }}>
               <span style={captionChip}>
-                <EnforcementChip tid="G7" tone="enforced" />
+                <EnforcementChip tid="G12" tone="enforced" />
               </span>
               <span style={{ color: "rgba(25,23,19,.45)" }}>
                 the manager · real capture · alpha · destruction receipt
               </span>
               <br />
               <span style={{ color: "var(--accent)" }}>
-                what remains after destruction: the receipt
+                what remains after destruction: receipt id, verified outcomes, deletion counts
               </span>
             </div>
           </div>
