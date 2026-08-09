@@ -89,10 +89,11 @@ describe("download alpha", () => {
   it("the solid macos card points at the stable release asset and admits it is unsigned", () => {
     const mac = PLATFORMS.find((p) => p.name === "macOS" && p.arch === "apple silicon");
     expect(mac?.href).toBe(MACOS_ALPHA_DMG_URL);
-    // /releases/latest/download + a stable asset name: the url survives
-    // version bumps as long as ci keeps emitting this exact filename
+    // /releases/latest/download + the published asset name. note this
+    // name is version-pinned: a future release must either keep carrying
+    // an asset called mortal_0.1.0.dmg or this url (and lock) moves with it
     expect(MACOS_ALPHA_DMG_URL).toBe(
-      "https://github.com/keycho/mortal-systems/releases/latest/download/mortal-manager_macos_arm64.dmg"
+      "https://github.com/keycho/mortal-systems/releases/latest/download/mortal_0.1.0.dmg"
     );
     expect(mac?.signed).toContain("unsigned");
   });

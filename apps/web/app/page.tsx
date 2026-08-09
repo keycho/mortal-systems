@@ -3,6 +3,7 @@ import { Gate as WallGate } from "../components/wall/Gate";
 import { EnforcementChip, Tag } from "../components/Badge";
 import { BlueprintCard } from "../components/site/BlueprintCard";
 import { ContourMark } from "../components/site/ContourMark";
+import { DownloadCta } from "../components/site/DownloadCta";
 import { DownloadSection } from "../components/site/DownloadSection";
 import { Grain } from "../components/site/Grain";
 import { LifecycleTicker } from "../components/site/LifecycleTicker";
@@ -15,7 +16,6 @@ import {
   BLUEPRINT_CARDS,
   BLUEPRINT_DISPLAY,
   GUARANTEE_CELLS,
-  MACOS_ALPHA_DMG_URL,
   PROOF_BAND,
   USE_CASES,
 } from "../lib/site-data";
@@ -100,8 +100,7 @@ function Hero() {
               one task. Persistent for ongoing work. Destroyed when its purpose ends.
             </p>
             <div className="m-cta" style={{ display: "flex", gap: 14, marginTop: 36, flexWrap: "wrap" }}>
-              <a
-                href={MACOS_ALPHA_DMG_URL}
+              <DownloadCta
                 style={{
                   font: "500 14px var(--font-body)",
                   background: "var(--ink)",
@@ -110,9 +109,7 @@ function Hero() {
                   borderRadius: "var(--r-btn)",
                   boxShadow: "var(--shadow-cta)",
                 }}
-              >
-                download the alpha
-              </a>
+              />
               <a
                 href="/gate"
                 style={{
@@ -1083,8 +1080,8 @@ function ClosingSection() {
           >
             launch the first identity
           </a>
-          <a
-            href={MACOS_ALPHA_DMG_URL}
+          <DownloadCta
+            dark
             style={{
               font: "500 14px var(--font-body)",
               border: "1px solid rgba(242,239,231,.35)",
@@ -1092,9 +1089,7 @@ function ClosingSection() {
               borderRadius: "var(--r-btn)",
               color: "var(--bone)",
             }}
-          >
-            download the alpha
-          </a>
+          />
           <a
             href="/gate"
             style={{

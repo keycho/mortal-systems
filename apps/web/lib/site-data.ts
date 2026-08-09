@@ -125,17 +125,26 @@ export interface Platform {
 }
 
 /** the one shipped artifact: the unsigned macos (apple silicon) alpha,
- * built by release-macos.yml and uploaded to a github release under this
- * stable asset name. /releases/latest/download resolves to the newest
- * release carrying it, so the url survives version bumps. */
+ * built by release-macos.yml and published to a github release under
+ * this asset name. /releases/latest/download resolves to the newest
+ * release carrying it. */
 export const MACOS_ALPHA_DMG_URL =
-  "https://github.com/keycho/mortal-systems/releases/latest/download/mortal-manager_macos_arm64.dmg";
+  "https://github.com/keycho/mortal-systems/releases/latest/download/mortal_0.1.0.dmg";
+
+/** every real download button says the same thing */
+export const DOWNLOAD_CTA_LABEL = "download mortalOS";
 
 /** printed verbatim next to every download surface. the build is
  * deliberately unsigned (no apple developer enrollment until demonstrated
  * interest), and hiding that would be a lie of omission. */
 export const ALPHA_INSTALL_NOTE =
   "alpha · unsigned macOS build. after downloading, right-click the app → Open to bypass the unidentified-developer warning.";
+
+/** revealed the moment a download starts, right where the click
+ * happened: the unsigned warning arrives exactly when it becomes
+ * relevant, and the claims are the footer's own, nothing new */
+export const POST_DOWNLOAD_NOTE =
+  "downloading mortalOS. alpha software, unsigned build: macOS will warn the first time, so right-click the app and choose Open. local-first, no account, no telemetry.";
 
 /** a card flips to a solid button only when a real artifact url lands in
  * its href; null renders the dashed "coming" state (never a dead button).

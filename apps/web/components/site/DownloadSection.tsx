@@ -1,4 +1,5 @@
 import { ALPHA_INSTALL_NOTE, PLATFORMS } from "../../lib/site-data";
+import { DownloadCta } from "./DownloadCta";
 import { SectionHead } from "./SectionHead";
 import { SiteFooter } from "./SiteFooter";
 
@@ -54,7 +55,7 @@ export function DownloadSection({
                 {pl.arch}
               </div>
               {pl.href ? (
-                <a
+                <DownloadCta
                   href={pl.href}
                   style={{
                     marginTop: 16,
@@ -64,10 +65,9 @@ export function DownloadSection({
                     font: "500 13px var(--font-body)",
                     padding: "12px 0",
                     borderRadius: "var(--r-btn)",
+                    display: "block",
                   }}
-                >
-                  download the alpha
-                </a>
+                />
               ) : (
                 <div
                   style={{
