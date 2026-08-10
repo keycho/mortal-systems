@@ -5,7 +5,7 @@ import { Grain } from "../../components/site/Grain";
 import { Wordmark } from "../../components/Wordmark";
 
 export const metadata: Metadata = {
-  title: "the mortal manifesto · mortal systems",
+  title: "the mortal manifesto · witness.run",
   description: "the internet made identity permanent. that was a mistake we can now undo.",
 };
 
@@ -79,7 +79,7 @@ export default function Manifesto() {
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
           <Wordmark variant="nav" />
           <Link href="/" style={{ font: "400 12px var(--font-mono)", color: "rgba(242,239,231,.5)" }}>
-            mortal.systems →
+            witness.run →
           </Link>
         </div>
         <div className="mf-open" style={{ padding: "190px 0 170px" }}>

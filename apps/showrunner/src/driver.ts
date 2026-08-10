@@ -552,7 +552,7 @@ export class BrowserDriver {
       throw new PolicyViolation(
         {
           rule_id: "tier2.disclosure",
-          rule_text: 'profile bios must carry "autonomous identity · mortal.systems" and link home',
+          rule_text: 'profile bios must carry "autonomous identity · witness.run" and link home',
         },
         `external write on ${domain}`
       );

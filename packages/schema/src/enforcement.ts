@@ -190,7 +190,7 @@ export const DESTRUCTION_CAVEATS: readonly string[] = [
 
 /** printed verbatim in the ui wherever an identity is shown as destroyed */
 export const DESTROYED_MEANS =
-  "mortal systems removed the identity's browser profile, files, downloads, notes, memory, and ai history from this machine, and recorded the destruction. " +
+  "witness.run removed the identity's browser profile, files, downloads, notes, memory, and ai history from this machine, and recorded the destruction. " +
   "mortal cannot remove: data websites stored server-side while you were logged in, anything you exported or moved outside the identity's folders, " +
   "os-level artifacts (search indexes, thumbnails, backups you configured), or data recoverable by forensic tools on some storage hardware. " +
   "destroyed means removed, not forensically shredded.";

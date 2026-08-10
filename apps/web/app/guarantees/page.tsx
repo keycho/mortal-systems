@@ -5,7 +5,7 @@ import { Nav } from "../../components/site/Nav";
 import { SiteFooter } from "../../components/site/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "guarantees · mortal systems",
+  title: "guarantees · witness.run",
   description: "every guarantee, labeled honestly: enforced, advisory, or roadmap.",
 };
 
@@ -126,7 +126,7 @@ export default function Guarantees() {
 
         <div style={{ marginTop: 64, maxWidth: 880 }}>
           <h2 style={{ font: "400 24px var(--font-display)", fontWeight: 400, margin: 0 }}>
-            what mortal systems does not guarantee
+            what witness.run does not guarantee
           </h2>
           <ul
             style={{

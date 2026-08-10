@@ -1,4 +1,4 @@
-# mortal systems
+# witness.run
 
 launch private identities that disappear when their work is done.
 
@@ -14,7 +14,7 @@ build status is tracked honestly** in [docs/PROGRESS.md](docs/PROGRESS.md) (per-
 apps/
   manager/     mortal manager — react ui + tauri 2 shell (ui only, never a browser)
   companion/   mortal companion — mv3 extension stamped per identity
-  web/         public mortal.systems site (day-7 scope, not built yet)
+  web/         public witness.run site (day-7 scope, not built yet)
 packages/
   schema/      @mortal/schema — zod manifests, api types, constants (imported by everything)
   runtime/     @mortal/runtime — the local service: identities, lifecycle, deletion, api

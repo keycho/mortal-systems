@@ -2,7 +2,7 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
-  "description": "the public mortal.systems site. landing, guarantees, blueprint previews, downloads. hosts none of the product; the runtime is local-only.",
+  "description": "the public witness.run site. landing, guarantees, blueprint previews, downloads. hosts none of the product; the runtime is local-only.",
   "scripts": {
     "dev": "next dev",
     "build": "next build && node scripts/check-bundle-env.mjs",

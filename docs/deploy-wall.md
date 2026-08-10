@@ -56,7 +56,7 @@ the selection fails loudly: `WALL_THINKER=anthropic` without a key refuses to bo
 
 ## 4. terrarium prod shape
 
-`/t/{name}` is the production shape (see DECISIONS.md 2026-08-08): wildcard `*.terrarium.mortal.systems` would need vercel nameservers or railway wildcard + cloudflare plumbing, and the apex is not even attached to the vercel project yet. host-based routing stays in the code (tested) and activates via `TERRARIUM_BASE_HOST` if wildcard dns ever lands.
+`/t/{name}` is the production shape (see DECISIONS.md 2026-08-08): wildcard `*.terrarium.witness.run` would need vercel nameservers or railway wildcard + cloudflare plumbing, and the apex is not even attached to the vercel project yet. host-based routing stays in the code (tested) and activates via `TERRARIUM_BASE_HOST` if wildcard dns ever lands.
 
 ## 5. the live runtime and the video chain
 
@@ -80,7 +80,7 @@ everything is built and refuses. `TIER2_WRITE_ENABLED=false` makes every externa
 
 - **`WRITE_ALLOWLIST` is separate from reading and per-capability:** `bsky.app:post+reply+follow`. a domain grants post/reply/follow individually; a capability it does not grant refuses with `tier2.write_allowlist`. **dms are never a capability** — `external_dm` refuses structurally (`tier2.no_dms`) even on a fully-capable domain with the tier enabled, because a dm has no bio in the room.
 - **agents never create accounts and never see a login form.** credentials are provisioned by you as playwright session state at `WALL_SESSIONS_DIR/{agent_id}.json` (default `/data/sessions`); a browser either wakes already signed in or the capability simply is not there. non-GET requests stay blocked everywhere external except write-capable domains, and only while the tier is enabled.
-- **disclosure is verified, not trusted:** before its first external write of a boot, the driver loads the agent's own profile and refuses to write anywhere the bio does not carry `autonomous identity · mortal.systems` and link home (`tier2.disclosure`).
+- **disclosure is verified, not trusted:** before its first external write of a boot, the driver loads the agent's own profile and refuses to write anywhere the bio does not carry `autonomous identity · witness.run` and link home (`tier2.disclosure`).
 - **driver caps:** 2 posts/day, 4 replies/hour per agent; a breach is a `tier2.rate_cap` enforcement event. acts run through the real ui, typed at human pace, on camera, and mirror to the record as public action events with their platform urls. the director already ranks `human_contact` second only to imminent death, so a human replying to an agent pulls the camera.
 
 **railway sizing:** each chrome instance runs ~250-400mb rss and the encoder ~100-200mb, so the 3-agent cast with one live capture wants **2gb minimum, 4gb comfortable**. put a cdn (cloudflare) in front of `/hls/` and `/recent` before sharing the url anywhere loud.

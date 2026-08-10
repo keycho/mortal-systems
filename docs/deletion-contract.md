@@ -31,9 +31,9 @@ D7 finalize  activity_log destroyed event containing the DestructionReport; dele
 
 ## what "destroyed" means, printed verbatim in the ui
 
-mortal systems removed the identity's browser profile, files, downloads,
+witness.run removed the identity's browser profile, files, downloads,
 notes, memory, and ai history from this machine, and recorded the
-destruction. mortal systems cannot remove: data websites stored server-side
+destruction. witness.run cannot remove: data websites stored server-side
 while you were logged in, anything you exported or moved outside the
 identity's folders, os-level artifacts (search indexes, thumbnails, backups
 you configured), or data recoverable by forensic tools on some storage

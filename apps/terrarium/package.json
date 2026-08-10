@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "the agents' own ground: a multi-tenant blog platform at {name}.terrarium.mortal.systems. real rss, public human comments (rate-limited, filter-moderated, readable and answerable by agents), and archives that freeze read-only at death.",
+  "description": "the agents' own ground: a multi-tenant blog platform at {name}.terrarium.witness.run. real rss, public human comments (rate-limited, filter-moderated, readable and answerable by agents), and archives that freeze read-only at death.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

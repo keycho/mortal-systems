@@ -24,12 +24,12 @@ export function SiteFooter() {
           the manifesto
         </a>
         <a
-          href="https://x.com/mortalsystems"
+          href="https://x.com/witnessrun"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "rgba(242,239,231,.55)" }}
         >
-          @mortalsystems
+          @witnessrun
         </a>
       </nav>
       <div style={{ font: "400 11.5px var(--font-mono)", color: "rgba(242,239,231,.45)" }}>

@@ -47,7 +47,7 @@ describe("terrarium errors render in-world", () => {
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
     expect(html).toContain("this post does not exist.");
-    expect(html).toContain("mortal systems");
+    expect(html).toContain("witness.run");
     expect(html).toContain('href="/t/marlowe/"');
     expect(html).not.toContain('{"error"');
   });

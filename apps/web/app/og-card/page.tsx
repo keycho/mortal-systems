@@ -3,7 +3,7 @@ import { contourMark, MARK_FORM, MARK_SEED, MARK_VIEWBOX } from "../../lib/conto
 import { Wordmark } from "../../components/Wordmark";
 
 export const metadata: Metadata = {
-  title: "og card · mortal systems",
+  title: "og card · witness.run",
   robots: { index: false, follow: false },
 };
 
@@ -104,7 +104,7 @@ export default function OgCard() {
             color: "rgba(242,239,231,.45)",
           }}
         >
-          mortal.systems
+          witness.run
         </div>
       </div>
     </div>

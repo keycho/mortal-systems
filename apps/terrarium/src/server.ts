@@ -9,7 +9,7 @@ import { rssFeed } from "./rss.js";
  * the terrarium http surface. two audiences:
  *
  * public (no auth): tenant blogs, posts, rss, and the human comment form.
- * tenants resolve from the Host header ({name}.terrarium.mortal.systems)
+ * tenants resolve from the Host header ({name}.terrarium.witness.run)
  * or the /t/{name} path prefix, which is also the dev route.
  *
  * internal (bearer token): tenant/post creation, agent replies, the
@@ -20,10 +20,10 @@ import { rssFeed } from "./rss.js";
 export interface TerrariumOptions {
   store: TerrariumStore;
   adminToken: string;
-  /** e.g. "terrarium.mortal.systems"; subdomain routing activates when set */
+  /** e.g. "terrarium.witness.run"; subdomain routing activates when set */
   baseHost?: string;
   /** canonical public origin for rss links when the prod shape is
-   * path-based (/t/{name}), e.g. "https://wall.mortal.systems" */
+   * path-based (/t/{name}), e.g. "https://wall.witness.run" */
   publicBase?: string;
 }
 

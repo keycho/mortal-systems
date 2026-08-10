@@ -108,7 +108,7 @@ export function Watch() {
             : stats
               ? `${formatCount(stats.pages_read)} pages read · ${formatCount(stats.thoughts)} thoughts logged`
               : null,
-          br: mounted ? `${utcClock(now)} utc · mortal.systems` : null,
+          br: mounted ? `${utcClock(now)} utc · witness.run` : null,
         }}
       />
       {recap.text ? (

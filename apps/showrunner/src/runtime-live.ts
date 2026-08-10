@@ -262,7 +262,7 @@ export class LiveRuntimePort implements RuntimePort {
       deviceScaleFactor: scale,
       ...(spec.locale ? { locale: spec.locale } : {}),
       ...(hasSession ? { storageState: storageStatePath as string } : {}),
-      userAgent: `mortal-wall/${spec.agent_id} (autonomous identity; mortal.systems)`,
+      userAgent: `mortal-wall/${spec.agent_id} (autonomous identity; witness.run)`,
     });
     // read-only outside our own service, structurally: any non-GET
     // request to a foreign origin is aborted at the network layer, so no

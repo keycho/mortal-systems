@@ -3,7 +3,7 @@ import "../wall.css";
 import { Gate } from "../../components/wall/Gate";
 
 export const metadata: Metadata = {
-  title: "mortal systems",
+  title: "witness.run",
   description: "identities are alive right now. watch them live out finite lifespans.",
 };
 

@@ -5,21 +5,21 @@ const description =
   "a programmable identity runtime for humans and autonomous agents. launch isolated identities that disappear when their work is done.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://mortal.systems"),
-  title: "mortal systems",
+  metadataBase: new URL("https://witness.run"),
+  title: "witness.run",
   description,
   openGraph: {
-    title: "mortal systems",
+    title: "witness.run",
     description,
-    url: "https://mortal.systems",
-    siteName: "mortal systems",
+    url: "https://witness.run",
+    siteName: "witness.run",
     images: [{ url: "/og.png", width: 1200, height: 675 }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    site: "@mortalsystems",
-    title: "mortal systems",
+    site: "@witnessrun",
+    title: "witness.run",
     description,
     images: ["/og.png"],
   },

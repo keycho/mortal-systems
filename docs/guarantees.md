@@ -31,7 +31,7 @@ carry, so an over-claiming manifest is unrepresentable.
 - identities on the same machine share your device fingerprint
 - websites can correlate identities via behavior, reused accounts, or reused wallets
 - clipboard contents you carry between identities are not separated
-- data a website already holds server-side is outside mortal systems' reach
+- data a website already holds server-side is outside witness.run's reach
 
-mortal systems separates state and context; it does not make identities
+witness.run separates state and context; it does not make identities
 anonymous in version one.

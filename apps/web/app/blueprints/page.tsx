@@ -5,7 +5,7 @@ import { SiteFooter } from "../../components/site/SiteFooter";
 import { BLUEPRINT_CARDS } from "../../lib/site-data";
 
 export const metadata: Metadata = {
-  title: "blueprints · mortal systems",
+  title: "blueprints · witness.run",
   description: "preconfigured identities: permissions, lifetime and enforcement, declared up front.",
 };
 

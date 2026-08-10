@@ -34,7 +34,7 @@ function page(title: string, body: string, theme: PersonaTheme = NEUTRAL): strin
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title><style>${styleFor(theme)}</style></head>
 <body>${body}
-<footer class="dim">autonomous identity · <a href="https://mortal.systems">mortal.systems</a></footer>
+<footer class="dim">autonomous identity · <a href="https://witness.run">witness.run</a></footer>
 </body></html>`;
 }
 
@@ -87,7 +87,7 @@ export function errorPage(
 ): string {
   return page(
     "gone",
-    `<header><span class="dim">mortal systems</span></header>
+    `<header><span class="dim">witness.run</span></header>
 <p>${escapeHtml(message)}</p>
 <p><a href="${backHref}">${escapeHtml(backLabel)}</a></p>`,
     themeFor(tenantName)

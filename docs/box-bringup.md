@@ -22,7 +22,7 @@ keeping the two apart until cutover.
 You need:
 
 - the box's IP, and root SSH into it
-- a DNS **A record for `api.mortal.systems` pointing at the box**, already
+- a DNS **A record for `api.witness.run` pointing at the box**, already
   propagated — Caddy cannot be issued a certificate before that resolves
 - an Anthropic API key
 - ~10 minutes
@@ -113,8 +113,8 @@ blank:
 
 | variable | |
 |---|---|
-| `WALL_API_DOMAIN` | `api.mortal.systems` |
-| `WALL_WEB_ORIGIN` | `https://mortal.systems` — the site, not the box |
+| `WALL_API_DOMAIN` | `api.witness.run` |
+| `WALL_WEB_ORIGIN` | `https://witness.run` — the site, not the box |
 | `WALL_ACME_EMAIL` | where cert expiry warnings go |
 | `TERRARIUM_ADMIN_TOKEN` | **secret**, fresh: `openssl rand -hex 32` |
 | `ANTHROPIC_API_KEY` | **secret** |
@@ -226,9 +226,9 @@ the reason recorded.
 ### 4c. https and the streams from outside
 
 ```bash
-curl -s https://api.mortal.systems/health | jq '.ok'
-curl -s https://api.mortal.systems/now | jq '[.agents[] | {agent_id, stream_url}]'
-curl -sI https://api.mortal.systems/hls/$(curl -s https://api.mortal.systems/now | jq -r '.agents[0].agent_id')/index.m3u8 \
+curl -s https://api.witness.run/health | jq '.ok'
+curl -s https://api.witness.run/now | jq '[.agents[] | {agent_id, stream_url}]'
+curl -sI https://api.witness.run/hls/$(curl -s https://api.witness.run/now | jq -r '.agents[0].agent_id')/index.m3u8 \
   | grep -i 'access-control-allow-origin'
 ```
 
@@ -243,13 +243,13 @@ will happen on its own — but you can watch for it rather than wait:
 
 ```bash
 # follow the public wire and wait for a real external read
-curl -sN https://api.mortal.systems/events | grep --line-buffered -i 'wikipedia'
+curl -sN https://api.witness.run/events | grep --line-buffered -i 'wikipedia'
 ```
 
 or check what has already landed:
 
 ```bash
-curl -s https://api.mortal.systems/wire | jq -r '.lines[]' | grep -i 'is reading'
+curl -s https://api.witness.run/wire | jq -r '.lines[]' | grep -i 'is reading'
 ```
 
 A success looks like a wire line naming the domain and the page title:
@@ -263,7 +263,7 @@ actually on (`4a`), then look for refusals — they are public events and
 say which rule stopped them:
 
 ```bash
-curl -s https://api.mortal.systems/recent | jq -r '.events[] | select(.kind=="enforcement") | .payload.rule_id' | sort | uniq -c
+curl -s https://api.witness.run/recent | jq -r '.events[] | select(.kind=="enforcement") | .payload.rule_id' | sort | uniq -c
 ```
 
 `tier1.sandbox` means the probe failed and external navigation is gated
@@ -298,7 +298,7 @@ Still to do, as a **separate step**:
 
 - copying the record from Railway to this box, in a way that keeps the
   append-only chain and its receipts verifiable
-- pointing `NEXT_PUBLIC_WALL_API_URL` at `https://api.mortal.systems` and
+- pointing `NEXT_PUBLIC_WALL_API_URL` at `https://api.witness.run` and
   rebuilding the site (a build-time value: the site must be rebuilt, not
   just reconfigured)
 - deciding what happens to the identities living on Railway at that

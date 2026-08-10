@@ -1,4 +1,4 @@
-# api.mortal.systems -> the wall service on this box.
+# api.witness.run -> the wall service on this box.
 #
 # caddy gets a certificate on its own the first time the domain resolves
 # here; there is nothing to run and no cron to add. everything below is

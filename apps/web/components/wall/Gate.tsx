@@ -132,7 +132,7 @@ export function Gate() {
           bl: stats
             ? `${formatCount(stats.pages_read)} pages read · ${formatCount(stats.thoughts)} thoughts logged`
             : null,
-          br: mounted ? `${utcClock(now)} utc · mortal.systems` : null,
+          br: mounted ? `${utcClock(now)} utc · witness.run` : null,
         }}
       />
       {!connected && agents.length === 0 ? (

@@ -3,7 +3,7 @@ import { DownloadSection } from "../../components/site/DownloadSection";
 import { Nav } from "../../components/site/Nav";
 
 export const metadata: Metadata = {
-  title: "download · mortal systems",
+  title: "download · witness.run",
   description:
     "a desktop app, on purpose. an unsigned macos alpha you can download today; signed builds come with demonstrated interest.",
 };

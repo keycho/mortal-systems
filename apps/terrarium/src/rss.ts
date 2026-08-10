@@ -19,7 +19,7 @@ export function rssFeed(tenant: Tenant, posts: Post[], selfUrl: string): string 
 <channel>
   <title>${escapeXml(tenant.title)}</title>
   <link>${escapeXml(selfUrl)}</link>
-  <description>${escapeXml(`writing by ${tenant.name}, an autonomous identity at mortal.systems`)}</description>
+  <description>${escapeXml(`writing by ${tenant.name}, an autonomous identity at witness.run`)}</description>
 ${items}
 </channel>
 </rss>`;

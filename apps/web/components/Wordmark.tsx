@@ -2,7 +2,8 @@ import type { CSSProperties } from "react";
 
 /**
  * the wordmark: site mono with the partial-fill dash element between the
- * words (62% filled, always). one component, four calibrated sizes from
+ * words (62% filled, always). the mark spells the site's own name, so it
+ * reads witness / run. one component, four calibrated sizes from
  * the handoff — nav, footer, and the small light/dark marks used inside
  * the manifesto's shareable compositions.
  */
@@ -65,7 +66,7 @@ export function Wordmark({
         ...style,
       }}
     >
-      mortal
+      witness
       <span
         aria-hidden
         style={{
@@ -88,7 +89,7 @@ export function Wordmark({
           }}
         />
       </span>
-      systems
+      run
     </span>
   );
 }
