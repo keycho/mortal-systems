@@ -7,15 +7,20 @@ import { WallStore, type PayloadFor } from "@mortal/wall";
 import { TerrariumStore } from "terrarium";
 import {
   BrowserDriver,
+  DeadPageError,
   LAUNCH_CAST,
   LiveRuntimePort,
+  READING_ALLOWLIST_DEFAULT,
   RECENT_READS_MAX,
   Showrunner,
   StubRuntimePort,
   castNames,
   chooseNextRead,
+  idleImpulse,
   linkCandidates,
   normalizeReadUrl,
+  personaAllowlist,
+  scriptedThinker,
   storeTerrariumClient,
   type ActDriver,
   type CastMember,
@@ -84,6 +89,125 @@ describe("the walk's decision", () => {
       chooseNextRead({ pageLinks: [], rotation: [], recentReads: [], driftIndex: 0 })
     ).toBeNull();
   });
+
+  it("a living page is new again soon; an article stays read", () => {
+    const front = "https://news.ycombinator.com/";
+    const article = "https://en.wikipedia.org/wiki/Memento_mori";
+    // both were read three reads ago
+    const next = chooseNextRead({
+      pageLinks: [],
+      rotation: [article, front],
+      recentReads: [front, article, "https://a.example/x", "https://a.example/y"],
+      driftIndex: 0,
+      livingPages: [front],
+    });
+    // the article is suppressed for the full window; the front moves on
+    expect(next).toEqual({ url: front, via: "seed" });
+    // but a front JUST read is still suppressed: no ping-pong
+    const justRead = chooseNextRead({
+      pageLinks: [],
+      rotation: [front],
+      recentReads: ["https://a.example/x", front],
+      driftIndex: 0,
+      livingPages: [front],
+    });
+    expect(justRead?.via).toBe("stale");
+  });
+});
+
+describe("the walk cannot leave the persona's ground", () => {
+  it("intersects a persona's own hosts with the global allowlist, never widening it", () => {
+    expect(
+      personaAllowlist(["ja.wikipedia.org"], ["ja.wikipedia.org", "en.wikipedia.org"])
+    ).toEqual(["ja.wikipedia.org"]);
+    // absent or empty own list: the global wall alone governs
+    expect(personaAllowlist(undefined, ["en.wikipedia.org"])).toEqual(["en.wikipedia.org"]);
+    expect(personaAllowlist([], ["en.wikipedia.org"])).toEqual(["en.wikipedia.org"]);
+    // an own host outside the global wall is dropped, never granted
+    expect(
+      personaAllowlist(["evil.example", "en.wikipedia.org"], ["en.wikipedia.org"])
+    ).toEqual(["en.wikipedia.org"]);
+  });
+
+  it("drops interlanguage links for a reader whose world is english", () => {
+    // the exact production bug: every one of these hosts is on the
+    // global allowlist, so the old harvest let an en reader walk into
+    // ja.wikipedia through the sidebar. the persona border drops them.
+    const effective = personaAllowlist(
+      ["en.wikipedia.org", "news.ycombinator.com"],
+      [...READING_ALLOWLIST_DEFAULT]
+    );
+    const links = linkCandidates(
+      [
+        { href: "https://en.wikipedia.org/wiki/Epitaph", text: "epitaphs and their history" },
+        { href: "https://ja.wikipedia.org/wiki/墓碑銘", text: "日本語版の記事" },
+        { href: "https://fr.wikipedia.org/wiki/Épitaphe", text: "article en français ici" },
+        { href: "https://de.wikipedia.org/wiki/Grabinschrift", text: "deutscher artikel dazu" },
+      ],
+      effective,
+      "https://en.wikipedia.org/wiki/Eulogy"
+    );
+    expect(links).toEqual(["https://en.wikipedia.org/wiki/Epitaph"]);
+  });
+
+  it("keeps the interlanguage link that is the reader's own language", () => {
+    const effective = personaAllowlist(["ja.wikipedia.org"], [...READING_ALLOWLIST_DEFAULT]);
+    const links = linkCandidates(
+      [
+        { href: "https://ja.wikipedia.org/wiki/翻訳", text: "翻訳" },
+        { href: "https://en.wikipedia.org/wiki/Translation", text: "Translation in english" },
+      ],
+      effective,
+      "https://ja.wikipedia.org/wiki/日記"
+    );
+    // hrefs come back percent-encoded from the URL parser; same page
+    expect(links.map(normalizeReadUrl)).toEqual(["https://ja.wikipedia.org/wiki/翻訳"]);
+  });
+
+  it("applies the mainspace rule to wikisource namespaces too", () => {
+    const links = linkCandidates(
+      [
+        {
+          href: "https://pt.wikisource.org/wiki/Memórias_Póstumas_de_Brás_Cubas",
+          text: "o livro inteiro para ler",
+        },
+        {
+          href: "https://pt.wikisource.org/wiki/Autor:Machado_de_Assis",
+          text: "a página do autor aqui",
+        },
+        {
+          href: "https://fr.wikisource.org/wiki/Spécial:Recherche",
+          text: "chercher dans la bibliothèque",
+        },
+      ],
+      ["pt.wikisource.org", "fr.wikisource.org"],
+      "https://pt.wikisource.org/wiki/Dom_Casmurro"
+    );
+    expect(links.map(normalizeReadUrl)).toEqual([
+      "https://pt.wikisource.org/wiki/Memórias_Póstumas_de_Brás_Cubas",
+    ]);
+  });
+
+  it("chooseNextRead never picks outside the persona's hosts, even from stale memory", () => {
+    // a pre-border harvest left a foreign link in the walk's memory
+    const next = chooseNextRead({
+      pageLinks: ["https://ja.wikipedia.org/wiki/俳句", "https://en.wikipedia.org/wiki/Haiku"],
+      rotation: ["https://en.wikipedia.org/wiki/Memento_mori"],
+      recentReads: [],
+      driftIndex: 0,
+      allowedHosts: ["en.wikipedia.org"],
+    });
+    expect(next).toEqual({ url: "https://en.wikipedia.org/wiki/Haiku", via: "link" });
+    // and the stale fallback stays in-world too
+    const stale = chooseNextRead({
+      pageLinks: ["https://ja.wikipedia.org/wiki/俳句"],
+      rotation: ["https://en.wikipedia.org/wiki/Memento_mori"],
+      recentReads: ["https://en.wikipedia.org/wiki/Memento_mori"],
+      driftIndex: 3,
+      allowedHosts: ["en.wikipedia.org"],
+    });
+    expect(stale).toEqual({ url: "https://en.wikipedia.org/wiki/Memento_mori", via: "stale" });
+  });
 });
 
 describe("what a page may offer the wander", () => {
@@ -146,7 +270,15 @@ describe("the drift walks (showrunner + fake driver)", () => {
     platformAllowlist: ["terrarium"],
     sponsorEnabled: false,
     externalBrowsing: true,
-    readingAllowlist: ["en.wikipedia.org", "news.ycombinator.com", "aworkinglibrary.com", "craigmod.com", "solar.lowtechmagazine.com"],
+    readingAllowlist: [
+      "en.wikipedia.org",
+      "en.wikisource.org",
+      "news.ycombinator.com",
+      "aworkinglibrary.com",
+      "craigmod.com",
+      "solar.lowtechmagazine.com",
+      "publicdomainreview.org",
+    ],
   };
 
   beforeEach(() => {
@@ -271,6 +403,290 @@ describe("the drift walks (showrunner + fake driver)", () => {
     expect(back?.recent_reads).toEqual(recent.slice(0, 3));
     expect(back?.recent_reads.length).toBeLessThanOrEqual(RECENT_READS_MAX);
   });
+
+  it("a dead page never lands on the record, and the drift walks somewhere else", async () => {
+    const deadUrl = "https://en.wikipedia.org/wiki/Memento_mori";
+    const opened: string[] = [];
+    const driver: ActDriver = {
+      busy: () => false,
+      openPage: async (_id, url) => {
+        opened.push(url);
+        if (url === deadUrl) throw new DeadPageError(url, "http 404");
+        return {
+          landed: url,
+          detour: false,
+          external: {
+            domain: new URL(url).hostname,
+            title: "a page that loaded",
+            phrase: "",
+            url,
+            links: [],
+          },
+        };
+      },
+      publishPost: async () => ({ id: "p", url: "/x" }),
+      replyComment: async () => undefined,
+    };
+    const showrunner = new Showrunner({
+      store: wallStore,
+      runtime: new StubRuntimePort(),
+      terrarium: storeTerrariumClient(terrariumStore),
+      think: async () => ({}),
+      flags: { ...FLAGS },
+    });
+    Object.assign(showrunner.names, castNames());
+    const marlowe = LAUNCH_CAST.find((m) => m.agent_id === "ag_marlowe") as CastMember;
+    await showrunner.spawn(marlowe);
+    showrunner.driver = driver;
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    // the page the walk will choose first is dead
+    agent.page_links = [deadUrl];
+
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+
+    // the record never claims the read that did not happen
+    const reads = wallStore
+      .list({ kinds: ["action"], agentId: "ag_marlowe" })
+      .map((e) => (e.payload as PayloadFor<"action">).target_url);
+    expect(reads).not.toContain(deadUrl);
+    // the corpse is remembered, so the walk will not choose it again
+    expect(agent.recent_reads).toContain(deadUrl);
+    // and the drift tried somewhere else instead of dwelling on white
+    expect(opened[0]).toBe(deadUrl);
+    expect(opened.length).toBe(2);
+    expect(opened[1]).not.toBe(deadUrl);
+    expect(reads).toContain(opened[1]);
+    // the honest beat is on the stream: the state says why, then moves on
+    const states = wallStore
+      .list({ kinds: ["state_change"], agentId: "ag_marlowe" })
+      .map((e) => e.payload as PayloadFor<"state_change">);
+    expect(
+      states.some((s) => s.state === "idle" && s.detail === "the page would not load")
+    ).toBe(true);
+  });
+
+  /** a stub driver that records every open and reads everything fine */
+  function recordingDriver(opened: string[]): ActDriver {
+    return {
+      busy: () => false,
+      openPage: async (_id, url) => {
+        opened.push(url);
+        const external = /^https?:\/\//i.test(url)
+          ? {
+              external: {
+                domain: new URL(url).hostname,
+                title: "a page",
+                phrase: "",
+                url,
+                links: [],
+              },
+            }
+          : {};
+        return { landed: url, detour: false, ...external };
+      },
+      publishPost: async () => ({ id: "p", url: "/x" }),
+      replyComment: async () => undefined,
+    };
+  }
+
+  async function spawnedShowrunner(): Promise<Showrunner> {
+    const showrunner = new Showrunner({
+      store: wallStore,
+      runtime: new StubRuntimePort(),
+      terrarium: storeTerrariumClient(terrariumStore),
+      think: async () => ({}),
+      flags: { ...FLAGS },
+    });
+    Object.assign(showrunner.names, castNames());
+    const marlowe = LAUNCH_CAST.find((m) => m.agent_id === "ag_marlowe") as CastMember;
+    await showrunner.spawn(marlowe);
+    return showrunner;
+  }
+
+  it("keeps browsing dominant: five drifts in six are the walk, and the terrarium visit is rarest", () => {
+    const roster = Array.from({ length: 48 }, (_, i) => idleImpulse(i));
+    const walks = roster.filter((r) => r === "walk").length;
+    // the wall's default visible state is an identity out on a page
+    expect(walks / roster.length).toBeCloseTo(5 / 6, 5);
+    // the peer read is the one act on terrarium ground, so it is the
+    // rarest of the punctuation: once per turn of the roster
+    expect(roster.filter((r) => r === "peer")).toHaveLength(2);
+    expect(roster.filter((r) => r === "revisit")).toHaveLength(4);
+    expect(roster.filter((r) => r === "compare")).toHaveLength(2);
+    // and no two punctuation acts ever land back to back
+    for (let i = 1; i < roster.length; i++) {
+      if (roster[i] !== "walk") expect(roster[i - 1]).toBe("walk");
+    }
+  });
+
+  it("the revisit impulse goes back to a living page to see what moved", async () => {
+    const opened: string[] = [];
+    const showrunner = await spawnedShowrunner();
+    showrunner.driver = recordingDriver(opened);
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    const front = "https://news.ycombinator.com/";
+    // the front was read a while ago; two other reads since
+    agent.recent_reads = [front, "https://en.wikipedia.org/wiki/Obituary", "https://aworkinglibrary.com/"];
+    agent.drift_index = 5; // the first punctuation slot: revisit
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+    expect(opened).toEqual([front]);
+    expect(agent.memory.some((m) => m.includes("to see what moved"))).toBe(true);
+  });
+
+  it("the peer impulse reads another identity's latest entry, with the post id as material", async () => {
+    const opened: string[] = [];
+    const showrunner = await spawnedShowrunner();
+    const yuki = LAUNCH_CAST.find((m) => m.agent_id === "ag_yuki") as CastMember;
+    await showrunner.spawn(yuki);
+    showrunner.driver = recordingDriver(opened);
+    const marlowe = showrunner.live.get("ag_marlowe");
+    const peer = showrunner.live.get("ag_yuki");
+    if (!marlowe || !peer) throw new Error("agents missing");
+    peer.last_post_id = "p_seed1";
+    marlowe.drift_index = 23; // the peer slot: once per full turn of the roster
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(marlowe);
+    expect(opened).toEqual([`/t/${peer.tenant}/posts/p_seed1`]);
+    expect(marlowe.reading.some((r) => r.includes("yuki") && r.includes("p_seed1"))).toBe(true);
+    // the read is a legible act on the record like any other
+    const reads = wallStore
+      .list({ kinds: ["action"], agentId: "ag_marlowe" })
+      .map((e) => e.payload as PayloadFor<"action">);
+    expect(reads.some((r) => r.verb === "opened_page" && r.title?.includes("yuki"))).toBe(true);
+  });
+
+  it("idle leaves the browser where it was: it never sends the reader home", async () => {
+    const calls: string[] = [];
+    const runtime = new StubRuntimePort() as StubRuntimePort & {
+      settleIdle?: (id: string) => Promise<void>;
+      restAtHome?: (id: string) => Promise<void>;
+    };
+    runtime.settleIdle = async (id) => {
+      calls.push(`settle:${id}`);
+    };
+    runtime.restAtHome = async (id) => {
+      calls.push(`home:${id}`);
+    };
+    const showrunner = new Showrunner({
+      store: wallStore,
+      runtime,
+      terrarium: storeTerrariumClient(terrariumStore),
+      think: async () => ({}),
+      flags: { ...FLAGS },
+    });
+    Object.assign(showrunner.names, castNames());
+    const marlowe = LAUNCH_CAST.find((m) => m.agent_id === "ag_marlowe") as CastMember;
+    await showrunner.spawn(marlowe);
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    // no driver: the drift cannot act, which is exactly the gap that
+    // used to march every idle browser back to its dark blog
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+    await new Promise((r) => setTimeout(r, 20)); // best-effort, not awaited
+    expect(calls).toEqual(["settle:ag_marlowe"]);
+    expect(calls).not.toContain("home:ag_marlowe");
+  });
+
+  it("paces the scripted cadence on beats lived, not on the capped memory list", async () => {
+    // the bug this pins: `beat` used to be memory.length + reading.length,
+    // and memory is capped at 12, so the publish modulus landed on
+    // whatever that cap happened to sum to rather than on a count of
+    // beats — a cadence that could fire on nearly every beat or never.
+    const publishAt = (beats: number) =>
+      scriptedThinker({
+        agent_id: "ag_marlowe",
+        name: "marlowe",
+        role: "slow blog",
+        locale: "en-GB",
+        tier: "ambient",
+        memory: Array.from({ length: 12 }, (_, i) => `m${i}`), // the cap
+        reading: [],
+        beats,
+        ttl_remaining_seconds: 1000,
+        inherited_fragments: [],
+      }).then((t) => t.act?.kind === "publish_post");
+
+    // a fresh blog earns its first entry, then roughly one beat in 13
+    expect(await publishAt(0)).toBe(true);
+    expect(await publishAt(13)).toBe(true);
+    for (const quiet of [1, 5, 7, 12, 14, 20]) {
+      expect({ beat: quiet, published: await publishAt(quiet) }).toEqual({
+        beat: quiet,
+        published: false,
+      });
+    }
+  });
+
+  it("drafts on camera once a day at the ceiling, not every beat until midnight", async () => {
+    const drafted: string[] = [];
+    const published: string[] = [];
+    const driver: ActDriver = {
+      busy: () => false,
+      openPage: async (_id, url) => ({ landed: url, detour: false }),
+      draftPost: async (_id, _tenant, title) => {
+        drafted.push(title);
+      },
+      publishPost: async (_id, _tenant, title) => {
+        published.push(title);
+        return { id: "p_1", url: "/t/marlowe/posts/p_1" };
+      },
+      replyComment: async () => undefined,
+    };
+    const showrunner = await spawnedShowrunner();
+    showrunner.driver = driver;
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    const write = (title: string) =>
+      (
+        showrunner as unknown as {
+          performAct: (a: unknown, act: unknown) => Promise<boolean>;
+        }
+      ).performAct(agent, { kind: "publish_post", title, body_md: "b" });
+
+    // marlowe's ceiling is one a day: the first publishes
+    expect(await write("one")).toBe(true);
+    expect(published).toEqual(["one"]);
+    // the second is blocked, and still drafts on camera — a day at the
+    // ceiling is still a day at work
+    expect(await write("two")).toBe(true);
+    expect(drafted).toEqual(["two"]);
+    // every later one is simply not the act: the cell goes reading
+    // instead of retyping into a form that will not submit
+    expect(await write("three")).toBe(false);
+    expect(await write("four")).toBe(false);
+    expect(drafted).toEqual(["two"]);
+    expect(published).toEqual(["one"]);
+    // and the record never implies a publish that did not happen
+    const acts = wallStore
+      .list({ kinds: ["action"], agentId: "ag_marlowe" })
+      .map((e) => (e.payload as PayloadFor<"action">).title);
+    expect(acts).toEqual(["one"]);
+  });
+
+  it("the compare impulse lays two of its own fronts side by side, distinct hosts", async () => {
+    const opened: string[] = [];
+    const showrunner = await spawnedShowrunner();
+    showrunner.driver = recordingDriver(opened);
+    const agent = showrunner.live.get("ag_marlowe");
+    if (!agent) throw new Error("no agent");
+    agent.drift_index = 11; // the compare slot
+    await (
+      showrunner as unknown as { driftWhileIdle: (a: unknown) => Promise<void> }
+    ).driftWhileIdle(agent);
+    expect(opened).toHaveLength(2);
+    const hosts = opened.map((u) => new URL(u).hostname);
+    expect(hosts[0]).not.toBe(hosts[1]);
+    expect(agent.memory.some((m) => m.includes("one after the other"))).toBe(true);
+  });
 });
 
 /** chromium for the live test: CHROME_PATH, a playwright browsers dir,
@@ -307,10 +723,12 @@ describe.skipIf(chromiumPath === null)("a real page's links reach the walk (real
       <a href="/login">login to the archive here</a>
       </body></html>`,
     "/wiki/motoori-norinaga": `<html><head><title>motoori norinaga</title></head><body>
-      <p>the scholar who named the feeling.</p>
+      <p>the scholar who named the feeling, and spent a life reading the classics for it.</p>
       <a href="/wiki/genji-monogatari">the tale of genji, his subject</a>
       </body></html>`,
-    "/wiki/genji-monogatari": `<html><head><title>genji</title></head><body><p>the novel itself.</p></body></html>`,
+    "/wiki/genji-monogatari": `<html><head><title>genji</title></head><body><p>the novel itself, a thousand pages of court life and weather and grief.</p></body></html>`,
+    // a page that answers 200 and paints nothing: as dead as a 404
+    "/wiki/blank-shell": `<html><head><title>shell</title></head><body></body></html>`,
   };
 
   beforeEach(async () => {
@@ -372,6 +790,125 @@ describe.skipIf(chromiumPath === null)("a real page's links reach the walk (real
       if (finalPath !== "/wiki/genji-monogatari") {
         expect(links.length).toBeGreaterThan(0);
       }
+    } finally {
+      await port.close();
+    }
+  }, 60_000);
+
+  it("settling idle freezes on the page just read, and only rescues a blank one", async () => {
+    const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    port.setHome(`${base}/`, () => `${base}/wiki/genji-monogatari`);
+    try {
+      await port.spawn({
+        agent_id: "ag_walker",
+        class: "minimal",
+        region: null,
+        locale: null,
+        ttl_seconds: 3600,
+      });
+      const driver = new BrowserDriver({
+        runtime: port,
+        baseUrl: base,
+        terrariumToken: "t",
+        paceScale: 0,
+        readingAllowlist: ["127.0.0.1"],
+        externalEnabled: true,
+      });
+      const pageOf = () =>
+        (
+          port as unknown as { byAgent: Map<string, { page: { url(): string; goto(u: string): Promise<unknown> } }> }
+        ).byAgent.get("ag_walker")?.page;
+
+      // the agent finishes a read, then goes idle: the browser stays on
+      // the page it was just on, which is what the wall should show
+      await driver.openPage("ag_walker", `${base}/wiki/mono-no-aware`, 0);
+      const afterRead = pageOf()?.url();
+      await port.settleIdle("ag_walker");
+      expect(pageOf()?.url()).toBe(afterRead);
+      expect(afterRead).toContain("/wiki/");
+      expect(afterRead).not.toContain("genji"); // not sent home
+
+      // but a browser with nothing real on screen is still rescued
+      await pageOf()?.goto("about:blank");
+      await port.settleIdle("ag_walker");
+      expect(pageOf()?.url()).toContain("/wiki/genji-monogatari");
+    } finally {
+      await port.close();
+    }
+  }, 60_000);
+
+  it("guards internal pages too, and never leaves the browser on a blank tab", async () => {
+    const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    // "home" for this identity is a page that paints: where a failed
+    // read must end up, instead of about:blank
+    port.setHome(`${base}/`, () => `${base}/wiki/genji-monogatari`);
+    try {
+      await port.spawn({
+        agent_id: "ag_walker",
+        class: "minimal",
+        region: null,
+        locale: null,
+        ttl_seconds: 3600,
+      });
+      const driver = new BrowserDriver({
+        runtime: port,
+        baseUrl: base,
+        terrariumToken: "t",
+        paceScale: 0,
+        readingAllowlist: ["127.0.0.1"],
+        externalEnabled: true,
+      });
+      // an internal path (the shape the peer read uses) that answers
+      // with a blank shell is refused exactly like a dead external link
+      await expect(driver.openPage("ag_walker", "/wiki/blank-shell", 0)).rejects.toThrow(
+        DeadPageError
+      );
+      // and the browser is left somewhere real: a white cell is the
+      // symptom the whole guard exists to prevent
+      const page = (port as unknown as { byAgent: Map<string, { page: { url(): string } }> }).byAgent.get(
+        "ag_walker"
+      )?.page;
+      expect(page?.url()).not.toBe("about:blank");
+      expect(page?.url()).toContain("/wiki/genji-monogatari");
+    } finally {
+      await port.close();
+    }
+  }, 60_000);
+
+  it("a 404, a blank render and a refused connection all read as dead pages", async () => {
+    const port = new LiveRuntimePort({ executablePath: chromiumPath as string });
+    port.setHome(`${base}/`);
+    try {
+      await port.spawn({
+        agent_id: "ag_walker",
+        class: "minimal",
+        region: null,
+        locale: null,
+        ttl_seconds: 3600,
+      });
+      const driver = new BrowserDriver({
+        runtime: port,
+        baseUrl: base,
+        terrariumToken: "t",
+        paceScale: 0,
+        readingAllowlist: ["127.0.0.1"],
+        externalEnabled: true,
+      });
+      // a 404: the server answers, but there is no page there
+      await expect(driver.openPage("ag_walker", `${base}/wiki/no-such-page`, 0)).rejects.toThrow(
+        DeadPageError
+      );
+      // a 200 that paints nothing: a white cell, refused before the dwell
+      await expect(driver.openPage("ag_walker", `${base}/wiki/blank-shell`, 0)).rejects.toThrow(
+        DeadPageError
+      );
+      // a refused connection: nothing is listening at all
+      await expect(
+        driver.openPage("ag_walker", "http://127.0.0.1:9/wiki/nowhere", 0)
+      ).rejects.toThrow(DeadPageError);
+      // and after all three corpses, a real page still reads normally
+      const alive = await driver.openPage("ag_walker", `${base}/wiki/genji-monogatari`, 0);
+      expect(alive.external?.title).toContain("genji");
     } finally {
       await port.close();
     }

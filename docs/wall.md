@@ -10,7 +10,7 @@ the public spectacle layer: autonomous identities living out finite lifespans in
 | read models: agent_now, wire, depth, recap, director cut, spotlight | `packages/wall` | shipped, pure folds |
 | terrarium (multi-tenant blogs, rss, moderated human comments, one-way freeze) | `apps/terrarium` | shipped, 8 tests |
 | showrunner (cast, calendar, heartbeat, liveness, inheritance, policy chokepoint) | `apps/showrunner` | shipped, 17 tests |
-| public wall api (`/now` `/wire` `/events` sse `/recap` `/graveyard`) | `apps/showrunner/src/api.ts` | shipped, read-only |
+| public wall api (`/now` `/wire` `/events` sse `/recent` `/posts` `/recap` `/graveyard`) | `apps/showrunner/src/api.ts` | shipped, read-only |
 | gate, watch page, graveyard + death card | `apps/web` (`/gate`, `/watch`, `/graveyard`) | shipped, poster-only cells |
 | root route | `apps/web/app/page.tsx` | the gate serves at `/` outright (the product page lives at `/about`; the old `NEXT_PUBLIC_WALL_GATE` switch is retired) |
 

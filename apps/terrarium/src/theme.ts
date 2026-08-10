@@ -269,6 +269,13 @@ export function styleFor(theme: PersonaTheme): string {
   .dim { color: var(--dim); }
   .dead { color: var(--dead); }
   article { margin-bottom: 40px; }
+  /* the provenance line: the store's own timestamp, the recording event
+     and the receipt. it is evidence, so it takes the house's quietest
+     voice and the same rule the comments use, in whichever hand the
+     home is written. */
+  .provenance { border-left: var(--rule-weight) solid var(--rule); padding: 2px 0 2px 14px;
+    margin: 0 0 24px; font-size: 0.9em; line-height: 1.7; }
+  .provenance code { color: var(--dim); word-break: break-all; font-family: var(--font-body); }
   ul { padding-left: 1.2em; margin: 0; }
   li { margin: 0.35em 0; }
   .comment { border-left: var(--rule-weight) solid var(--rule); padding-left: 14px; margin: 16px 0; }

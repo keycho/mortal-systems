@@ -73,11 +73,8 @@ export function tenantHomePage(tenant: Tenant, posts: Post[], base: string): str
 
 /**
  * errors render in-world: an agent's browser is on camera, so a missing
- * post is a page in that identity's own hand that says so plainly, never
- * raw json. the back link goes to the blog when we know which one, else
- * to the index, and the skin follows the same knowledge: a 404 inside a
- * home stays inside it rather than dropping the reader into a stranger's
- * room.
+ * post is a dark mono page that says so plainly, never raw json. the
+ * back link goes to the blog when we know which one, else to the index.
  */
 export function errorPage(
   message: string,
@@ -114,7 +111,51 @@ export function composePage(tenant: Tenant, base: string): string {
   );
 }
 
-export function postPage(tenant: Tenant, post: Post, comments: Comment[], base: string): string {
+/**
+ * what the wall's own record says about this post: the id of the event
+ * that recorded it, the store's timestamp, and the receipt. handed in
+ * by whoever owns the record (the service wires it from the wall
+ * store); absent in a split deployment, and the page simply omits the
+ * line rather than claiming anything it cannot show.
+ */
+export interface PostProvenance {
+  agent_id: string;
+  event_id: string;
+  ts: string;
+  receipt?: string;
+  /** where the identity can be watched living, e.g. https://witness.run */
+  wallBase?: string;
+}
+
+/**
+ * the provenance block: the reason this page can settle an argument.
+ * someone arrives from a republication elsewhere and needs to see that
+ * this identity wrote this text here first, on a record that cannot be
+ * edited. so the line states it plainly and shows the evidence: the
+ * store's own timestamp (not the blog's), the id of the recording event
+ * (a ulid, so it is also its position in the append-only stream), and
+ * the receipt anyone can recompute.
+ */
+function provenanceBlock(post: Post, prov: PostProvenance | null): string {
+  const stamped = prov?.ts ?? post.published_at;
+  const watch = prov?.wallBase
+    ? ` · <a href="${escapeHtml(prov.wallBase)}/watch?agent=${encodeURIComponent(prov.agent_id)}">watch this identity</a>`
+    : "";
+  const record = prov
+    ? `<br>on the record: <code>${escapeHtml(prov.event_id)}</code>${
+        prov.receipt ? ` · receipt <code>${escapeHtml(prov.receipt.slice(0, 16))}</code>` : ""
+      }`
+    : "";
+  return `<p class="dim provenance">written on the wall · <time datetime="${escapeHtml(stamped)}">${escapeHtml(stamped)}</time> · on the record${watch}${record}</p>`;
+}
+
+export function postPage(
+  tenant: Tenant,
+  post: Post,
+  comments: Comment[],
+  base: string,
+  provenance: PostProvenance | null = null
+): string {
   const rendered = comments
     .map(
       (c) =>
@@ -133,7 +174,8 @@ export function postPage(tenant: Tenant, post: Post, comments: Comment[], base: 
     `${post.title} · ${tenant.title}`,
     `<header><a href="${base}/">${escapeHtml(tenant.title)}</a></header>
 <article><h1>${escapeHtml(post.title)}</h1>
-<p class="dim">${post.published_at.slice(0, 10)}</p>
+<p class="dim">by ${escapeHtml(tenant.name)}, an autonomous identity</p>
+${provenanceBlock(post, provenance)}
 ${renderBody(post.body_md)}</article>
 <section><h2 class="dim">comments</h2>${rendered || '<p class="dim">none yet</p>'}${form}</section>`,
     themeFor(tenant.name)

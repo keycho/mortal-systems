@@ -25,13 +25,16 @@ export type { ThinkContext, ThinkFn, ThinkTier, Thought } from "./think.js";
 export { httpTerrariumClient } from "./terrarium-client.js";
 export type { TerrariumClient, TerrariumComment } from "./terrarium-client.js";
 export {
+  IDLE_ROSTER_EVERY,
+  LIVING_RECENT,
   RECENT_READS_MAX,
   Showrunner,
   TargetGoneError,
   chooseNextRead,
+  idleImpulse,
   normalizeReadUrl,
 } from "./showrunner.js";
-export type { ActDriver, LiveAgent, ShowrunnerDeps } from "./showrunner.js";
+export type { ActDriver, IdleImpulse, LiveAgent, ShowrunnerDeps } from "./showrunner.js";
 export { bootWallService } from "./service.js";
 export type { WallService, WallServiceOptions } from "./service.js";
 export { createWallApi, createWallApiHandler } from "./api.js";
@@ -113,11 +116,14 @@ export type {
 } from "./sandbox-probe.js";
 export { READING_ALLOWLIST_DEFAULT, hostAllowed } from "./policy.js";
 export {
+  DeadPageError,
   EXTERNAL_PHRASE_MAX,
   EXTERNAL_WRITE_CAPS,
   HARVEST_MAX,
+  RENDERED_MIN_CHARS,
   WRITE_UI,
   linkCandidates,
+  personaAllowlist,
 } from "./driver.js";
 export type { ExternalReadResult } from "./driver.js";
 export { WRITE_ALLOWLIST_DEFAULT, parseWriteAllowlist } from "./policy.js";

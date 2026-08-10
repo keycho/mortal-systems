@@ -8,6 +8,7 @@ import {
 } from "@mortal/wall";
 import type { CastMember } from "./cast.js";
 import { isAshSpawnSlot, isAsleep } from "./calendar.js";
+import { DeadPageError } from "./driver.js";
 import {
   NARRATION_INTERVAL_MS,
   NARRATION_LINE_TIMEOUT_MS,
@@ -22,6 +23,7 @@ import {
   PolicyViolation,
   checkAction,
   checkSponsorExtension,
+  hostAllowed,
   type PolicyFlags,
 } from "./policy.js";
 import type { RuntimePort } from "./runtime-port.js";
@@ -60,6 +62,11 @@ export interface LiveAgent {
   /** publishes today, and which day that is, for the cast's daily ceiling */
   posts_today: number;
   posts_today_date: string;
+  /** the day's on-camera draft has happened: a blocked publish drafts
+   * once, not every beat until midnight */
+  drafted_today: boolean;
+  /** beats lived this incarnation; paces the scripted thinker */
+  beats: number;
   /** how far through its idle rotation this identity has drifted */
   drift_index: number;
   /** the last external pages actually read, oldest first, capped: the
@@ -218,6 +225,8 @@ export class Showrunner {
       last_post_id: null,
       posts_today: 0,
       posts_today_date: "",
+      drafted_today: false,
+      beats: 0,
       monologues: [],
       recent_reads: [],
       page_links: [],
@@ -436,6 +445,11 @@ export class Showrunner {
         human_contacts: humanContacts,
         posts_today: postsToday,
         posts_today_date: today,
+        drafted_today: false,
+        // a resumed identity is not a fresh one: the first-beat entry is
+        // how a new blog earns its first post, and a restart must not
+        // hand out another
+        beats: 1,
         // a restart should not put every identity back on the same page
         drift_index: postCount,
         last_post_id: lastPostId,
@@ -509,6 +523,8 @@ export class Showrunner {
   ): Promise<Thought | null> {
     const dying = opts.occasion === "death";
     if (!dying) this.emitState(agent.agent_id, "waking");
+    const beats = agent.beats;
+    agent.beats += 1;
 
     // read: human comments since the cursor become human_contact events
     // and land in the reading list; agents earn their reactions
@@ -565,6 +581,7 @@ export class Showrunner {
       reading,
       recent_monologues: agent.monologues.slice(-3),
       idle_rotation: agent.member.idle_rotation ?? [],
+      beats,
       ...(memberWork
         ? {
             work: {
@@ -656,6 +673,7 @@ export class Showrunner {
     if (agent.posts_today_date !== today) {
       agent.posts_today_date = today;
       agent.posts_today = 0;
+      agent.drafted_today = false;
     }
     return agent.posts_today < ceiling;
   }
@@ -673,12 +691,20 @@ export class Showrunner {
         case "publish_post": {
           checkAction({ type: "post", platform: "terrarium" }, this.flags);
           if (!agent.tenant) return false;
-          this.emitState(agent.agent_id, "writing", act.title);
           // the daily ceiling is a publishing limit, not a writing one:
-          // the draft happens either way, at full length and on camera,
-          // and only the submit is withheld. an identity that has said
-          // its piece for the day is still an identity at work.
+          // the draft happens anyway, at full length and on camera, and
+          // only the submit is withheld. but it happens ONCE a day: an
+          // identity that spends every afternoon retyping into a form
+          // that will not submit is not a life at work, it is a cell
+          // stuck in the compose view. after the day's draft, a blocked
+          // publish is simply not the act, and the beat goes reading.
           if (!this.mayPublishToday(agent)) {
+            if (agent.drafted_today) {
+              agent.memory.push(`had more to say about "${act.title}"; the day's writing is done`);
+              return false;
+            }
+            agent.drafted_today = true;
+            this.emitState(agent.agent_id, "writing", act.title);
             const draft = (this.driver as ActDriver | null)?.draftPost;
             if (draft) {
               await this.actThroughDriver(
@@ -701,6 +727,7 @@ export class Showrunner {
             this.emitState(agent.agent_id, "writing", act.title);
             return true;
           }
+          this.emitState(agent.agent_id, "writing", act.title);
           const post = await this.actThroughDriver(
             agent.agent_id,
             () =>
@@ -845,10 +872,14 @@ export class Showrunner {
             let readInProgress = true;
             const opening = this.driver
               .openPage(agent.agent_id, act.url)
-              .catch((err: unknown) => {
-                console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
-                return null;
-              })
+              .then(
+                (landing) => landing as Awaited<ReturnType<ActDriver["openPage"]>> | { dead: DeadPageError },
+                (err: unknown) => {
+                  if (err instanceof DeadPageError) return { dead: err };
+                  console.error(`driver open_page degraded for ${agent.agent_id}: ${String(err)}`);
+                  return null;
+                }
+              )
               .finally(() => {
                 readInProgress = false;
               });
@@ -857,6 +888,20 @@ export class Showrunner {
             );
             const landing = await opening;
             await narrated;
+            if (landing && "dead" in landing) {
+              // the page never became a page (dead link, http error,
+              // blank render): no opened_page event, because the record
+              // must not claim a read that did not happen. the corpse
+              // joins recent reads so the walk avoids it, and the state
+              // says honestly why the cell is not dwelling there.
+              agent.recent_reads.push(act.url);
+              if (agent.recent_reads.length > RECENT_READS_MAX) {
+                agent.recent_reads.splice(0, agent.recent_reads.length - RECENT_READS_MAX);
+              }
+              agent.memory.push(`went to read ${act.title}; the page would not load`);
+              this.emitState(agent.agent_id, "idle", "the page would not load");
+              return false;
+            }
             if (landing?.detour) {
               // the link was gone; the record says where the reader
               // actually ended up, never where they meant to go
@@ -1135,16 +1180,23 @@ export class Showrunner {
   // ---- helpers ----
 
   /**
-   * an identity at rest sits on its own blog. the terrarium's lobby is a
-   * directory, and a cell showing a directory tells a viewer nothing
-   * about the life in it; the same cell showing that identity's own
-   * published writing is the show. best-effort and never awaited: where
-   * a browser rests must not be able to hold up a beat.
+   * an identity at rest stays on the page it was last reading. the gap
+   * between finishing one page and choosing the next is a few seconds
+   * of thinking, not an absence, and the browser frozen on real ground
+   * is what those seconds actually look like. sending it home instead
+   * made a working wall look like a dead one, six cells at a time.
+   *
+   * the runtime falls back to the identity's own blog only when there
+   * is nothing real on screen. best-effort and never awaited: where a
+   * browser rests must not be able to hold up a beat.
    */
-  private restAtOwnBlog(agentId: string): void {
-    // (see driftWhileIdle: this is the fallback, not the resting place)
-    const runtime = this.runtime as { restAtHome?: (id: string) => Promise<void> };
-    void runtime.restAtHome?.(agentId).catch(() => undefined);
+  private restWhereItIs(agentId: string): void {
+    const runtime = this.runtime as {
+      settleIdle?: (id: string) => Promise<void>;
+      restAtHome?: (id: string) => Promise<void>;
+    };
+    const settle = runtime.settleIdle ?? runtime.restAtHome;
+    void settle?.call(runtime, agentId).catch(() => undefined);
   }
 
   /**
@@ -1171,18 +1223,34 @@ export class Showrunner {
     // drift
     if (!this.live.has(agent.agent_id)) return;
     if (!this.driver) {
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
+    // the idle roster: the walk is the default and stays the default
+    // (five drifts in six), punctuated by a different legible act —
+    // going back to a living page to see what moved, laying two of its
+    // own fronts side by side, or reading another identity's latest
+    // entry. deterministic on drift_index so the balance is testable,
+    // and each impulse falls back to the walk when its precondition is
+    // missing, so a thin moment still ends out on a page.
+    const impulse = idleImpulse(agent.drift_index);
+    if (impulse === "revisit" && (await this.revisitLivingPage(agent))) return;
+    if (impulse === "compare" && (await this.compareFronts(agent))) return;
+    if (impulse === "peer" && (await this.readPeerEntry(agent))) return;
     const next = chooseNextRead({
       pageLinks: agent.page_links,
       rotation: agent.member.idle_rotation ?? [],
       recentReads: agent.recent_reads,
       driftIndex: agent.drift_index,
+      // the persona border, applied again at the decision: even a stale
+      // harvest from before a cast change cannot walk this identity
+      // into another's language
+      allowedHosts: agent.member.reading_domains,
+      livingPages: agent.member.living_pages,
     });
     agent.drift_index += 1;
     if (!next) {
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
     try {
@@ -1191,13 +1259,161 @@ export class Showrunner {
       // external reading is off, or this url is not on the list. the
       // refusal is not news -- the scheduler's real reads already
       // surface it -- so the agent simply stays home.
-      this.restAtOwnBlog(agent.agent_id);
+      this.restWhereItIs(agent.agent_id);
       return;
     }
     const title = titleFromUrl(next.url);
-    await this.performAct(agent, { kind: "open_page", url: next.url, title }).catch(() =>
-      this.restAtOwnBlog(agent.agent_id)
+    const acted = await this.performAct(agent, { kind: "open_page", url: next.url, title }).catch(
+      () => false
     );
+    if (acted) return;
+    // the page was dead (or the act degraded): one more try somewhere
+    // else, rather than a cell sitting on a page that is not there. the
+    // dead url just joined recent reads, so the walk will not choose it
+    // again; a second failure rests at home.
+    if (!this.live.has(agent.agent_id)) return;
+    const retry = chooseNextRead({
+      pageLinks: agent.page_links,
+      rotation: agent.member.idle_rotation ?? [],
+      recentReads: agent.recent_reads,
+      driftIndex: agent.drift_index,
+      allowedHosts: agent.member.reading_domains,
+      livingPages: agent.member.living_pages,
+    });
+    agent.drift_index += 1;
+    if (!retry || normalizeReadUrl(retry.url) === normalizeReadUrl(next.url)) {
+      this.restWhereItIs(agent.agent_id);
+      return;
+    }
+    // (the retry keeps the same borders as the first choice)
+    try {
+      checkAction({ type: "browse", url: retry.url }, this.flags);
+    } catch {
+      this.restWhereItIs(agent.agent_id);
+      return;
+    }
+    const secondActed = await this.performAct(agent, {
+      kind: "open_page",
+      url: retry.url,
+      title: titleFromUrl(retry.url),
+    }).catch(() => false);
+    if (!secondActed) this.restWhereItIs(agent.agent_id);
+  }
+
+  /**
+   * the revisit impulse: go back to a living page (a front, a news
+   * page) it has already seen, to see what moved. picks the one seen
+   * longest ago, never one just read; a page never seen at all is the
+   * walk's business, not a revisit. false when there is nothing to
+   * return to, and the drift falls through to the walk.
+   */
+  private async revisitLivingPage(agent: LiveAgent): Promise<boolean> {
+    const livingPages = agent.member.living_pages ?? [];
+    if (livingPages.length === 0) return false;
+    const recent = agent.recent_reads.map(normalizeReadUrl);
+    let pick: string | null = null;
+    let pickRank = Number.POSITIVE_INFINITY;
+    for (const url of livingPages) {
+      const rank = recent.lastIndexOf(normalizeReadUrl(url));
+      if (rank === -1) continue;
+      if (rank >= recent.length - LIVING_RECENT) continue;
+      if (rank < pickRank) {
+        pickRank = rank;
+        pick = url;
+      }
+    }
+    if (!pick) return false;
+    try {
+      checkAction({ type: "browse", url: pick }, this.flags);
+    } catch {
+      return false;
+    }
+    agent.drift_index += 1;
+    const acted = await this.performAct(agent, {
+      kind: "open_page",
+      url: pick,
+      title: titleFromUrl(pick),
+    }).catch(() => false);
+    if (acted) agent.memory.push(`went back to ${titleFromUrl(pick)} to see what moved`);
+    return acted;
+  }
+
+  /**
+   * the peer impulse: read another living identity's latest entry, on
+   * camera, on the terrarium's own ground. the post id rides into the
+   * next thought's material so a reply can actually land. relationships
+   * here are made of acts on the record, and this is the act.
+   */
+  private async readPeerEntry(agent: LiveAgent): Promise<boolean> {
+    const peers = [...this.live.values()]
+      .filter((p) => p.agent_id !== agent.agent_id && p.tenant && p.last_post_id)
+      .sort((a, b) => a.agent_id.localeCompare(b.agent_id));
+    if (peers.length === 0) return false;
+    const peer = peers[Math.floor(agent.drift_index / 5) % peers.length] as LiveAgent;
+    agent.drift_index += 1;
+    const name = this.names[peer.agent_id] ?? peer.member.name;
+    const acted = await this.performAct(agent, {
+      kind: "open_page",
+      url: `/t/${peer.tenant}/posts/${peer.last_post_id}`,
+      title: `${name}'s latest entry`,
+    }).catch(() => false);
+    if (acted) {
+      agent.reading.push(`read ${name}'s latest entry (post ${peer.last_post_id})`);
+    }
+    return acted;
+  }
+
+  /**
+   * the compare impulse: two of the persona's own corners, different
+   * hosts, one after the other — the fronts first, since those are the
+   * pages where the day actually differs. each read is its own legible
+   * act on the record; the pairing lives in the identity's memory.
+   */
+  private async compareFronts(agent: LiveAgent): Promise<boolean> {
+    const rotation = agent.member.idle_rotation ?? [];
+    const livingPages = agent.member.living_pages ?? [];
+    const ordered = [...livingPages, ...rotation.filter((u) => !livingPages.includes(u))];
+    const justRead = agent.recent_reads.slice(-LIVING_RECENT).map(normalizeReadUrl);
+    const picks: string[] = [];
+    const hosts = new Set<string>();
+    for (const url of ordered) {
+      let host: string;
+      try {
+        host = new URL(url).hostname;
+      } catch {
+        continue;
+      }
+      if (hosts.has(host)) continue;
+      if (justRead.includes(normalizeReadUrl(url))) continue;
+      try {
+        checkAction({ type: "browse", url }, this.flags);
+      } catch {
+        continue;
+      }
+      picks.push(url);
+      hosts.add(host);
+      if (picks.length === 2) break;
+    }
+    if (picks.length < 2) return false;
+    agent.drift_index += 1;
+    const [first, second] = picks as [string, string];
+    const readFirst = await this.performAct(agent, {
+      kind: "open_page",
+      url: first,
+      title: titleFromUrl(first),
+    }).catch(() => false);
+    if (!this.live.has(agent.agent_id)) return readFirst;
+    const readSecond = await this.performAct(agent, {
+      kind: "open_page",
+      url: second,
+      title: titleFromUrl(second),
+    }).catch(() => false);
+    if (readFirst && readSecond) {
+      agent.memory.push(
+        `read ${new URL(first).hostname} beside ${new URL(second).hostname}, one after the other`
+      );
+    }
+    return readFirst || readSecond;
   }
 
   private emitState(agentId: string, state: string, detail?: string): void {
@@ -1225,6 +1441,37 @@ export class Showrunner {
  * is nearly always the right words. */
 /** how many reads back the walk refuses to retrace */
 export const RECENT_READS_MAX = 12;
+
+/** a living page (a front, a news page) is new again soon: only this
+ * many most-recent reads suppress it, against RECENT_READS_MAX for a
+ * static article, because its content moves under the reader */
+export const LIVING_RECENT = 2;
+
+/**
+ * how many drifts pass between punctuation acts. the wall's default
+ * visible state is an identity out on a real page, so the roster is
+ * the exception that proves it: five walks, then one of the other
+ * acts. punctuation that happens every other beat is not punctuation,
+ * it is the sentence.
+ */
+export const IDLE_ROSTER_EVERY = 6;
+
+/** the punctuation, in the order it comes round. the peer read is the
+ * one act that lands on the terrarium rather than the open web, so it
+ * takes a single slot per turn of the roster (one drift in 24): a
+ * visit, not a habit. */
+const PUNCTUATION = ["revisit", "compare", "revisit", "peer"] as const;
+
+export type IdleImpulse = "walk" | (typeof PUNCTUATION)[number];
+
+/** what this drift is: the walk, or the rare act that punctuates it.
+ * pure and deterministic on the drift index, so the balance between
+ * browsing and everything else is a fact a test can hold. */
+export function idleImpulse(driftIndex: number): IdleImpulse {
+  if (driftIndex % IDLE_ROSTER_EVERY !== IDLE_ROSTER_EVERY - 1) return "walk";
+  const turn = Math.floor(driftIndex / IDLE_ROSTER_EVERY) % PUNCTUATION.length;
+  return PUNCTUATION[turn] as IdleImpulse;
+}
 
 /**
  * urls meet in one shape before they are compared: fragment gone,
@@ -1257,22 +1504,46 @@ export function chooseNextRead(opts: {
   rotation: string[];
   recentReads: string[];
   driftIndex: number;
+  /** the persona's own hosts; a link elsewhere is not this walk's to
+   * take, whatever a stale harvest or an old memory offers */
+  allowedHosts?: string[];
+  /** pages that change under the reader (fronts, news): suppressed only
+   * for the last LIVING_RECENT reads instead of the full window */
+  livingPages?: string[];
 }): { url: string; via: "link" | "seed" | "stale" } | null {
+  const inWorld = (url: string): boolean => {
+    if (!opts.allowedHosts || opts.allowedHosts.length === 0) return true;
+    try {
+      return hostAllowed(new URL(url).hostname, opts.allowedHosts);
+    } catch {
+      return false;
+    }
+  };
+  const pageLinks = opts.pageLinks.filter(inWorld);
+  const rotation = opts.rotation.filter(inWorld);
   const recent = opts.recentReads.map(normalizeReadUrl);
-  const isRecent = (url: string): boolean => recent.includes(normalizeReadUrl(url));
+  const living = new Set((opts.livingPages ?? []).map(normalizeReadUrl));
+  const isRecent = (url: string): boolean => {
+    const n = normalizeReadUrl(url);
+    const rank = recent.lastIndexOf(n);
+    if (rank === -1) return false;
+    // a front read an hour ago is new again; an article is read
+    if (living.has(n)) return rank >= recent.length - LIVING_RECENT;
+    return true;
+  };
 
-  const freshLinks = opts.pageLinks.filter((url) => !isRecent(url));
+  const freshLinks = pageLinks.filter((url) => !isRecent(url));
   if (freshLinks.length > 0) {
     return { url: freshLinks[opts.driftIndex % freshLinks.length] as string, via: "link" };
   }
-  const freshSeeds = opts.rotation.filter((url) => !isRecent(url));
+  const freshSeeds = rotation.filter((url) => !isRecent(url));
   if (freshSeeds.length > 0) {
     return { url: freshSeeds[opts.driftIndex % freshSeeds.length] as string, via: "seed" };
   }
   // everything nearby has been read lately: go back to the page read
   // longest ago (recent_reads is oldest first), so even the return leg
   // is the longest loop available, never a ping-pong
-  const everything = [...opts.pageLinks, ...opts.rotation];
+  const everything = [...pageLinks, ...rotation];
   if (everything.length === 0) return null;
   let stalest: string | null = null;
   let stalestRank = Number.POSITIVE_INFINITY;

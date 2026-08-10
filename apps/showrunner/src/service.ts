@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { WallStore } from "@mortal/wall";
+import { WallStore, publishedPosts } from "@mortal/wall";
 import {
   TerrariumStore,
   createTerrariumHandler,
@@ -222,6 +222,23 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
     adminToken: terrariumToken,
     baseHost: env.TERRARIUM_BASE_HOST,
     publicBase: env.TERRARIUM_PUBLIC_BASE,
+    // the blog holds the writing; the wall store holds the evidence that
+    // this identity wrote it here, at this moment, on a stream nothing
+    // can edit. a post page that a reader reaches from a republication
+    // elsewhere is exactly where that evidence belongs, so the record
+    // is looked up by post id and rendered beside the text.
+    provenance: (postId) => {
+      const posts = publishedPosts(wallStore.list({ publicOnly: true }));
+      const found = posts.find((p) => p.url.endsWith(`/posts/${postId}`));
+      if (!found) return null;
+      return {
+        agent_id: found.agent_id,
+        event_id: found.event_id,
+        ts: found.ts,
+        ...(found.receipt ? { receipt: found.receipt } : {}),
+        wallBase: env.WALL_SITE_BASE ?? "https://mortal.systems",
+      };
+    },
   };
   const terrariumHandler = createTerrariumHandler(terrariumOpts);
   let director: StreamDirector | null = null;
@@ -320,6 +337,15 @@ export async function bootWallService(opts: WallServiceOptions): Promise<WallSer
       baseUrl: `http://127.0.0.1:${port}`,
       terrariumToken,
       readingAllowlist: flags.readingAllowlist ?? [],
+      // each identity reads inside its own linguistic world: the live
+      // member's domains when it is on the wall, the base member's when
+      // a serial id (ag_ash_2) asks before its live entry lands
+      readingDomainsFor: (agentId) => {
+        const live = showrunner.live.get(agentId)?.member.reading_domains;
+        if (live) return live;
+        const base = agentId.replace(/_\d+$/, "");
+        return cast.find((m) => m.agent_id === base)?.reading_domains ?? null;
+      },
       externalEnabled: flags.externalBrowsing ?? false,
     });
   }

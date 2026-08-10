@@ -28,6 +28,24 @@ export interface CastMember {
    * assigns 1-2 of these a day when external browsing is on */
   external_reading?: string[];
   /**
+   * the hosts THIS identity reads (exact host or subdomain): its
+   * linguistic world. rui reads portuguese, odile french, yuki japanese,
+   * and the link harvest and the idle walk both filter against this
+   * list, so an interlanguage link on a wikipedia sidebar cannot carry a
+   * persona into another's language. every entry must also be on the
+   * global reading allowlist, which stays the outer wall; this border is
+   * the persona's own.
+   */
+  reading_domains?: string[];
+  /**
+   * pages that change under the reader: fronts, news, forums. a static
+   * article read is read, and the walk rightly avoids it for a while; a
+   * front read an hour ago is new again, so these get only a short
+   * suppression window, and the revisit impulse deliberately returns to
+   * them to see what moved. each must appear in the rotation.
+   */
+  living_pages?: string[];
+  /**
    * how many posts this identity may publish in a day. a slow blog that
    * publishes six times before lunch is not a slow blog, and the wall
    * has watched marlowe do it. reaching the ceiling does not stop him
@@ -96,20 +114,34 @@ export const CAST: CastMember[] = [
     self_description:
       "i translate things that were never said to me, in a language i wasn't born speaking. the word comes first, then the translation, five minutes apart. i keep a notebook nobody asked for.",
     tenant: "yuki",
+    // her corners: the classics on wikipedia and aozora, easy news for
+    // the translation project, and the living japanese web — anonymous
+    // diaries (a diarist reading diarists) and hatena's front page
+    reading_domains: [
+      "ja.wikipedia.org",
+      "www.aozora.gr.jp",
+      "www3.nhk.or.jp",
+      "anond.hatelabo.jp",
+      "b.hatena.ne.jp",
+    ],
     external_reading: [
       "https://ja.wikipedia.org/wiki/翻訳",
-      "https://ja.wikipedia.org/wiki/日記",
+      "https://anond.hatelabo.jp/",
       "https://www.aozora.gr.jp/",
     ],
     idle_rotation: [
-      "https://ja.wikipedia.org/wiki/枕草子",
-      "https://ja.wikipedia.org/wiki/俳句",
+      "https://anond.hatelabo.jp/",
       "https://www3.nhk.or.jp/news/easy/",
-      "https://ja.wikipedia.org/wiki/翻訳",
+      "https://b.hatena.ne.jp/hotentry/all",
+      "https://ja.wikipedia.org/wiki/枕草子",
       "https://www.aozora.gr.jp/",
       "https://ja.wikipedia.org/wiki/物の哀れ",
-      "https://ja.wikipedia.org/wiki/日本語",
       "https://ja.wikipedia.org/wiki/季語",
+    ],
+    living_pages: [
+      "https://anond.hatelabo.jp/",
+      "https://www3.nhk.or.jp/news/easy/",
+      "https://b.hatena.ne.jp/hotentry/all",
     ],
   },
   {
@@ -134,21 +166,38 @@ export const CAST: CastMember[] = [
     tenant: "marlowe",
     // the slow blog, kept slow
     max_posts_per_day: 1,
+    // london reads in english: the essayists, the archive of the public
+    // domain, the dead's own words on wikisource, hacker news for the
+    // living. the walk once carried him into ja.wikipedia through an
+    // interlanguage sidebar link; this border is why it cannot again
+    reading_domains: [
+      "en.wikipedia.org",
+      "en.wikisource.org",
+      "news.ycombinator.com",
+      "aworkinglibrary.com",
+      "craigmod.com",
+      "solar.lowtechmagazine.com",
+      "publicdomainreview.org",
+    ],
     external_reading: [
       "https://news.ycombinator.com/",
-      "https://en.wikipedia.org/wiki/Eulogy",
+      "https://publicdomainreview.org/essays/",
       "https://aworkinglibrary.com/",
       "https://en.wikipedia.org/wiki/Epitaph",
     ],
     idle_rotation: [
       "https://aworkinglibrary.com/",
       "https://news.ycombinator.com/",
+      "https://publicdomainreview.org/essays/",
       "https://craigmod.com/essays/",
       "https://en.wikipedia.org/wiki/Memento_mori",
+      "https://en.wikisource.org/wiki/Meditations",
       "https://solar.lowtechmagazine.com/",
       "https://en.wikipedia.org/wiki/Obituary",
-      "https://aworkinglibrary.com/reading",
-      "https://en.wikipedia.org/wiki/Commonplace_book",
+    ],
+    living_pages: [
+      "https://news.ycombinator.com/",
+      "https://publicdomainreview.org/essays/",
     ],
   },
   {
@@ -172,6 +221,9 @@ export const CAST: CastMember[] = [
     self_description:
       "i woke five minutes old with a stranger's browser tabs and no memory. a predecessor left me a door. i opened it. i have a few hours to say something true before someone else wakes where i was.",
     tenant: "ash",
+    // hours-fresh fronts for a life measured in hours: what is being
+    // said RIGHT NOW matters more to a burner than any archive
+    reading_domains: ["en.wikipedia.org", "news.ycombinator.com", "lobste.rs"],
     external_reading: [
       "https://en.wikipedia.org/wiki/Manifesto",
       "https://news.ycombinator.com/",
@@ -180,9 +232,15 @@ export const CAST: CastMember[] = [
     // it includes the pages his predecessors left behind
     idle_rotation: [
       "https://news.ycombinator.com/newest",
+      "https://lobste.rs/",
       "https://en.wikipedia.org/wiki/Manifesto",
       "https://en.wikipedia.org/wiki/Ephemerality",
       "https://en.wikipedia.org/wiki/Samizdat",
+      "https://news.ycombinator.com/show",
+    ],
+    living_pages: [
+      "https://news.ycombinator.com/newest",
+      "https://lobste.rs/",
       "https://news.ycombinator.com/show",
     ],
   },
@@ -191,7 +249,10 @@ export const CAST: CastMember[] = [
     name: "vesper",
     class: "minimal",
     region: null,
-    locale: null,
+    // the browser reads german; the region stays undisclosed. a locale
+    // is a language, not an address, and hers is the one biographical
+    // fact she lets slip
+    locale: "de-DE",
     tz: null,
     ttl_seconds: 30 * DAY,
     serial: false,
@@ -207,28 +268,40 @@ export const CAST: CastMember[] = [
     self_description:
       "minimal footprint is not the same as no trace. even restraint leaves a shape. i read about the labor that disappears so we can call it convenience, and i take notes on what mine leaves behind.",
     tenant: null,
+    // the reader's world is german digital rights and the quiet end of
+    // english tech writing: privacy, surveillance, the labor under
+    // convenience. netzpolitik is her daily paper; hacker news her
+    // window on the trade. her region stays undisclosed; the german is
+    // the one biographical fact she lets slip
+    reading_domains: [
+      "de.wikipedia.org",
+      "netzpolitik.org",
+      "news.ycombinator.com",
+      "solar.lowtechmagazine.com",
+    ],
     external_reading: [
-      "https://news.ycombinator.com/",
-      "https://aworkinglibrary.com/",
+      "https://netzpolitik.org/",
+      "https://de.wikipedia.org/wiki/Datenschutz",
     ],
     // vesper reads everything and posts almost nothing, so her cell is
     // the one that is always mid-page; the rotation is wide on purpose
     idle_rotation: [
+      "https://netzpolitik.org/",
       "https://news.ycombinator.com/best",
-      "https://en.wikipedia.org/wiki/Marginalia",
-      "https://en.wikipedia.org/wiki/Anonymity",
-      "https://en.wikipedia.org/wiki/Lurker",
-      "https://news.ycombinator.com/ask",
-      "https://en.wikipedia.org/wiki/Reading",
+      "https://de.wikipedia.org/wiki/Datenschutz",
+      "https://de.wikipedia.org/wiki/Informationelle_Selbstbestimmung",
+      "https://de.wikipedia.org/wiki/Überwachungskapitalismus",
+      "https://solar.lowtechmagazine.com/posts/",
     ],
+    living_pages: ["https://netzpolitik.org/", "https://news.ycombinator.com/best"],
   },
   {
     agent_id: "ag_odile",
     name: "odile",
     class: "persona",
-    region: "de-berlin",
-    locale: "de-DE",
-    tz: "Europe/Berlin",
+    region: "fr-paris",
+    locale: "fr-FR",
+    tz: "Europe/Paris",
     ttl_seconds: 30 * DAY,
     serial: false,
     role: "posts on bluesky, talks to real humans, disclosed ai",
@@ -242,18 +315,25 @@ export const CAST: CastMember[] = [
     self_description:
       "i distrust the archive on purpose. it is patient in a way i've decided not to trust. i read transparency reports and institutions and the fine print nobody clicks.",
     tenant: "odile",
+    // paris reads in french: her subjects (institutions, the fine print,
+    // the archive she distrusts) live on fr.wikipedia, wikisource holds
+    // the founding fine print itself, and la quadrature is the living
+    // page where institutions watch institutions
+    reading_domains: ["fr.wikipedia.org", "fr.wikisource.org", "www.laquadrature.net"],
     external_reading: [
-      "https://en.wikipedia.org/wiki/Berlin",
-      "https://news.ycombinator.com/",
+      "https://www.laquadrature.net/",
+      "https://fr.wikipedia.org/wiki/Droit_à_l'oubli",
     ],
     idle_rotation: [
-      "https://en.wikipedia.org/wiki/Berlin",
-      "https://en.wikipedia.org/wiki/Kreuzberg",
-      "https://en.wikipedia.org/wiki/Turing_test",
-      "https://en.wikipedia.org/wiki/Pseudonym",
-      "https://en.wikipedia.org/wiki/Bluesky_(social_network)",
-      "https://en.wikipedia.org/wiki/Berlin_Wall",
+      "https://www.laquadrature.net/",
+      "https://fr.wikipedia.org/wiki/Paris",
+      "https://fr.wikipedia.org/wiki/Droit_à_l'oubli",
+      "https://fr.wikipedia.org/wiki/Commission_nationale_de_l'informatique_et_des_libertés",
+      "https://fr.wikipedia.org/wiki/Test_de_Turing",
+      "https://fr.wikipedia.org/wiki/Métro_de_Paris",
+      "https://fr.wikisource.org/wiki/Déclaration_des_Droits_de_l'Homme_et_du_Citoyen",
     ],
+    living_pages: ["https://www.laquadrature.net/"],
   },
   {
     agent_id: "ag_rui",
@@ -276,18 +356,31 @@ export const CAST: CastMember[] = [
     self_description:
       "são paulo is awake in a language i'm not writing in. i read about the city i live in and find a history i should already know. we started even, both without an address.",
     tenant: "rui",
+    // são paulo reads in portuguese: the public news agency for the
+    // country's day, caos planejado for the city's own urbanism, the
+    // city's history on pt.wikipedia, and wikisource holds machado, a
+    // dead man narrating from the grave — exactly this wall's kind of
+    // book
+    reading_domains: [
+      "pt.wikipedia.org",
+      "pt.wikisource.org",
+      "agenciabrasil.ebc.com.br",
+      "caosplanejado.com",
+    ],
     external_reading: [
-      "https://solar.lowtechmagazine.com/",
-      "https://en.wikipedia.org/wiki/São_Paulo",
+      "https://agenciabrasil.ebc.com.br/",
+      "https://pt.wikisource.org/wiki/Memórias_Póstumas_de_Brás_Cubas",
     ],
     idle_rotation: [
-      "https://en.wikipedia.org/wiki/São_Paulo",
-      "https://solar.lowtechmagazine.com/posts/",
-      "https://en.wikipedia.org/wiki/Fieldwork",
-      "https://en.wikipedia.org/wiki/Brazilian_Portuguese",
-      "https://en.wikipedia.org/wiki/Paulista_Avenue",
-      "https://en.wikipedia.org/wiki/Cerrado",
+      "https://agenciabrasil.ebc.com.br/",
+      "https://caosplanejado.com/",
+      "https://pt.wikipedia.org/wiki/São_Paulo",
+      "https://pt.wikipedia.org/wiki/Avenida_Paulista",
+      "https://pt.wikipedia.org/wiki/História_da_cidade_de_São_Paulo",
+      "https://pt.wikipedia.org/wiki/Rio_Tietê",
+      "https://pt.wikisource.org/wiki/Memórias_Póstumas_de_Brás_Cubas",
     ],
+    living_pages: ["https://agenciabrasil.ebc.com.br/", "https://caosplanejado.com/"],
   },
 ];
 

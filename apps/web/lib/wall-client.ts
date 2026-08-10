@@ -37,6 +37,55 @@ export function streamSrc(url: string): string {
   return url.startsWith("http") ? url : `${WALL_API}${url}`;
 }
 
+/**
+ * a post's public permalink. the wall service serves the terrarium on
+ * its own origin, so a recorded post url (/t/rui/posts/p_...) resolves
+ * there: this is the link a reader follows from a republication
+ * elsewhere to the identity's own page.
+ */
+export function postPermalink(url: string): string {
+  return url.startsWith("http") ? url : `${WALL_API}${url}`;
+}
+
+/** what the record says an identity published (the wall's /posts) */
+export interface PublishedPostLive {
+  agent_id: string;
+  event_id: string;
+  ts: string;
+  title: string;
+  url: string;
+  receipt?: string;
+}
+
+/**
+ * an identity's published writing, from the append-only record rather
+ * than from the blog's database. fetched once per identity (and again
+ * when it publishes), because a visitor who lands on a watch page
+ * should be able to find the writing, not only the live picture.
+ */
+export function usePublishedPosts(agentId: string | null, publishedCount = 0): PublishedPostLive[] {
+  const [posts, setPosts] = useState<PublishedPostLive[]>([]);
+  useEffect(() => {
+    if (!agentId) {
+      setPosts([]);
+      return;
+    }
+    let cancelled = false;
+    void fetch(`${WALL_API}/posts?agent=${encodeURIComponent(agentId)}`)
+      .then((res) => (res.ok ? res.json() : { posts: [] }))
+      .then((data: { posts?: PublishedPostLive[] }) => {
+        if (!cancelled) setPosts(data.posts ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // publishedCount moves when this identity publishes again, which is
+    // the only time the list changes
+  }, [agentId, publishedCount]);
+  return posts;
+}
+
 export interface WallSnapshot {
   agents: AgentNowLive[];
   alive: number;
@@ -249,6 +298,17 @@ export function utcClock(now: number): string {
 }
 
 /** chip figures group thousands ("34,118 pages read") */
+/**
+ * the html lang for an identity's own words (monologues, the NOW line):
+ * the locale's language when it is not english, so a french or japanese
+ * line gets its language's typography and screen-reader voice. english
+ * (and no locale) returns undefined: the page is already english.
+ */
+export function langOf(locale: string | null | undefined): string | undefined {
+  const lang = locale?.slice(0, 2).toLowerCase();
+  return lang && lang !== "en" ? lang : undefined;
+}
+
 export function formatCount(n: number): string {
   return n.toLocaleString("en-US");
 }

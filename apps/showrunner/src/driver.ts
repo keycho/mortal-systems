@@ -28,6 +28,11 @@ export interface DriverOptions {
   /** tier-1: external domains agents may read. empty or absent means the
    * driver refuses every external url, sandbox or not. */
   readingAllowlist?: string[];
+  /** the persona's own hosts, by agent id (serial ids resolve to their
+   * base member). when present, a read's effective allowlist is this
+   * list intersected with the global one, so each identity stays in its
+   * own linguistic world; absent means the global list alone governs. */
+  readingDomainsFor?: (agentId: string) => string[] | null | undefined;
   /** flipped true only when the boot sandbox probe passed */
   externalEnabled?: boolean;
 }
@@ -40,6 +45,31 @@ const FORBIDDEN_LINK =
 /** the one short phrase an external page may contribute to an agent's
  * material; anything longer starts to be the page speaking */
 export const EXTERNAL_PHRASE_MAX = 90;
+
+/** a page that painted fewer visible characters than this never loaded
+ * in any sense a reader would recognize; a real article has hundreds */
+export const RENDERED_MIN_CHARS = 40;
+
+/** how long a page gets to put words on the screen before it counts as
+ * blank. slow is not dead: a page still painting at 2s is a page, and
+ * only one that never paints inside this budget is skipped. */
+export const PAINT_BUDGET_MS = 8_000;
+
+/**
+ * a navigation that never became a page: refused connection, http
+ * error, or a load that painted nothing. the showrunner treats this as
+ * "skip and read something else", never as a read: an agent must not
+ * sit on camera dwelling on a white page, and the record must not
+ * claim a read that did not happen.
+ */
+export class DeadPageError extends Error {
+  readonly url: string;
+  constructor(url: string, reason: string) {
+    super(`page would not load: ${url} (${reason})`);
+    this.name = "DeadPageError";
+    this.url = url;
+  }
+}
 
 /** how many onward links a page may offer the wander; enough to give a
  * path real choices, few enough that a link farm contributes noise, not
@@ -59,15 +89,31 @@ export interface ExternalReadResult {
 }
 
 /**
+ * a persona's effective reading ground: its own hosts intersected with
+ * the global allowlist, so the persona border can only ever narrow the
+ * outer wall, never widen it. no own list means the global list governs
+ * alone. pure, so the interlanguage rule is testable without a browser.
+ */
+export function personaAllowlist(
+  own: string[] | null | undefined,
+  global: string[]
+): string[] {
+  if (!own || own.length === 0) return global;
+  return own.filter((domain) => hostAllowed(domain, global));
+}
+
+/**
  * which harvested anchors count as places a reader would go next. pure
  * and node-side (the page only reports raw {href, text} pairs), so the
  * wander's edge of the allowlist is testable without a browser:
  * http(s) only, allowlisted host only, real link text, none of the
  * forbidden surfaces (login/subscribe/checkout), no self-links, and on
- * wikipedia hosts only mainspace articles (/wiki/ with no namespace
- * colon, which also excludes 特別:, ノート: and their kin in any
- * language). fragments are stripped so a table-of-contents anchor is
- * not a destination.
+ * wikipedia/wikisource hosts only mainspace pages (/wiki/ with no
+ * namespace colon, which also excludes 特別:, Auteur:, Spécial: and
+ * their kin in any language). fragments are stripped so a
+ * table-of-contents anchor is not a destination. the allowlist passed
+ * here is the reader's own effective one, so an interlanguage sidebar
+ * link survives only when it points into the reader's own language.
  */
 export function linkCandidates(
   raw: Array<{ href: string; text: string }>,
@@ -98,7 +144,7 @@ export function linkCandidates(
     if (!/^https?:$/.test(url.protocol)) continue;
     if (!hostAllowed(url.hostname, allowlist)) continue;
     if (FORBIDDEN_LINK.test(text) || FORBIDDEN_LINK.test(anchor.href)) continue;
-    if (/wikipedia\.org$/i.test(url.hostname)) {
+    if (/(wikipedia|wikisource)\.org$/i.test(url.hostname)) {
       if (!url.pathname.startsWith("/wiki/")) continue;
       const article = decodeURIComponentSafe(url.pathname.slice("/wiki/".length));
       if (article.includes(":") || article.length === 0) continue;
@@ -243,11 +289,86 @@ export class BrowserDriver {
    * for posts. the front pages (a tenant's home, the terrarium index)
    * are the addresses an agent knows by heart, so goto is honest there.
    */
-  private async gotoFront(page: Page, tenant: string): Promise<void> {
-    await page.goto(`${this.opts.baseUrl}/t/${tenant}/`, {
-      waitUntil: "domcontentloaded",
-      timeout: 30_000,
-    });
+  private async gotoFront(page: Page, tenant: string, agentId: string): Promise<void> {
+    // home ground is still a page that has to paint: a terrarium that
+    // answers with an empty shell would put a white cell on the wall
+    // exactly like a dead external link does
+    await this.navigate(page, agentId, `${this.opts.baseUrl}/t/${tenant}/`);
+  }
+
+  /**
+   * every navigation the wall shows goes through here, internal and
+   * external alike: a cell must never dwell on a page that is not
+   * there. the checks, in order — the navigation itself (a refused
+   * connection, a hang), the status (a 404 is not a read), and then
+   * the only test that matches what a viewer sees: did words actually
+   * paint. slow is not dead, so paint is waited for up to
+   * PAINT_BUDGET_MS rather than sampled once.
+   *
+   * on failure the browser is parked somewhere real (the identity's own
+   * ground) rather than on a blank tab, because a white window on the
+   * wall is the exact symptom this guard exists to prevent, and the
+   * showrunner is about to choose another page anyway.
+   */
+  private async navigate(page: Page, agentId: string, url: string): Promise<void> {
+    const gotoOnce = () => page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    let response: Awaited<ReturnType<typeof gotoOnce>>;
+    try {
+      try {
+        response = await gotoOnce();
+      } catch (err) {
+        // a prior corpse's error page can commit exactly as this
+        // navigation starts, interrupting it; that race has one round,
+        // so one clean retry settles it
+        if (!String(err).includes("is interrupted by another navigation")) throw err;
+        response = await gotoOnce();
+      }
+    } catch (err) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(url, String(err).split("\n")[0] ?? "navigation failed");
+    }
+    if (response && !response.ok()) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(url, `http ${response.status()}`);
+    }
+    const painted = await this.waitForPaint(page);
+    if (painted < RENDERED_MIN_CHARS) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(url, `blank page (${painted} chars painted)`);
+    }
+  }
+
+  /** how many visible characters are on the screen right now */
+  private async paintedChars(page: Page): Promise<number> {
+    return page
+      .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
+      .catch(() => 0);
+  }
+
+  /** wait for the page to put real words on the screen, up to the paint
+   * budget; returns what it had when it got there or gave up */
+  private async waitForPaint(page: Page): Promise<number> {
+    const deadline = Date.now() + PAINT_BUDGET_MS;
+    let painted = await this.paintedChars(page);
+    while (painted < RENDERED_MIN_CHARS && Date.now() < deadline) {
+      await page.waitForTimeout(250).catch(() => undefined);
+      painted = await this.paintedChars(page);
+    }
+    return painted;
+  }
+
+  /** leave the browser on something a viewer would recognize as a page:
+   * the identity's own ground, never a blank tab */
+  private async parkSomewhereReal(page: Page, agentId: string): Promise<void> {
+    // chromium may still be committing its own error page; let that
+    // land first so this navigation is not the one interrupted
+    await page.waitForEvent("framenavigated", { timeout: 600 }).catch(() => undefined);
+    const home = (this.opts.runtime as { homeUrlFor?: (id: string) => string }).homeUrlFor?.(
+      agentId
+    );
+    await page
+      .goto(home ?? `${this.opts.baseUrl}/`, { waitUntil: "domcontentloaded", timeout: 10_000 })
+      .catch(() => undefined);
   }
 
   /** click the first rendered link whose href ends with the target path;
@@ -266,11 +387,24 @@ export class BrowserDriver {
   /** reach a post the human way: land on the tenant's front page, find
    * the post in the listing, click it. throws TargetGoneError, with the
    * browser honestly left on the front page, when the post is not there. */
-  private async clickThroughToPost(page: Page, tenant: string, postId: string): Promise<void> {
-    await this.gotoFront(page, tenant);
+  private async clickThroughToPost(
+    page: Page,
+    tenant: string,
+    postId: string,
+    agentId: string
+  ): Promise<void> {
+    await this.gotoFront(page, tenant, agentId);
     const clicked = await this.clickLink(page, `/posts/${postId}`);
     if (!clicked) {
       throw new TargetGoneError(`post ${postId} is not on ${tenant}'s page`, `/t/${tenant}/`);
+    }
+    // the click landed somewhere; the post itself must have painted
+    // before the reader dwells on it (a peer's entry is a read like
+    // any other, and gets the same guard)
+    const painted = await this.waitForPaint(page);
+    if (painted < RENDERED_MIN_CHARS) {
+      await this.parkSomewhereReal(page, agentId);
+      throw new DeadPageError(`/t/${tenant}/posts/${postId}`, `blank page (${painted} chars)`);
     }
   }
 
@@ -290,20 +424,29 @@ export class BrowserDriver {
       const postUrl = /^\/t\/([a-z0-9-]+)\/posts\/([A-Za-z0-9_]+)$/.exec(url);
       if (postUrl) {
         try {
-          await this.clickThroughToPost(page, postUrl[1] as string, postUrl[2] as string);
+          await this.clickThroughToPost(
+            page,
+            postUrl[1] as string,
+            postUrl[2] as string,
+            agentId
+          );
         } catch (err) {
           if (!(err instanceof TargetGoneError)) throw err;
           landed = err.landedUrl;
           detour = true;
+          // the front page is where the reader honestly ended up, and it
+          // has to have painted too
+          const painted = await this.waitForPaint(page);
+          if (painted < RENDERED_MIN_CHARS) {
+            await this.parkSomewhereReal(page, agentId);
+            throw new DeadPageError(err.landedUrl, `blank page (${painted} chars)`);
+          }
         }
       } else if (/^https?:\/\//i.test(url)) {
-        external = await this.readExternal(page, url, dwellMs);
+        external = await this.readExternal(page, agentId, url, dwellMs);
         landed = url;
       } else {
-        await page.goto(`${this.opts.baseUrl}${url}`, {
-          waitUntil: "domcontentloaded",
-          timeout: 30_000,
-        });
+        await this.navigate(page, agentId, `${this.opts.baseUrl}${url}`);
       }
       const steps = 6;
       for (let i = 0; i < steps; i++) {
@@ -324,6 +467,7 @@ export class BrowserDriver {
    */
   private async readExternal(
     page: Page,
+    agentId: string,
     url: string,
     dwellMs: number
   ): Promise<ExternalReadResult> {
@@ -336,17 +480,25 @@ export class BrowserDriver {
         `browse ${url}`
       );
     }
+    // the reader's effective ground: its persona's own hosts, inside the
+    // global wall. the landing, the mid-read follow and the harvest all
+    // measure against this one list, so a read cannot start, move or
+    // point outside the identity's own linguistic world.
+    const allowlist = personaAllowlist(
+      this.opts.readingDomainsFor?.(agentId),
+      this.opts.readingAllowlist ?? []
+    );
     const host = new URL(url).hostname;
-    if (!hostAllowed(host, this.opts.readingAllowlist ?? [])) {
+    if (!hostAllowed(host, allowlist)) {
       throw new PolicyViolation(
         {
           rule_id: "tier1.reading_allowlist",
-          rule_text: "reading happens on allowlisted domains only",
+          rule_text: "reading happens on this identity's own allowlisted domains only",
         },
         `browse ${host}`
       );
     }
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await this.navigate(page, agentId, url);
     await this.pace(1500 + Math.random() * 1500); // arrive, settle
     // one short phrase is all a page may contribute; material, not voice
     const phrase = (
@@ -393,13 +545,21 @@ export class BrowserDriver {
         )
         .catch(() => null);
       // a url found in page content is followed only if it is itself on
-      // the allowlist; same-domain filtering above makes this a
-      // tautology today, and the explicit check keeps it true forever
-      if (next && hostAllowed(new URL(next).hostname, this.opts.readingAllowlist ?? [])) {
+      // the reader's own allowlist; same-domain filtering above makes
+      // this a tautology today, and the explicit check keeps it true
+      if (next && hostAllowed(new URL(next).hostname, allowlist)) {
         await this.pace(dwellMs / 3);
-        await page
+        const followed = await page
           .goto(next, { waitUntil: "domcontentloaded", timeout: 45_000 })
-          .catch(() => undefined);
+          .catch(() => null);
+        // a follow that lands nowhere is walked back: the reader was
+        // already on a real page, and stays there rather than white
+        const followedPaint = await page
+          .evaluate(() => (document.body?.innerText ?? "").replace(/\s+/g, " ").trim().length)
+          .catch(() => 0);
+        if ((followed && !followed.ok()) || followedPaint < RENDERED_MIN_CHARS) {
+          await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => undefined);
+        }
       }
     }
 
@@ -427,7 +587,7 @@ export class BrowserDriver {
           }))
       )
       .catch(() => [] as Array<{ href: string; text: string }>);
-    const links = linkCandidates(rawAnchors, this.opts.readingAllowlist ?? [], finalUrl);
+    const links = linkCandidates(rawAnchors, allowlist, finalUrl);
     return { domain: finalHost, title: title.slice(0, 120), phrase, url: finalUrl, links };
   }
 
@@ -571,7 +731,7 @@ export class BrowserDriver {
   ): Promise<void> {
     return this.withBusy(agentId, async () => {
       const page = this.page(agentId);
-      await this.clickThroughToPost(page, tenant, postId);
+      await this.clickThroughToPost(page, tenant, postId, agentId);
       // reread the thread before answering, like anyone decent
       await this.pace(2500 + Math.random() * 2500);
       await page.fill('input[name="author"]', author);
