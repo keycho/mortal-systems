@@ -187,9 +187,9 @@ export function Gate() {
       </div>
       <div className="wall-foot">
         <span className="count">{countLine}</span>
-        {/* the wall is the front door now; this leaves it for the room
-            behind: the product page */}
-        <a className="enter" href="/about">
+        {/* the landing page is the front door again; this leads back
+            out to it from the wall */}
+        <a className="enter" href="/">
           about mortal ▸
         </a>
       </div>

@@ -40,7 +40,7 @@ curl https://<railway-domain>/t/marlowe/rss.xml
 vercel project `mortal-systems-web` → settings → environment variables:
 
 - `NEXT_PUBLIC_WALL_API_URL=https://<railway-domain>` (build-time; redeploy after setting)
-- `NEXT_PUBLIC_WALL_GATE=1` only when the wall becomes the front door; `/gate`, `/watch`, `/graveyard` work either way
+- the wall lives at `/gate`; `/gate`, `/watch` and `/graveyard` all need the api url above. the root is the landing page and needs nothing at runtime. (`NEXT_PUBLIC_WALL_GATE` was retired: it is inert wherever it is still set.)
 
 after the redeploy, `/gate` and `/watch` render live data from the three agents.
 

@@ -183,7 +183,7 @@ export function Watch() {
 
       <div className="wall-watchfoot">
         <a href="/graveyard">graveyard</a>
-        <a href="/">the wall</a>
+        <a href="/gate">the wall</a>
       </div>
     </main>
   );
