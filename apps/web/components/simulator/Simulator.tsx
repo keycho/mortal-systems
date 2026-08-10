@@ -31,7 +31,7 @@ const rowStyle: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   padding: "10px 0",
-  borderBottom: "1px solid rgba(25,23,19,.07)",
+  borderBottom: "1px solid rgba(242,239,231,.07)",
   font: `400 13.5px ${bodyFont}`,
 };
 
@@ -39,16 +39,16 @@ const receiptRow: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   padding: "11px 0",
-  borderBottom: "1px solid rgba(25,23,19,.07)",
+  borderBottom: "1px solid rgba(242,239,231,.07)",
   font: `400 13.5px ${bodyFont}`,
-  color: "rgba(25,23,19,.7)",
+  color: "rgba(242,239,231,.7)",
 };
 
 const secondaryBtn: CSSProperties = {
   flex: 1,
   textAlign: "center",
   font: `500 14px ${bodyFont}`,
-  border: "1px solid rgba(25,23,19,.25)",
+  border: "1px solid rgba(242,239,231,.25)",
   padding: "13px 0",
   borderRadius: 9,
   cursor: "pointer",
@@ -126,9 +126,9 @@ export function Simulator() {
             maxWidth: "100%",
             minHeight: 520,
             background: "var(--surface)",
-            border: "1px solid rgba(25,23,19,.12)",
+            border: "1px solid rgba(242,239,231,.12)",
             borderRadius: 16,
-            boxShadow: "0 24px 56px rgba(25,23,19,.14)",
+            boxShadow: "0 24px 56px rgba(0,0,0,0.36)",
             padding: "30px 32px",
             boxSizing: "border-box",
             display: "flex",
@@ -140,7 +140,7 @@ export function Simulator() {
               <div style={{ font: `500 19px ${bodyFont}`, letterSpacing: "-0.01em" }}>
                 create a private identity
               </div>
-              <div style={{ font: `400 13.5px/1.5 ${bodyFont}`, color: "rgba(25,23,19,.6)", marginTop: 6 }}>
+              <div style={{ font: `400 13.5px/1.5 ${bodyFont}`, color: "rgba(242,239,231,.6)", marginTop: 6 }}>
                 configure its browser, memory, files and lifetime.
               </div>
               <div style={{ font: `500 12.5px ${bodyFont}`, marginTop: 22 }}>
@@ -155,7 +155,7 @@ export function Simulator() {
                   marginTop: 9,
                   width: "100%",
                   boxSizing: "border-box",
-                  border: "1px solid rgba(25,23,19,.2)",
+                  border: "1px solid rgba(242,239,231,.2)",
                   borderRadius: 9,
                   padding: "13px 14px",
                   font: `400 14px ${bodyFont}`,
@@ -174,9 +174,9 @@ export function Simulator() {
                       onClick={() => pickChip(label)}
                       style={{
                         font: `400 12.5px ${bodyFont}`,
-                        border: `1px solid ${selected ? "var(--accent)" : "rgba(25,23,19,.25)"}`,
+                        border: `1px solid ${selected ? "var(--accent)" : "rgba(242,239,231,.25)"}`,
                         background: selected ? "rgba(166,67,31,.08)" : "transparent",
-                        color: selected ? "var(--accent)" : "rgba(25,23,19,.7)",
+                        color: selected ? "var(--accent)" : "rgba(242,239,231,.7)",
                         padding: "6px 13px",
                         borderRadius: 99,
                         cursor: "pointer",
@@ -200,10 +200,10 @@ export function Simulator() {
                   <span
                     style={{
                       font: `400 13px ${bodyFont}`,
-                      border: "1px solid rgba(25,23,19,.2)",
+                      border: "1px solid rgba(242,239,231,.2)",
                       borderRadius: 8,
                       padding: "8px 14px",
-                      color: "rgba(25,23,19,.8)",
+                      color: "rgba(242,239,231,.8)",
                     }}
                   >
                     45 minutes&nbsp;&nbsp;▾
@@ -232,7 +232,7 @@ export function Simulator() {
               <div
                 style={{
                   font: `400 11.5px/1.5 ${bodyFont}`,
-                  color: "rgba(25,23,19,.5)",
+                  color: "rgba(242,239,231,.5)",
                   marginTop: 11,
                   textAlign: "center",
                 }}
@@ -254,7 +254,7 @@ export function Simulator() {
                   flexDirection: "column",
                   gap: 12,
                   font: `400 14px ${bodyFont}`,
-                  color: "rgba(25,23,19,.75)",
+                  color: "rgba(242,239,231,.75)",
                 }}
               >
                 {PROVISION_LINES.map((line, i) => (
@@ -299,24 +299,24 @@ export function Simulator() {
                   </span>
                 </span>
               </div>
-              <div style={{ font: `400 13px ${bodyFont}`, color: "rgba(25,23,19,.55)", marginTop: 6 }}>
+              <div style={{ font: `400 13px ${bodyFont}`, color: "rgba(242,239,231,.55)", marginTop: 6 }}>
                 {state.purpose}
               </div>
-              <div style={{ marginTop: 18, borderTop: "1px solid rgba(25,23,19,.1)" }}>
+              <div style={{ marginTop: 18, borderTop: "1px solid rgba(242,239,231,.1)" }}>
                 <div style={rowStyle}>
-                  <span style={{ color: "rgba(25,23,19,.7)" }}>browser</span>
+                  <span style={{ color: "rgba(242,239,231,.7)" }}>browser</span>
                   <span>isolated</span>
                 </div>
                 <div style={rowStyle}>
-                  <span style={{ color: "rgba(25,23,19,.7)" }}>memory</span>
+                  <span style={{ color: "rgba(242,239,231,.7)" }}>memory</span>
                   <span>mounted</span>
                 </div>
                 <div style={rowStyle}>
-                  <span style={{ color: "rgba(25,23,19,.7)" }}>files</span>
+                  <span style={{ color: "rgba(242,239,231,.7)" }}>files</span>
                   <span>partitioned</span>
                 </div>
                 <div style={{ ...rowStyle, borderBottom: "none" }}>
-                  <span style={{ color: "rgba(25,23,19,.7)" }}>history</span>
+                  <span style={{ color: "rgba(242,239,231,.7)" }}>history</span>
                   <span>removed on expiry</span>
                 </div>
               </div>
@@ -330,7 +330,7 @@ export function Simulator() {
                 >
                   {clock(state)}
                 </div>
-                <div style={{ font: `400 11.5px ${bodyFont}`, color: "rgba(25,23,19,.5)", marginTop: 4 }}>
+                <div style={{ font: `400 11.5px ${bodyFont}`, color: "rgba(242,239,231,.5)", marginTop: 4 }}>
                   the preview runs in seconds · the real default lifetime is 45 minutes
                 </div>
               </div>
@@ -349,16 +349,16 @@ export function Simulator() {
             <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                 <span
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(25,23,19,.35)" }}
+                  style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(242,239,231,.35)" }}
                 />
                 <span style={{ font: "600 13px var(--font-mono)", letterSpacing: "0.08em" }}>
                   DESTRUCTION COMPLETE
                 </span>
               </div>
-              <div style={{ font: `400 13px ${bodyFont}`, color: "rgba(25,23,19,.55)", marginTop: 6 }}>
+              <div style={{ font: `400 13px ${bodyFont}`, color: "rgba(242,239,231,.55)", marginTop: 6 }}>
                 preview identity · {state.purpose}
               </div>
-              <div style={{ marginTop: 20, borderTop: "1px solid rgba(25,23,19,.1)" }}>
+              <div style={{ marginTop: 20, borderTop: "1px solid rgba(242,239,231,.1)" }}>
                 <div style={receiptRow}>
                   <span>browser profile</span>
                   <span>removed</span>
@@ -372,7 +372,7 @@ export function Simulator() {
                   <span>removed</span>
                 </div>
                 <div style={{ ...receiptRow, borderBottom: "none", color: undefined }}>
-                  <span style={{ color: "rgba(25,23,19,.7)" }}>receipt</span>
+                  <span style={{ color: "rgba(242,239,231,.7)" }}>receipt</span>
                   <span style={{ color: "var(--accent)", fontWeight: 500 }}>retained</span>
                 </div>
               </div>
@@ -392,7 +392,7 @@ export function Simulator() {
         style={{
           textAlign: "center",
           font: "400 11px var(--font-mono)",
-          color: "rgba(25,23,19,.45)",
+          color: "rgba(242,239,231,.45)",
           marginTop: 14,
         }}
       >

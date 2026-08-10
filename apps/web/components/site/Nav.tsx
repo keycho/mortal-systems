@@ -18,16 +18,16 @@ export function Nav({ home = false }: { home?: boolean }) {
         <Wordmark variant="nav" />
       </Link>
       <div className="m-nav" style={{ display: "flex", gap: 34, font: "400 13px var(--font-mono)" }}>
-        <a href={anchor("manager")} style={{ color: "rgba(25,23,19,.55)" }}>
+        <a href={anchor("manager")} style={{ color: "rgba(242,239,231,.55)" }}>
           the manager
         </a>
-        <a href={anchor("guarantees")} style={{ color: "rgba(25,23,19,.55)" }}>
+        <a href={anchor("guarantees")} style={{ color: "rgba(242,239,231,.55)" }}>
           guarantees
         </a>
-        <a href={anchor("blueprints")} style={{ color: "rgba(25,23,19,.55)" }}>
+        <a href={anchor("blueprints")} style={{ color: "rgba(242,239,231,.55)" }}>
           blueprints
         </a>
-        <a href={anchor("agents")} style={{ color: "rgba(25,23,19,.55)" }}>
+        <a href={anchor("agents")} style={{ color: "rgba(242,239,231,.55)" }}>
           for agents
         </a>
       </div>
@@ -35,10 +35,10 @@ export function Nav({ home = false }: { home?: boolean }) {
         href={MACOS_ALPHA_DMG_URL}
         style={{
           font: "500 13px var(--font-mono)",
-          border: "1px solid rgba(25,23,19,.4)",
+          border: "1px solid rgba(242,239,231,.4)",
           padding: "9px 18px",
           borderRadius: 6,
-          background: "rgba(255,255,255,.5)",
+          background: "rgba(242,239,231,.06)",
           color: "var(--ink)",
         }}
       >

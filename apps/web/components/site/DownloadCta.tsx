@@ -39,7 +39,7 @@ export function DownloadCta({
             font: "400 11.5px var(--font-mono)",
             lineHeight: 1.55,
             maxWidth: 320,
-            color: dark ? "rgba(242,239,231,.75)" : "rgba(25,23,19,.6)",
+            color: dark ? "rgba(242,239,231,.75)" : "rgba(242,239,231,.6)",
           }}
         >
           {POST_DOWNLOAD_NOTE}

@@ -1,41 +1,50 @@
 /**
  * mortal systems design tokens — the single source for the site, and the
  * seed for the manager/companion design pass (see DECISIONS.md).
- * ported verbatim from the design handoff port-spec; every value below is
- * in use on the page. semantic, not decorative: lifecycle states and
- * enforcement levels are the only colors that mean anything.
+ * semantic, not decorative: lifecycle states and enforcement levels are
+ * the only colors that mean anything.
+ *
+ * the site runs dark. the cream world the design handoff shipped is
+ * inverted here at the token layer only: every consumer already reads
+ * these names, so nothing downstream changed. the roles are unchanged and
+ * the rhythm is kept the way the handoff built it, by depth rather than
+ * by inversion: the page sits on the brand's own dark, and the bands that
+ * used to be dark punctuation on a light page are deeper wells now.
  */
 :root {
-  /* grounds — light page */
-  --ground: #F8F6F1;            /* page */
-  --surface: #FDFBF7;           /* light cards */
-  --frame: #ece7db;             /* capture-frame mat / letterbox */
-  --ink: #191713;               /* text */
-  --ink-display: #171410;       /* h1 only */
+  /* grounds — dark page */
+  --ground: #17140e;            /* page: the brand's own dark */
+  --surface: #1e1a14;           /* cards, lifted off the page */
+  --frame: #221d16;             /* capture-frame mat / letterbox */
+  --ink: #f2efe7;               /* text */
+  --ink-display: #f7f5f0;       /* h1 only */
 
-  /* grounds — dark bands (honesty, closing) + dark blueprint cards */
-  --dark: #17140e;
-  --bone: #f2efe7;              /* text on dark */
+  /* grounds — the bands (honesty, closing) + dark blueprint cards. they
+     read as punctuation by sinking below the page, not by inverting it. */
+  --dark: #0e0c08;
+  --bone: #f2efe7;              /* text on the bands */
 
   /* brand accent (single) — contour mark, links, capture callouts */
   --accent: #A6431F;
   --accent-flare: #CF5A22;      /* mark stray-line flare only */
 
-  /* state colors — dark ground */
+  /* state colors. the site has no light ground left, so both sets carry
+     the dark-ground values; the -l names are kept so the fourteen call
+     sites did not have to move. renaming them to -page/-band is the
+     follow-up, not a behaviour change. */
   --state-active-d: #b4bd5e;
   --state-persistent-d: #d9a648;
   --state-expiring-d: #e07840;
   --state-danger-d: #c25a48;
   --state-neutral: #8f887a;
-  /* state colors — light ground */
-  --state-active-l: #6f7d2c;
-  --state-persistent-l: #a67a24;
-  --state-expiring-l: #b45a24;
+  --state-active-l: #b4bd5e;
+  --state-persistent-l: #d9a648;
+  --state-expiring-l: #e07840;
 
   /* borders */
-  --line-l: rgba(25, 23, 19, 0.1);       /* section dividers */
-  --line-l-mid: rgba(25, 23, 19, 0.14);  /* card/frame borders */
-  --line-d: rgba(242, 239, 231, 0.1);
+  --line-l: rgba(242, 239, 231, 0.1);       /* section dividers */
+  --line-l-mid: rgba(242, 239, 231, 0.16);  /* card/frame borders */
+  --line-d: rgba(242, 239, 231, 0.08);      /* lines inside the bands */
 
   /* radii */
   --r-btn: 7px;
@@ -43,10 +52,11 @@
   --r-card-dark: 12px;
   --r-tag: 3px;
 
-  /* shadows */
-  --shadow-cta: 0 12px 26px rgba(25, 23, 19, 0.22), 0 2px 4px rgba(25, 23, 19, 0.18);
-  --shadow-frame: 0 32px 72px rgba(25, 23, 19, 0.14);
-  --shadow-frame-sm: 0 18px 44px rgba(25, 23, 19, 0.12);
+  /* shadows: ink-coloured shadows vanish on a dark ground, so these fall
+     back to real black and lean harder */
+  --shadow-cta: 0 12px 26px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-frame: 0 32px 72px rgba(0, 0, 0, 0.46);
+  --shadow-frame-sm: 0 18px 44px rgba(0, 0, 0, 0.4);
 
   /* type */
   --font-display: 'Instrument Serif', serif;          /* 400 + italic em */

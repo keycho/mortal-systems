@@ -11,22 +11,22 @@ const VARIANTS = {
     font: "500 15px var(--font-mono)",
     color: "var(--ink)",
     dash: { width: 28, height: 3, margin: "0 11px" },
-    bar: "rgba(25,23,19,.22)",
+    bar: "rgba(242,239,231,.22)",
     fill: "var(--ink)",
   },
   footer: {
     font: "500 13px var(--font-mono)",
-    color: "rgba(25,23,19,.6)",
+    color: "rgba(242,239,231,.6)",
     dash: { width: 24, height: 2, margin: "0 10px" },
-    bar: "rgba(25,23,19,.2)",
-    fill: "rgba(25,23,19,.6)",
+    bar: "rgba(242,239,231,.2)",
+    fill: "rgba(242,239,231,.6)",
   },
   smallLight: {
     font: "500 12px var(--font-mono)",
-    color: "rgba(25,23,19,.55)",
+    color: "rgba(242,239,231,.55)",
     dash: { width: 22, height: 2, margin: "0 9px" },
-    bar: "rgba(25,23,19,.2)",
-    fill: "rgba(25,23,19,.55)",
+    bar: "rgba(242,239,231,.2)",
+    fill: "rgba(242,239,231,.55)",
   },
   smallDark: {
     font: "500 12px var(--font-mono)",
@@ -36,13 +36,13 @@ const VARIANTS = {
     fill: "rgba(242,239,231,.5)",
   },
   /** the wall's header: same treatment, the gate handoff's sizes, ink
-   * on the light room's cream ground */
+   * bone on the dark room's ground */
   wall: {
     font: "500 13px var(--font-mono)",
-    color: "#191713",
+    color: "#f2efe7",
     dash: { width: 24, height: 2.5, margin: "0 10px" },
-    bar: "rgba(25,23,19,.22)",
-    fill: "#191713",
+    bar: "rgba(242,239,231,.22)",
+    fill: "#f2efe7",
   },
 } as const;
 

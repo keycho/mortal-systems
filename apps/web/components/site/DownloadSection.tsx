@@ -43,7 +43,7 @@ export function DownloadSection({
               key={`${pl.name}-${pl.arch}`}
               style={{
                 background: "var(--surface)",
-                border: "1px solid rgba(25,23,19,.12)",
+                border: "1px solid rgba(242,239,231,.12)",
                 borderRadius: "var(--r-card)",
                 padding: 20,
                 display: "flex",
@@ -51,7 +51,7 @@ export function DownloadSection({
               }}
             >
               <div style={{ font: "500 15px var(--font-body)" }}>{pl.name}</div>
-              <div style={{ font: "400 11.5px var(--font-mono)", color: "rgba(25,23,19,.5)", marginTop: 4 }}>
+              <div style={{ font: "400 11.5px var(--font-mono)", color: "rgba(242,239,231,.5)", marginTop: 4 }}>
                 {pl.arch}
               </div>
               {pl.href ? (
@@ -72,8 +72,8 @@ export function DownloadSection({
                 <div
                   style={{
                     marginTop: 16,
-                    border: "1px dashed rgba(25,23,19,.35)",
-                    color: "rgba(25,23,19,.55)",
+                    border: "1px dashed rgba(242,239,231,.35)",
+                    color: "rgba(242,239,231,.55)",
                     textAlign: "center",
                     font: "500 13px var(--font-body)",
                     padding: "11px 0",
@@ -90,13 +90,13 @@ export function DownloadSection({
                   flexDirection: "column",
                   gap: 7,
                   font: "400 10.5px var(--font-mono)",
-                  color: "rgba(25,23,19,.55)",
+                  color: "rgba(242,239,231,.55)",
                 }}
               >
-                <span style={{ border: "1px dashed rgba(25,23,19,.3)", borderRadius: 5, padding: "6px 9px" }}>
+                <span style={{ border: "1px dashed rgba(242,239,231,.3)", borderRadius: 5, padding: "6px 9px" }}>
                   {pl.signed}
                 </span>
-                <span style={{ border: "1px dashed rgba(25,23,19,.3)", borderRadius: 5, padding: "6px 9px" }}>
+                <span style={{ border: "1px dashed rgba(242,239,231,.3)", borderRadius: 5, padding: "6px 9px" }}>
                   sha256 · published with the release asset
                 </span>
               </div>
@@ -106,7 +106,7 @@ export function DownloadSection({
         <p
           style={{
             font: "400 12.5px/1.65 var(--font-mono)",
-            color: "rgba(25,23,19,.55)",
+            color: "rgba(242,239,231,.55)",
             margin: "18px 0 0",
             maxWidth: "72ch",
           }}
@@ -120,14 +120,14 @@ export function DownloadSection({
             alignItems: "center",
             marginTop: 22,
             background: "var(--surface)",
-            border: "1px solid rgba(25,23,19,.12)",
+            border: "1px solid rgba(242,239,231,.12)",
             borderRadius: "var(--r-card)",
             padding: "16px 22px",
             gap: 12,
             flexWrap: "wrap",
           }}
         >
-          <span style={{ font: "400 13px var(--font-mono)", color: "rgba(25,23,19,.7)" }}>
+          <span style={{ font: "400 13px var(--font-mono)", color: "rgba(242,239,231,.7)" }}>
             the runtime is open. verify the isolation yourself.
           </span>
           <a

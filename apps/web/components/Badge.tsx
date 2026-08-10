@@ -44,9 +44,9 @@ export function EnforcementChip({
   const idStyle: CSSProperties = {
     font: `500 ${s.font}px var(--font-mono)`,
     letterSpacing: "0.08em",
-    border: dark ? "1px solid rgba(242,239,231,.35)" : "1px solid rgba(25,23,19,.3)",
+    border: dark ? "1px solid rgba(242,239,231,.35)" : "1px solid rgba(242,239,231,.3)",
     borderRight: "none",
-    color: dark ? "rgba(242,239,231,.6)" : "rgba(25,23,19,.6)",
+    color: dark ? "rgba(242,239,231,.6)" : "rgba(242,239,231,.6)",
     padding: s.pad,
     borderRadius: `${s.radius}px 0 0 ${s.radius}px`,
   };
@@ -65,16 +65,16 @@ export function EnforcementChip({
         ? {
             font: `500 ${s.font}px var(--font-mono)`,
             letterSpacing: "0.1em",
-            border: dark ? "1px solid rgba(242,239,231,.5)" : "1px solid rgba(25,23,19,.45)",
-            color: dark ? "rgba(242,239,231,.75)" : "rgba(25,23,19,.7)",
+            border: dark ? "1px solid rgba(242,239,231,.5)" : "1px solid rgba(242,239,231,.45)",
+            color: dark ? "rgba(242,239,231,.75)" : "rgba(242,239,231,.7)",
             padding: s.pad,
             borderRadius: tid ? `0 ${s.radius}px ${s.radius}px 0` : s.radius,
           }
         : {
             font: `500 ${s.font}px var(--font-mono)`,
             letterSpacing: "0.1em",
-            border: dark ? "1px dotted rgba(242,239,231,.55)" : "1px dotted rgba(25,23,19,.45)",
-            color: dark ? "rgba(242,239,231,.7)" : "rgba(25,23,19,.65)",
+            border: dark ? "1px dotted rgba(242,239,231,.55)" : "1px dotted rgba(242,239,231,.45)",
+            color: dark ? "rgba(242,239,231,.7)" : "rgba(242,239,231,.65)",
             padding: s.pad,
             borderRadius: s.radius,
           };
@@ -128,10 +128,10 @@ export function Tag({
         outline: { border: "1px solid rgba(242,239,231,.5)", color: "rgba(242,239,231,.8)" },
       }
     : {
-        dashed: { border: "1px dashed rgba(25,23,19,.4)", color: "rgba(25,23,19,.55)" },
-        dotted: { border: "1px dotted rgba(25,23,19,.45)", color: "rgba(25,23,19,.65)" },
+        dashed: { border: "1px dashed rgba(242,239,231,.4)", color: "rgba(242,239,231,.55)" },
+        dotted: { border: "1px dotted rgba(242,239,231,.45)", color: "rgba(242,239,231,.65)" },
         solid: { background: "var(--ink)", color: "var(--ground)" },
-        outline: { border: "1px solid rgba(25,23,19,.45)", color: "rgba(25,23,19,.7)" },
+        outline: { border: "1px solid rgba(242,239,231,.45)", color: "rgba(242,239,231,.7)" },
       };
   return <span style={{ ...base, ...kinds[kind], ...style }}>{children}</span>;
 }

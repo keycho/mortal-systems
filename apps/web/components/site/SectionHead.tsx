@@ -23,7 +23,7 @@ export function SectionHead({
           style={{
             font: "400 12px var(--font-mono)",
             letterSpacing: "0.18em",
-            color: "rgba(25,23,19,.5)",
+            color: "rgba(242,239,231,.5)",
           }}
         >
           {eyebrow}
@@ -42,7 +42,7 @@ export function SectionHead({
       <p
         style={{
           font: "400 13.5px/1.75 var(--font-mono)",
-          color: "rgba(25,23,19,.6)",
+          color: "rgba(242,239,231,.6)",
           margin: 0,
         }}
       >

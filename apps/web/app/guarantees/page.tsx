@@ -24,7 +24,7 @@ export default function Guarantees() {
         <Nav />
         <div style={{ maxWidth: 880, margin: "84px 0 0" }}>
           <div
-            style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(25,23,19,.5)" }}
+            style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(242,239,231,.5)" }}
           >
             GUARANTEES
           </div>
@@ -41,7 +41,7 @@ export default function Guarantees() {
           <p
             style={{
               font: "400 13.5px/1.75 var(--font-mono)",
-              color: "rgba(25,23,19,.6)",
+              color: "rgba(242,239,231,.6)",
               margin: "22px 0 0",
             }}
           >
@@ -67,7 +67,7 @@ export default function Guarantees() {
               <tr
                 style={{
                   textAlign: "left",
-                  color: "rgba(25,23,19,.5)",
+                  color: "rgba(242,239,231,.5)",
                   font: "500 10px var(--font-mono)",
                   letterSpacing: "0.18em",
                 }}
@@ -86,7 +86,7 @@ export default function Guarantees() {
                     <div
                       style={{
                         font: "400 12px/1.6 var(--font-body)",
-                        color: "rgba(25,23,19,.6)",
+                        color: "rgba(242,239,231,.6)",
                         maxWidth: 460,
                         marginTop: 4,
                       }}
@@ -94,7 +94,7 @@ export default function Guarantees() {
                       {row.description}
                     </div>
                   </td>
-                  <td style={{ padding: "14px 16px 14px 0", color: "rgba(25,23,19,.6)" }}>{row.value}</td>
+                  <td style={{ padding: "14px 16px 14px 0", color: "rgba(242,239,231,.6)" }}>{row.value}</td>
                   <td style={{ padding: "14px 16px 14px 0" }}>
                     <Tag
                       kind={KIND[row.enforcement]}
@@ -105,7 +105,7 @@ export default function Guarantees() {
                     {row.conditional !== undefined && (
                       <div
                         style={{
-                          color: "rgba(25,23,19,.55)",
+                          color: "rgba(242,239,231,.55)",
                           font: "400 11px/1.6 var(--font-mono)",
                           paddingTop: 6,
                           maxWidth: 240,
@@ -115,7 +115,7 @@ export default function Guarantees() {
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: "14px 0", color: "rgba(25,23,19,.55)", font: "400 11.5px var(--font-mono)" }}>
+                  <td style={{ padding: "14px 0", color: "rgba(242,239,231,.55)", font: "400 11.5px var(--font-mono)" }}>
                     {row.plannedTests.join(" ")}
                   </td>
                 </tr>
@@ -137,7 +137,7 @@ export default function Guarantees() {
               flexDirection: "column",
               gap: 7,
               font: "400 12.5px/1.7 var(--font-mono)",
-              color: "rgba(25,23,19,.65)",
+              color: "rgba(242,239,231,.65)",
             }}
           >
             {NON_GUARANTEES.map((line) => (
@@ -153,9 +153,9 @@ export default function Guarantees() {
           <p
             style={{
               font: "400 13px/1.75 var(--font-body)",
-              color: "rgba(25,23,19,.7)",
+              color: "rgba(242,239,231,.7)",
               margin: "16px 0 0",
-              border: "1px solid rgba(25,23,19,.12)",
+              border: "1px solid rgba(242,239,231,.12)",
               borderRadius: "var(--r-card)",
               background: "var(--surface)",
               padding: "18px 22px",

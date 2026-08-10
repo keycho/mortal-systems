@@ -55,7 +55,7 @@ function Hero() {
               right: -40,
               bottom: 46,
               height: 1,
-              background: "rgba(25,23,19,.16)",
+              background: "rgba(242,239,231,.16)",
             }}
           />
           <div>
@@ -63,7 +63,7 @@ function Hero() {
               style={{
                 font: "400 11px var(--font-mono)",
                 letterSpacing: "0.2em",
-                color: "rgba(25,23,19,.52)",
+                color: "rgba(242,239,231,.52)",
               }}
             >
               PROGRAMMABLE IDENTITY INFRASTRUCTURE
@@ -85,7 +85,7 @@ function Hero() {
             <p
               style={{
                 font: "400 15.5px/1.7 var(--font-body)",
-                color: "rgba(25,23,19,.7)",
+                color: "rgba(242,239,231,.7)",
                 margin: "26px 0 0",
                 maxWidth: "46ch",
               }}
@@ -112,8 +112,8 @@ function Hero() {
                 href="/"
                 style={{
                   font: "500 14px var(--font-body)",
-                  border: "1px solid rgba(25,23,19,.28)",
-                  background: "rgba(255,255,255,.6)",
+                  border: "1px solid rgba(242,239,231,.28)",
+                  background: "rgba(242,239,231,.07)",
                   padding: "15px 26px",
                   borderRadius: "var(--r-btn)",
                   color: "var(--ink)",
@@ -125,8 +125,8 @@ function Hero() {
                 href="#try"
                 style={{
                   font: "500 14px var(--font-body)",
-                  border: "1px solid rgba(25,23,19,.28)",
-                  background: "rgba(255,255,255,.6)",
+                  border: "1px solid rgba(242,239,231,.28)",
+                  background: "rgba(242,239,231,.07)",
                   padding: "15px 26px",
                   borderRadius: "var(--r-btn)",
                   color: "var(--ink)",
@@ -138,7 +138,7 @@ function Hero() {
             <p
               style={{
                 font: "400 12.5px/1.65 var(--font-mono)",
-                color: "rgba(25,23,19,.55)",
+                color: "rgba(242,239,231,.55)",
                 margin: "14px 0 0",
                 maxWidth: "56ch",
               }}
@@ -149,7 +149,7 @@ function Hero() {
               style={{
                 font: "400 16.5px/1.5 var(--font-display)",
                 fontStyle: "italic",
-                color: "rgba(25,23,19,.64)",
+                color: "rgba(242,239,231,.64)",
                 margin: "28px 0 0",
               }}
             >
@@ -158,7 +158,7 @@ function Hero() {
             <div
               style={{
                 font: "400 11.5px var(--font-mono)",
-                color: "rgba(25,23,19,.5)",
+                color: "rgba(242,239,231,.5)",
                 marginTop: 14,
                 letterSpacing: "0.05em",
               }}
@@ -174,7 +174,7 @@ function Hero() {
           style={{
             textAlign: "center",
             font: "400 11px var(--font-mono)",
-            color: "rgba(25,23,19,.4)",
+            color: "rgba(242,239,231,.4)",
             marginTop: 44,
             paddingBottom: 56,
             letterSpacing: "0.06em",
@@ -221,7 +221,7 @@ function AgentsNeedIdentities() {
             <p
               style={{
                 font: "400 15.5px/1.7 var(--font-body)",
-                color: "rgba(25,23,19,.7)",
+                color: "rgba(242,239,231,.7)",
                 margin: 0,
                 maxWidth: "52ch",
               }}
@@ -246,7 +246,7 @@ function AgentsNeedIdentities() {
                     alignItems: "center",
                     gap: 10,
                     font: "400 13.5px var(--font-mono)",
-                    color: "rgba(25,23,19,.75)",
+                    color: "rgba(242,239,231,.75)",
                   }}
                 >
                   <span
@@ -260,7 +260,7 @@ function AgentsNeedIdentities() {
           <div
             style={{
               background: "var(--surface)",
-              border: "1px solid rgba(25,23,19,.12)",
+              border: "1px solid rgba(242,239,231,.12)",
               borderRadius: "var(--r-card)",
               padding: "22px 24px",
               alignSelf: "center",
@@ -302,12 +302,12 @@ function OperateAcrossRegions() {
             gap: 9,
             marginTop: 40,
             font: "400 13px/1.7 var(--font-mono)",
-            color: "rgba(25,23,19,.7)",
+            color: "rgba(242,239,231,.7)",
           }}
         >
           {bullets.map((line) => (
             <span key={line} style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-              <span style={{ color: "rgba(25,23,19,.35)" }}>·</span>
+              <span style={{ color: "rgba(242,239,231,.35)" }}>·</span>
               {line}
             </span>
           ))}
@@ -322,7 +322,7 @@ function UseCasesBand() {
     <div data-screen-label="use cases" style={{ position: "relative", borderTop: "1px solid var(--line-l)" }}>
       <div style={{ maxWidth: 1296, margin: "0 auto", padding: "60px 40px 68px" }}>
         <div
-          style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(25,23,19,.5)" }}
+          style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(242,239,231,.5)" }}
         >
           WHAT YOU WOULD USE IT FOR
         </div>
@@ -340,7 +340,7 @@ function UseCasesBand() {
               key={job.label}
               style={{
                 background: "var(--surface)",
-                border: "1px solid rgba(25,23,19,.12)",
+                border: "1px solid rgba(242,239,231,.12)",
                 borderRadius: "var(--r-card)",
                 padding: 20,
               }}
@@ -349,7 +349,7 @@ function UseCasesBand() {
                 style={{
                   font: "500 10.5px var(--font-mono)",
                   letterSpacing: "0.14em",
-                  color: "rgba(25,23,19,.5)",
+                  color: "rgba(242,239,231,.5)",
                 }}
               >
                 {job.label}
@@ -357,7 +357,7 @@ function UseCasesBand() {
               <p
                 style={{
                   font: "400 13.5px/1.7 var(--font-body)",
-                  color: "rgba(25,23,19,.75)",
+                  color: "rgba(242,239,231,.75)",
                   margin: "10px 0 0",
                   textWrap: "pretty",
                 }}
@@ -428,7 +428,7 @@ function ManagerSection() {
               font: "400 11px var(--font-mono)",
             }}
           >
-            <span style={{ display: "flex", alignItems: "center", gap: 10, color: "rgba(25,23,19,.45)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 10, color: "rgba(242,239,231,.45)" }}>
               <EnforcementChip tid="G1" tone="enforced" />
               the manager · real capture · alpha · recorded walkthrough
             </span>
@@ -460,7 +460,7 @@ function ManagerSection() {
               <span style={captionChip}>
                 <EnforcementChip tid="G1" tone="enforced" />
               </span>
-              <span style={{ color: "rgba(25,23,19,.45)" }}>
+              <span style={{ color: "rgba(242,239,231,.45)" }}>
                 the manager · real capture · alpha · identity overview
               </span>
               <br />
@@ -481,7 +481,7 @@ function ManagerSection() {
               <span style={captionChip}>
                 <EnforcementChip tid="G12" tone="enforced" />
               </span>
-              <span style={{ color: "rgba(25,23,19,.45)" }}>
+              <span style={{ color: "rgba(242,239,231,.45)" }}>
                 the manager · real capture · alpha · destruction receipt
               </span>
               <br />
@@ -524,7 +524,7 @@ function LifecycleSection() {
               style={{
                 font: "400 10.5px var(--font-mono)",
                 letterSpacing: "0.14em",
-                color: "rgba(25,23,19,.45)",
+                color: "rgba(242,239,231,.45)",
               }}
             >
               THE LIFECYCLE, AS A DIAGRAM · IDENTITY 008
@@ -533,7 +533,7 @@ function LifecycleSection() {
               style={{
                 font: "400 20px/1.5 var(--font-display)",
                 fontStyle: "italic",
-                color: "rgba(25,23,19,.72)",
+                color: "rgba(242,239,231,.72)",
                 margin: "14px 0 0",
               }}
             >
@@ -543,7 +543,7 @@ function LifecycleSection() {
             <div
               style={{
                 font: "400 11px var(--font-mono)",
-                color: "rgba(25,23,19,.45)",
+                color: "rgba(242,239,231,.45)",
                 marginTop: 12,
               }}
             >
@@ -558,7 +558,7 @@ function LifecycleSection() {
             <div
               style={{
                 background: "var(--surface)",
-                border: "1px solid rgba(25,23,19,.12)",
+                border: "1px solid rgba(242,239,231,.12)",
                 borderRadius: "var(--r-card)",
                 padding: "18px 22px",
                 display: "flex",
@@ -568,7 +568,7 @@ function LifecycleSection() {
                 flexWrap: "wrap",
               }}
             >
-              <span style={{ font: "400 13px var(--font-mono)", color: "rgba(25,23,19,.75)" }}>
+              <span style={{ font: "400 13px var(--font-mono)", color: "rgba(242,239,231,.75)" }}>
                 003 · client operations
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -589,25 +589,25 @@ function LifecycleSection() {
                 >
                   PERSISTENT
                 </span>
-                <span style={{ font: "400 12px var(--font-mono)", color: "rgba(25,23,19,.45)" }}>
+                <span style={{ font: "400 12px var(--font-mono)", color: "rgba(242,239,231,.45)" }}>
                   · unaffected
                 </span>
               </span>
             </div>
-            <p style={{ font: "400 14px/1.75 var(--font-body)", color: "rgba(25,23,19,.65)", margin: 0 }}>
+            <p style={{ font: "400 14px/1.75 var(--font-body)", color: "rgba(242,239,231,.65)", margin: 0 }}>
               identities are compartments. while 008 lives and ends, your other identities do not
               react: no shared cookies, no shared history, no shared files. destruction is scoped
               to the one identity that ends.
             </p>
             <div
               style={{
-                borderTop: "1px solid rgba(25,23,19,.12)",
+                borderTop: "1px solid rgba(242,239,231,.12)",
                 paddingTop: 16,
                 display: "flex",
                 flexDirection: "column",
                 gap: 9,
                 font: "400 12px var(--font-mono)",
-                color: "rgba(25,23,19,.6)",
+                color: "rgba(242,239,231,.6)",
               }}
             >
               {(
@@ -662,7 +662,7 @@ function GuaranteesSection() {
               key={g.name}
               style={{
                 background: "var(--surface)",
-                border: "1px solid rgba(25,23,19,.12)",
+                border: "1px solid rgba(242,239,231,.12)",
                 borderRadius: "var(--r-card)",
                 padding: "18px 20px",
               }}
@@ -674,7 +674,7 @@ function GuaranteesSection() {
               <div
                 style={{
                   font: "400 12.5px/1.6 var(--font-body)",
-                  color: "rgba(25,23,19,.6)",
+                  color: "rgba(242,239,231,.6)",
                   marginTop: 5,
                 }}
               >
@@ -702,13 +702,13 @@ function ProofBand() {
           flexWrap: "wrap",
           alignItems: "center",
           font: "400 12px var(--font-mono)",
-          color: "rgba(25,23,19,.55)",
+          color: "rgba(242,239,231,.55)",
           letterSpacing: "0.05em",
         }}
       >
         {PROOF_BAND.map((item, i) => (
           <span key={item} style={{ display: "contents" }}>
-            {i > 0 && <span style={{ color: "rgba(25,23,19,.3)" }}>·</span>}
+            {i > 0 && <span style={{ color: "rgba(242,239,231,.3)" }}>·</span>}
             <span>{item}</span>
           </span>
         ))}
@@ -794,7 +794,7 @@ function BlueprintsSection() {
             gap: 8,
             marginTop: 36,
             font: "400 13.5px var(--font-mono)",
-            color: "rgba(25,23,19,.75)",
+            color: "rgba(242,239,231,.75)",
           }}
         >
           {BLUEPRINT_DISPLAY.map((b) => (
@@ -809,7 +809,7 @@ function BlueprintsSection() {
         <p
           style={{
             font: "400 14px/1.75 var(--font-body)",
-            color: "rgba(25,23,19,.68)",
+            color: "rgba(242,239,231,.68)",
             margin: "28px 0 0",
             maxWidth: "56ch",
           }}
@@ -820,7 +820,7 @@ function BlueprintsSection() {
         <div
           style={{
             font: "400 12.5px var(--font-mono)",
-            color: "rgba(25,23,19,.55)",
+            color: "rgba(242,239,231,.55)",
             marginTop: 10,
             letterSpacing: "0.02em",
           }}
@@ -835,7 +835,7 @@ function BlueprintsSection() {
             <BlueprintCard key={b.name} b={b} />
           ))}
         </div>
-        <div style={{ font: "400 11px var(--font-mono)", color: "rgba(25,23,19,.45)", marginTop: 14 }}>
+        <div style={{ font: "400 11px var(--font-mono)", color: "rgba(242,239,231,.45)", marginTop: 14 }}>
           these three blueprints ship with the alpha. blueprint sharing is roadmap.
         </div>
       </div>
@@ -861,7 +861,7 @@ function ForAgentsSection() {
               style={{
                 font: "400 12px var(--font-mono)",
                 letterSpacing: "0.18em",
-                color: "rgba(25,23,19,.5)",
+                color: "rgba(242,239,231,.5)",
               }}
             >
               THE INTERNET ALREADY HAS AGENTS
@@ -879,7 +879,7 @@ function ForAgentsSection() {
             <p
               style={{
                 font: "400 14.5px/1.75 var(--font-body)",
-                color: "rgba(25,23,19,.68)",
+                color: "rgba(242,239,231,.68)",
                 margin: "22px 0 0",
                 maxWidth: "44ch",
               }}
@@ -893,7 +893,7 @@ function ForAgentsSection() {
             <p
               style={{
                 font: "400 12.5px/1.7 var(--font-mono)",
-                color: "rgba(25,23,19,.5)",
+                color: "rgba(242,239,231,.5)",
                 margin: "20px 0 0",
               }}
             >
@@ -907,7 +907,7 @@ function ForAgentsSection() {
                 background: "var(--dark)",
                 borderRadius: "var(--r-card)",
                 padding: "20px 24px",
-                boxShadow: "0 24px 56px rgba(25,23,19,.2)",
+                boxShadow: "0 24px 56px rgba(0,0,0,0.52)",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -956,7 +956,7 @@ await identity.destroy();
                 <EnforcementChip tid="G11" tone="enforced" dark />
               </div>
             </div>
-            <div style={{ font: "400 11px var(--font-mono)", color: "rgba(25,23,19,.45)", marginTop: 11 }}>
+            <div style={{ font: "400 11px var(--font-mono)", color: "rgba(242,239,231,.45)", marginTop: 11 }}>
               designed preview · api shape is illustrative and labeled coming · enforcement is
               introspectable, never assumed
             </div>
@@ -976,7 +976,7 @@ function WhoSection() {
     >
       <div style={{ maxWidth: 1296, margin: "0 auto", padding: "84px 40px" }}>
         <div
-          style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(25,23,19,.5)" }}
+          style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(242,239,231,.5)" }}
         >
           WHO IT'S FOR
         </div>
@@ -987,13 +987,13 @@ function WhoSection() {
           <div
             style={{
               background: "var(--surface)",
-              border: "1px solid rgba(25,23,19,.12)",
+              border: "1px solid rgba(242,239,231,.12)",
               borderRadius: "var(--r-card)",
               padding: "24px 24px 22px",
             }}
           >
             <div style={{ font: "400 24px var(--font-display)" }}>consultants</div>
-            <p style={{ font: "400 13px/1.7 var(--font-body)", color: "rgba(25,23,19,.65)", margin: "10px 0 0" }}>
+            <p style={{ font: "400 13px/1.7 var(--font-body)", color: "rgba(242,239,231,.65)", margin: "10px 0 0" }}>
               one persistent identity per client. notes, links and context stay inside the
               engagement and never bleed into other clients.
             </p>
@@ -1001,13 +1001,13 @@ function WhoSection() {
           <div
             style={{
               background: "var(--surface)",
-              border: "1px solid rgba(25,23,19,.12)",
+              border: "1px solid rgba(242,239,231,.12)",
               borderRadius: "var(--r-card)",
               padding: "24px 24px 22px",
             }}
           >
             <div style={{ font: "400 24px var(--font-display)" }}>crypto operators</div>
-            <p style={{ font: "400 13px/1.7 var(--font-body)", color: "rgba(25,23,19,.65)", margin: "10px 0 0" }}>
+            <p style={{ font: "400 13px/1.7 var(--font-body)", color: "rgba(242,239,231,.65)", margin: "10px 0 0" }}>
               one identity per investigation. sessions, files and history end when the work
               closes.
             </p>
@@ -1015,18 +1015,18 @@ function WhoSection() {
           <div
             style={{
               background: "var(--surface)",
-              border: "1px solid rgba(25,23,19,.12)",
+              border: "1px solid rgba(242,239,231,.12)",
               borderRadius: "var(--r-card)",
               padding: "24px 24px 22px",
             }}
           >
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
               <span style={{ font: "400 24px var(--font-display)" }}>researchers & agents</span>
-              <Tag kind="dashed" style={{ font: "500 9px var(--font-mono)", padding: "2.5px 7px", color: "rgba(25,23,19,.6)" }}>
+              <Tag kind="dashed" style={{ font: "500 9px var(--font-mono)", padding: "2.5px 7px", color: "rgba(242,239,231,.6)" }}>
                 AGENTS · COMING
               </Tag>
             </div>
-            <p style={{ font: "400 13px/1.7 var(--font-body)", color: "rgba(25,23,19,.65)", margin: "10px 0 0" }}>
+            <p style={{ font: "400 13px/1.7 var(--font-body)", color: "rgba(242,239,231,.65)", margin: "10px 0 0" }}>
               short-lived identities for fieldwork today. assigning them to agents ships later,
               and is labeled coming until it does.
             </p>

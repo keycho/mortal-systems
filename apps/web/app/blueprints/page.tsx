@@ -23,7 +23,7 @@ export default function Blueprints() {
         <Nav />
         <div style={{ maxWidth: 880, margin: "84px 0 0" }}>
           <div
-            style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(25,23,19,.5)" }}
+            style={{ font: "400 12px var(--font-mono)", letterSpacing: "0.18em", color: "rgba(242,239,231,.5)" }}
           >
             BLUEPRINTS
           </div>
@@ -40,7 +40,7 @@ export default function Blueprints() {
           <p
             style={{
               font: "400 13.5px/1.75 var(--font-mono)",
-              color: "rgba(25,23,19,.6)",
+              color: "rgba(242,239,231,.6)",
               margin: "22px 0 0",
             }}
           >
@@ -58,7 +58,7 @@ export default function Blueprints() {
             <BlueprintCard key={b.name} b={b} />
           ))}
         </div>
-        <div style={{ font: "400 11px var(--font-mono)", color: "rgba(25,23,19,.45)", marginTop: 14 }}>
+        <div style={{ font: "400 11px var(--font-mono)", color: "rgba(242,239,231,.45)", marginTop: 14 }}>
           these three blueprints ship with the alpha. blueprint sharing is roadmap.
         </div>
         <SiteFooter />

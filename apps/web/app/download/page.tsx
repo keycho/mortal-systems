@@ -19,11 +19,11 @@ export default function Download() {
           style={{
             marginTop: 22,
             background: "var(--surface)",
-            border: "1px solid rgba(25,23,19,.12)",
+            border: "1px solid rgba(242,239,231,.12)",
             borderRadius: "var(--r-card)",
             padding: "16px 22px",
             font: "400 13px/1.75 var(--font-body)",
-            color: "rgba(25,23,19,.7)",
+            color: "rgba(242,239,231,.7)",
           }}
         >
           prefer source? the alpha also runs from a clone: {" "}

@@ -17,7 +17,7 @@ const mark = contourMark(MARK_SEED, MARK_FORM);
 
 export default function OgCard() {
   return (
-    <div style={{ background: "#e5e2da", minHeight: "100vh" }}>
+    <div style={{ background: "#0b0906", minHeight: "100vh" }}>
       <div
         id="og-card"
         style={{
@@ -47,7 +47,7 @@ export default function OgCard() {
             right: 64,
             bottom: 96,
             height: 1,
-            background: "rgba(25,23,19,.16)",
+            background: "rgba(242,239,231,.16)",
           }}
         />
         <div style={{ position: "absolute", left: 64, top: 56 }}>
@@ -55,7 +55,7 @@ export default function OgCard() {
         </div>
         <div style={{ position: "absolute", left: 64, top: 150, maxWidth: 660 }}>
           <div
-            style={{ font: "400 11px var(--font-mono)", letterSpacing: "0.2em", color: "rgba(25,23,19,.52)" }}
+            style={{ font: "400 11px var(--font-mono)", letterSpacing: "0.2em", color: "rgba(242,239,231,.52)" }}
           >
             PROGRAMMABLE IDENTITY RUNTIME
           </div>
@@ -75,7 +75,7 @@ export default function OgCard() {
             style={{
               font: "400 17px/1.55 var(--font-display)",
               fontStyle: "italic",
-              color: "rgba(25,23,19,.64)",
+              color: "rgba(242,239,231,.64)",
               marginTop: 24,
             }}
           >
@@ -88,7 +88,7 @@ export default function OgCard() {
             left: 64,
             bottom: 56,
             font: "400 12px var(--font-mono)",
-            color: "rgba(25,23,19,.5)",
+            color: "rgba(242,239,231,.5)",
             letterSpacing: "0.05em",
           }}
         >
@@ -101,7 +101,7 @@ export default function OgCard() {
             right: 64,
             bottom: 56,
             font: "400 12px var(--font-mono)",
-            color: "rgba(25,23,19,.45)",
+            color: "rgba(242,239,231,.45)",
           }}
         >
           mortal.systems

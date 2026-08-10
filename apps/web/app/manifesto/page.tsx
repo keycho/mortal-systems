@@ -21,7 +21,7 @@ const em = (s: string) => <em style={{ fontStyle: "italic" }}>{s}</em>;
 
 const essay = {
   font: "400 17px/1.85 var(--font-body)",
-  color: "rgba(25,23,19,.78)",
+  color: "rgba(242,239,231,.78)",
   margin: "26px 0 0",
   maxWidth: "58ch",
   textWrap: "pretty",
@@ -40,7 +40,7 @@ function Movement({
   dark?: boolean;
   style?: React.CSSProperties;
 }) {
-  const dim = dark ? "rgba(242,239,231,.4)" : "rgba(25,23,19,.45)";
+  const dim = dark ? "rgba(242,239,231,.4)" : "rgba(242,239,231,.45)";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14, ...style }}>
       <span style={{ font: "500 11px var(--font-mono)", color: dim }}>{n}</span>
@@ -49,7 +49,7 @@ function Movement({
           display: "inline-block",
           width: 64,
           height: 2,
-          background: dark ? "rgba(242,239,231,.16)" : "rgba(25,23,19,.14)",
+          background: dark ? "rgba(242,239,231,.16)" : "rgba(242,239,231,.14)",
           position: "relative",
         }}
       >
@@ -78,13 +78,13 @@ export default function Manifesto() {
       <div style={{ position: "relative", maxWidth: 840, margin: "0 auto", padding: "36px 40px 0" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
           <Wordmark variant="nav" />
-          <Link href="/" style={{ font: "400 12px var(--font-mono)", color: "rgba(25,23,19,.5)" }}>
+          <Link href="/" style={{ font: "400 12px var(--font-mono)", color: "rgba(242,239,231,.5)" }}>
             mortal.systems →
           </Link>
         </div>
         <div className="mf-open" style={{ padding: "190px 0 170px" }}>
           <div
-            style={{ font: "400 11px var(--font-mono)", letterSpacing: "0.2em", color: "rgba(25,23,19,.5)" }}
+            style={{ font: "400 11px var(--font-mono)", letterSpacing: "0.2em", color: "rgba(242,239,231,.5)" }}
           >
             THE MORTAL MANIFESTO
           </div>
@@ -189,7 +189,7 @@ export default function Manifesto() {
         <div
           className="mf-frame"
           style={{
-            border: "1px solid rgba(25,23,19,.22)",
+            border: "1px solid rgba(242,239,231,.22)",
             borderRadius: 4,
             marginTop: 130,
             padding: "76px 56px",
@@ -223,7 +223,7 @@ export default function Manifesto() {
             <span
               style={{
                 font: "400 11px var(--font-mono)",
-                color: "rgba(25,23,19,.45)",
+                color: "rgba(242,239,231,.45)",
                 letterSpacing: "0.05em",
               }}
             >
@@ -238,7 +238,7 @@ export default function Manifesto() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            borderTop: "1px solid rgba(25,23,19,.12)",
+            borderTop: "1px solid rgba(242,239,231,.12)",
             marginTop: 110,
             padding: "26px 0 40px",
           }}

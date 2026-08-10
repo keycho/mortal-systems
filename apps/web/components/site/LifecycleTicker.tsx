@@ -101,7 +101,7 @@ export function LifecycleTicker() {
         style={{
           height: 236,
           marginTop: 22,
-          borderLeft: "2px solid rgba(25,23,19,.15)",
+          borderLeft: "2px solid rgba(242,239,231,.15)",
           paddingLeft: 26,
           overflow: "hidden",
         }}
@@ -120,8 +120,8 @@ export function LifecycleTicker() {
                   font: "400 14px var(--font-mono)",
                 }}
               >
-                <span style={{ color: "rgba(25,23,19,.35)" }}>{st.n}</span>
-                <span style={{ color: "rgba(25,23,19,.8)" }}>{st.s}</span>
+                <span style={{ color: "rgba(242,239,231,.35)" }}>{st.n}</span>
+                <span style={{ color: "rgba(242,239,231,.8)" }}>{st.s}</span>
                 {st.coming && (
                   <Tag kind="dashed" style={{ font: "500 9px var(--font-mono)", padding: "2px 7px" }}>
                     COMING
@@ -136,7 +136,7 @@ export function LifecycleTicker() {
             {f.done.map((dl) => (
               <div
                 key={dl}
-                style={{ padding: "6px 0", font: "400 14px var(--font-mono)", color: "rgba(25,23,19,.8)" }}
+                style={{ padding: "6px 0", font: "400 14px var(--font-mono)", color: "rgba(242,239,231,.8)" }}
               >
                 {dl}
               </div>
@@ -148,7 +148,7 @@ export function LifecycleTicker() {
             <span style={{ font: "400 16px var(--font-mono)", color: "var(--ink)" }}>
               identity 008 destroyed
             </span>
-            <span style={{ font: "400 13px var(--font-mono)", color: "rgba(25,23,19,.5)" }}>
+            <span style={{ font: "400 13px var(--font-mono)", color: "rgba(242,239,231,.5)" }}>
               managed state removed · receipt retained
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -172,7 +172,7 @@ export function LifecycleTicker() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          borderTop: "1px solid rgba(25,23,19,.15)",
+          borderTop: "1px solid rgba(242,239,231,.15)",
           paddingTop: 14,
           marginTop: 10,
         }}

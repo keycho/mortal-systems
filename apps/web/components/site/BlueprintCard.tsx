@@ -17,7 +17,7 @@ export function BlueprintCard({ b }: { b: BlueprintCardData }) {
         padding: "22px 22px 20px",
         display: "flex",
         flexDirection: "column",
-        boxShadow: "0 18px 42px rgba(25,23,19,.16)",
+        boxShadow: "0 18px 42px rgba(0,0,0,0.42)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
